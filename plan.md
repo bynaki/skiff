@@ -1,114 +1,118 @@
-# Next plan
+# 다음 계획
 
-## Context
+## 배경
 
-Skiff currently does everything in the original brief except the one feature that was always
-scheduled last: the preview viewer. Browsing, create/rename/delete, user-controlled split view,
-and transfers in every direction are implemented and verified on-device against a real OpenSSH
-server.
+Skiff는 처음 요구사항(`requests.md`)을 거의 다 구현한 상태다. 남은 건 처음부터 "나중에"로
+잡아뒀던 **미리보기 뷰어** 하나다. 탐색, 생성·이름변경·삭제, 사용자가 켜고 방향을 고르는
+2분할, 그리고 모든 방향의 파일 전송은 구현이 끝났고 실기기에서 실제 OpenSSH 서버를 상대로
+검증까지 마쳤다.
 
-This plan covers the viewer, plus four gaps that building the first pass left behind. Three of
-them are places where a promised behaviour was designed but never wired up, and they are worth
-closing before adding surface area on top.
+이 계획은 뷰어와 함께, 1차 구현이 남기고 간 구멍들을 다룬다. 그중 셋은 **설계는 해놓고
+배선을 안 한 자리**라, 그 위에 기능을 더 얹기 전에 닫는 게 맞다.
 
-Read `CLAUDE.md` first — the toolchain constraints there have each broken the build once.
+시작하기 전에 `CLAUDE.md`를 먼저 읽을 것 — 거기 적힌 툴체인 제약들은 하나같이 실제로 빌드를
+한 번씩 깨뜨린 것들이다.
 
 ---
 
-## 1. Preview viewer (the stated next feature)
+## 1. 미리보기 뷰어 (예정돼 있던 다음 기능)
 
-The seams are already in place: `fs/FileKind` classifies by extension, and `PaneScreen`'s
-`onOpen` hook currently hands files to an external app. Replacing that hook is the whole
-integration point.
+붙일 자리는 이미 만들어져 있다. `fs/FileKind`가 확장자로 파일 종류를 분류하고,
+`PaneScreen`의 `onOpen` 훅이 현재는 파일을 외부 앱으로 넘긴다. **이 훅을 바꾸는 게 통합
+지점 전부다.**
 
-**Route.** Add `ViewerScreen(FileRef(sourceId, path))` to `ui/viewer/`. `WorkspaceViewModel`
-resolves the `FileRef` through `SourceRegistry`, so the viewer reads through `FileSystem` and
-never learns whether the file is local or remote — same as every other consumer.
+**화면 연결.** `ui/viewer/`에 `ViewerScreen(FileRef(sourceId, path))`을 추가한다.
+`WorkspaceViewModel`이 `SourceRegistry`를 통해 `FileRef`를 풀어주므로, 뷰어는 `FileSystem`
+너머로 읽을 뿐 그 파일이 로컬인지 원격인지 끝까지 모른다 — 다른 모든 소비자와 똑같이.
 
-**Getting the bytes.** Local files read directly. Remote files stream into
-`context.cacheDir` first, because rendering wants random access and re-reading over SFTP per
-scroll would be unusable. Cache by `sourceId + path + mtime + size` so an edited remote file is
-re-fetched rather than served stale.
+**바이트를 가져오는 방법.** 로컬 파일은 바로 읽는다. 원격 파일은 먼저 `context.cacheDir`로
+내려받는다. 렌더링은 임의 접근(random access)을 원하는데, 스크롤할 때마다 SFTP로 다시 읽으면
+쓸 수 없는 수준이 되기 때문이다. 캐시 키는 `sourceId + path + mtime + size`로 잡는다.
+그래야 서버에서 수정된 파일이 낡은 캐시로 뜨지 않고 다시 받아진다.
 
-**Guard rails before reading.** `stat` first and refuse over ~2 MB for text (offer "open
-externally" instead) — a syntax highlighter on a 200 MB log will hang the app. Detect binary by
-scanning the first 8 KB for NUL bytes rather than trusting the extension, since `FileKind` is
-extension-only and a mislabelled file must not render as mojibake.
+**읽기 전에 걸어둘 안전장치.**
+- 먼저 `stat`을 하고, 텍스트는 **2MB 정도를 넘으면 거부**하고 "외부 앱으로 열기"를 제안한다.
+  200MB짜리 로그에 하이라이터를 물리면 앱이 멈춘다.
+- **바이너리 판별은 확장자를 믿지 말고** 앞 8KB에 NUL 바이트가 있는지로 한다. `FileKind`는
+  확장자만 보기 때문에, 잘못 이름 붙은 파일이 깨진 글자로 렌더링되면 안 된다.
 
-**Encoding.** Decode UTF-8 with a replacement policy, and fall back to EUC-KR when that
-produces replacement characters — Korean text files predate UTF-8 often enough to matter here.
+**인코딩.** UTF-8로 디코딩하되 대체 문자(replacement character)가 나오면 **EUC-KR로
+폴백**한다. 한글 텍스트 파일은 UTF-8 이전 것이 실제로 자주 있어서 이건 현실적인 문제다.
 
-**Rendering.** Verified current versions:
+**렌더링 라이브러리** (버전은 실제로 확인한 최신 안정판):
 
-| Need | Library |
+| 용도 | 라이브러리 |
 |---|---|
-| Markdown | `com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0` |
-| Code highlighting | `dev.snipme:highlights:1.1.0` |
-| Images | `io.coil-kt.coil3:coil-compose:3.6.2` |
+| 마크다운 | `com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0` |
+| 코드 하이라이트 | `dev.snipme:highlights:1.1.0` |
+| 이미지 | `io.coil-kt.coil3:coil-compose:3.6.2` |
 
-Branch on `FileKind`: `MARKDOWN` renders, `CODE`/`TEXT` highlight (plain monospace when the
-language is unknown — never fail to show the file because highlighting could not classify it),
-`IMAGE` uses Coil, everything else keeps the current external-app behaviour.
+`FileKind`로 분기한다. `MARKDOWN`은 렌더링, `CODE`/`TEXT`는 하이라이트(**언어를 못 알아보면
+그냥 고정폭으로 보여준다 — 하이라이트가 분류에 실패했다고 파일 자체를 못 보여주는 일은 없어야
+한다**), `IMAGE`는 Coil, 나머지는 지금처럼 외부 앱으로 넘긴다.
 
-**Viewer chrome.** Read-only in this pass. Word-wrap toggle, monospace, line numbers for code,
-and a "render / source" switch for markdown. Editing is out of scope — it needs write-back,
-conflict handling, and an unsaved-changes story, and should be its own plan.
+**뷰어 UI.** 이번엔 **읽기 전용**이다. 자동 줄바꿈 토글, 고정폭 글꼴, 코드에 줄 번호,
+마크다운은 "렌더링 / 원본" 전환. **편집은 범위 밖이다** — 서버로 다시 쓰기, 충돌 처리,
+저장 안 한 변경 처리가 줄줄이 따라붙으므로 별도 계획이어야 한다.
 
-Files: new `ui/viewer/`, plus the `onOpen` change in `ui/workspace/WorkspaceScreen.kt`.
-
----
-
-## 2. Conflict policy is designed but not reachable
-
-`ConflictPolicy` has four values. `TransferQueue.runJob` hardcodes `KEEP_BOTH` at both call
-sites (`transfer/TransferQueue.kt:91,101`), so `ASK` and `OVERWRITE` are dead in production.
-Every transfer onto an existing name silently produces `file (1).txt`, which is the safe default
-but not what a file manager should only ever do.
-
-`CopyEngine` already honours all three non-interactive policies and is tested for them, so this
-is UI and plumbing only:
-
-- A conflict dialog offering overwrite / skip / keep both, with an "apply to the rest" checkbox.
-- `ASK` needs the engine to suspend mid-execution for an answer. Follow the `HostKeyPrompter`
-  pattern — a process-scoped prompter with a `CompletableDeferred`, because a transfer can hit
-  a conflict while no screen is on top.
-- Carry the chosen policy on `TransferJob` so a resumed or queued job keeps its answer.
+건드릴 파일: `ui/viewer/` 신규 + `ui/workspace/WorkspaceScreen.kt`의 `onOpen` 변경.
 
 ---
 
-## 3. Dead interface surface: decide, then act
+## 2. 충돌 정책이 설계돼 있는데 도달할 수가 없다
 
-Two things exist but nothing uses them. Each should be either wired up or deleted — leaving them
-is worse than either.
+`ConflictPolicy`에는 값이 네 개 있다. 그런데 `TransferQueue.runJob`이 두 군데
+(`transfer/TransferQueue.kt:91,101`)에서 `KEEP_BOTH`를 하드코딩하고 있어서, `ASK`와
+`OVERWRITE`는 **프로덕션에서 죽은 값**이다.
 
-- **`FileSystem.freeSpace`** has zero callers. Intended use was a pre-flight check so a large
-  transfer fails immediately instead of at 90%. Note `SftpFileSystem.freeSpace` returns null by
-  design (the SFTP base protocol has no such call), so the check can only ever run for local
-  destinations — which is still the common download case. Wire it into `CopyEngine.plan`, and
-  raise `FsError.NoSpace` before any bytes move.
-- **`androidx.window`** is declared in `libs.versions.toml` and imported nowhere. It was meant
-  for snapping the split divider to the fold hinge on this device. Either implement that with
-  `WindowInfoTracker`/`FoldingFeature` in `ui/workspace/SplitContainer.kt`, or drop the
-  dependency. The device is a Z Fold 7, so this is real value, not decoration — but an unused
-  dependency should not sit in the catalog either way.
+지금은 같은 이름의 파일이 있으면 무조건 조용히 `file (1).txt`가 만들어진다. 안전한 기본값이긴
+하지만, 파일 매니저가 **오직 그것만** 할 수 있어서는 안 된다.
 
----
+`CopyEngine`은 대화형이 아닌 세 정책을 이미 구현했고 테스트도 있다. 그래서 남은 건 UI와
+배선뿐이다:
 
-## 4. Smaller items
-
-- **`.kotlin/` is not gitignored.** It is a build artifact; add it.
-- **Remote symlink icons are wrong.** `SftpFileSystem` sets `linkTargetIsDirectory = false` for
-  every entry because resolving each link would cost a round trip per row. Tapping resolves
-  correctly (fixed earlier), but a symlinked directory still shows a file icon. Options: resolve
-  lazily as rows scroll into view, or mark symlinks distinctly and stop implying a type.
-- **No permission editing.** `setPermissions` was in the original design and dropped. `FileNode`
-  already carries `mode` and the properties dialog displays it; making it editable is a small
-  addition to the interface plus `SFTPClient.chmod` / `Files.setPosixFilePermissions`.
-- **Properties on remote shows no owner or group.** SFTP reports uid/gid; the dialog does not.
+- 덮어쓰기 / 건너뛰기 / 둘 다 유지를 고르는 충돌 다이얼로그. "나머지에도 적용" 체크박스 포함.
+- `ASK`는 엔진이 실행 도중에 멈춰서 답을 기다려야 한다. **`HostKeyPrompter`와 같은 패턴**으로
+  간다 — `CompletableDeferred`를 쓰는 프로세스 범위 프롬프터. 전송이 충돌을 만났을 때 화면이
+  떠 있지 않을 수 있기 때문이다.
+- 고른 정책을 `TransferJob`에 실어둔다. 그래야 대기 중이거나 재개된 작업이 답을 기억한다.
 
 ---
 
-## Verification
+## 3. 쓰이지 않는 표면: 연결하든 지우든 결정할 것
+
+존재하는데 아무도 안 쓰는 게 둘 있다. **각각 배선하거나 삭제해야 한다 — 지금처럼 두는 게 둘
+중 어느 쪽보다도 나쁘다.**
+
+- **`FileSystem.freeSpace`** — 호출자가 0개다. 원래 의도는 사전 점검이었다. 큰 전송이 90%에서
+  실패하는 대신 시작하자마자 실패하도록. 참고로 `SftpFileSystem.freeSpace`는 의도적으로
+  null을 반환한다(SFTP 기본 프로토콜에 해당 호출이 없다). 따라서 이 점검은 **로컬이 목적지일
+  때만** 동작하는데, 그게 곧 흔한 다운로드 경우이므로 여전히 값어치가 있다.
+  `CopyEngine.plan`에 넣고, 바이트가 움직이기 전에 `FsError.NoSpace`를 던지게 한다.
+- **`androidx.window`** — `libs.versions.toml`에 선언돼 있는데 import한 곳이 한 군데도 없다.
+  원래는 분할선을 폴드 힌지에 스냅시키려던 것이었다. `ui/workspace/SplitContainer.kt`에서
+  `WindowInfoTracker`/`FoldingFeature`로 구현하거나, 아니면 의존성을 뺀다. 기기가 Z Fold 7이니
+  이건 장식이 아니라 실제 가치가 있다 — 다만 어느 쪽이든 **안 쓰는 의존성이 카탈로그에 남아
+  있어선 안 된다**.
+
+---
+
+## 4. 자잘한 것들
+
+- **`.kotlin/`이 gitignore에 없다.** 빌드 산출물이니 추가할 것.
+- **원격 심링크 아이콘이 틀렸다.** `SftpFileSystem`은 모든 항목에
+  `linkTargetIsDirectory = false`를 넣는다. 링크마다 해석하면 행당 왕복이 한 번씩 더 들기
+  때문이다. 탭했을 때 제대로 들어가는 건 앞서 고쳤지만, 심링크된 디렉토리가 여전히 파일
+  아이콘으로 보인다. 선택지: 행이 화면에 들어올 때 지연 해석하거나, 심링크를 별도로 표시하고
+  타입을 암시하는 걸 그만두거나.
+- **권한 편집이 없다.** `setPermissions`는 원래 설계에 있었는데 빠졌다. `FileNode`는 이미
+  `mode`를 갖고 있고 속성 다이얼로그가 표시도 한다. 편집 가능하게 만드는 건 인터페이스에
+  메서드 하나 추가 + `SFTPClient.chmod` / `Files.setPosixFilePermissions` 정도다.
+- **원격 속성에 소유자·그룹이 없다.** SFTP는 uid/gid를 알려주는데 다이얼로그가 안 보여준다.
+
+---
+
+## 검증 방법
 
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
@@ -116,19 +120,19 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 ./gradlew :app:installDebug
 ```
 
-- **Viewer**: unit-test the parts that are decisions, not rendering — size limit, binary
-  detection, encoding fallback, cache key invalidation on changed mtime. Extend
-  `SftpFileSystemTest` (real MINA SSH server) with a remote file opened through the viewer's
-  fetch path, including one with Hangul content, to prove the cache round trip.
-- **Conflict policy**: `CopyEngine` already has fake-filesystem coverage for overwrite / skip /
-  keep-both; add cases for a mid-transfer `ASK` answer applying to the remainder.
-- **On-device**: transfer a file whose name already exists on the far side and confirm each of
-  the three choices behaves; open a markdown file, a source file, and a large log from both
-  panes. Watch `adb logcat -s Skiff:V` — anything the UI swallows into a message is logged
-  there, and silence is the signal.
+- **뷰어**: 렌더링 자체가 아니라 **판단이 들어가는 부분**을 단위 테스트한다 — 크기 상한,
+  바이너리 판별, 인코딩 폴백, mtime이 바뀌었을 때 캐시 무효화. 그리고
+  `SftpFileSystemTest`(진짜 MINA SSH 서버로 돈다)에 뷰어의 가져오기 경로로 원격 파일을 여는
+  케이스를 추가한다. **한글 내용이 든 파일을 하나 포함**해서 캐시 왕복을 확인할 것.
+- **충돌 정책**: `CopyEngine`은 덮어쓰기 / 건너뛰기 / 둘 다 유지에 대해 이미 가짜 파일시스템
+  기반 테스트가 있다. 여기에 전송 도중 `ASK`에 답한 결과가 나머지에도 적용되는 케이스를 더한다.
+- **실기기**: 반대편에 이미 같은 이름이 있는 파일을 전송해서 세 선택지가 각각 제대로
+  동작하는지 확인한다. 마크다운 파일, 소스 파일, 큰 로그를 양쪽 패널에서 열어본다.
+  `adb logcat -s Skiff:V`를 켜둘 것 — **UI가 메시지 한 줄로 삼킨 실패는 전부 여기 찍히므로,
+  조용하다는 게 곧 신호다.**
 
-## Explicitly not in this plan
+## 이번 계획에서 명시적으로 빼는 것
 
-Key-based and keyboard-interactive auth (`AuthMethod` extension points exist and throw today),
-in-viewer editing, transfer resume after failure, search, drag-and-drop between panes, and
-archive extraction. Each is its own plan.
+키 기반 인증과 keyboard-interactive 인증(`AuthMethod`에 확장 지점은 있고 지금은 예외를
+던진다), 뷰어 안에서의 편집, 실패한 전송의 재개, 검색, 패널 간 드래그 앤 드롭, 압축 해제.
+각각이 별도 계획이 필요한 크기다.
