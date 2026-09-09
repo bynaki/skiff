@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Skiff</string>
+
+    <string name="source_local">This device</string>
+    <string name="source_add_server">Add server…</string>
+
+    <string name="action_up">Up</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_more">More</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_create">Create</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_clear_selection">Clear selection</string>
+    <string name="action_new_folder">New folder</string>
+    <string name="action_new_file">New file</string>
+    <string name="action_open_with">Open with…</string>
+    <string name="action_properties">Properties</string>
+    <string name="action_close">Close</string>
+    <string name="action_grant">Open settings</string>
+    <string name="action_retry">Retry</string>
+
+    <string name="menu_show_hidden">Show hidden files</string>
+    <string name="menu_sort_by">Sort by</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_size">Size</string>
+    <string name="sort_modified">Date modified</string>
+    <string name="sort_ascending">Ascending</string>
+
+    <string name="empty_folder">This folder is empty</string>
+    <string name="items_selected">%1$d selected</string>
+    <string name="item_count">%1$d items</string>
+
+    <string name="permission_title">Skiff needs access to your files</string>
+    <string name="permission_body">To browse, move and transfer files on this device, Skiff needs the “All files access” permission. Android only lets you grant it from Settings.</string>
+
+    <string name="dialog_new_folder_title">New folder</string>
+    <string name="dialog_new_file_title">New file</string>
+    <string name="dialog_rename_title">Rename</string>
+    <string name="dialog_name_label">Name</string>
+    <string name="dialog_delete_title">Delete %1$d items?</string>
+    <string name="dialog_delete_one_title">Delete “%1$s”?</string>
+    <string name="dialog_delete_body">This cannot be undone.</string>
+
+    <string name="properties_path">Path</string>
+    <string name="properties_size">Size</string>
+    <string name="properties_modified">Modified</string>
+    <string name="properties_permissions">Permissions</string>
+    <string name="properties_symlink">Symbolic link</string>
+
+    <string name="error_not_found">Not found</string>
+    <string name="error_permission_denied">Permission denied</string>
+    <string name="error_already_exists">A file with that name already exists</string>
+    <string name="error_not_a_directory">Not a folder</string>
+    <string name="error_directory_not_empty">Folder is not empty</string>
+    <string name="error_no_space">Not enough space</string>
+    <string name="error_auth_failed">Authentication failed</string>
+    <string name="error_host_key">Host key rejected</string>
+    <string name="error_network_lost">Connection lost</string>
+    <string name="error_storage_not_granted">File access has not been granted</string>
+    <string name="error_name_empty">Enter a name</string>
+    <string name="error_name_separator">A name cannot contain “/”</string>
+</resources>

@@ -1,0 +1,6 @@
+-keep class org.bouncycastle.** { *; }
+-keep class net.schmizz.** { *; }
+-keep class net.i2p.crypto.** { *; }
+-dontwarn org.slf4j.**
+-dontwarn org.bouncycastle.**
+-dontwarn net.schmizz.**
