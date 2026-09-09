@@ -21,6 +21,13 @@ class FakeFileSystem(
 
     private val directories = linkedSetOf(FsPath.ROOT)
     private val files = LinkedHashMap<String, ByteArray>()
+    /** link path -> target path, so tests can build the symlink cases the engine guards against. */
+    private val links = LinkedHashMap<String, String>()
+
+    fun putSymlink(path: String, target: String) {
+        makeParents(FsPath.parent(path))
+        links[FsPath.normalize(path)] = FsPath.normalize(target)
+    }
 
     fun putFile(path: String, content: ByteArray) {
         makeParents(FsPath.parent(path))
@@ -31,7 +38,16 @@ class FakeFileSystem(
 
     fun fileContent(path: String): ByteArray? = files[FsPath.normalize(path)]
 
-    fun paths(): Set<String> = files.keys + directories
+    fun paths(): Set<String> = files.keys + directories + links.keys
+
+    /** Follows links to their eventual target, giving up on a cycle. */
+    private fun resolve(path: String): String {
+        var current = FsPath.normalize(path)
+        repeat(MAX_LINK_HOPS) {
+            current = links[current] ?: return current
+        }
+        return current
+    }
 
     private fun makeParents(path: String) {
         var current = FsPath.normalize(path)
@@ -44,26 +60,39 @@ class FakeFileSystem(
     override suspend fun startPath(): String = FsPath.ROOT
 
     override suspend fun list(path: String): List<FileNode> {
-        val normalized = FsPath.normalize(path)
+        // opendir follows symlinks, so listing through a link lands in its target.
+        val normalized = resolve(path)
         if (normalized !in directories) throw FsError.NotFound(normalized)
         val prefix = if (normalized == FsPath.ROOT) FsPath.ROOT else "$normalized/"
-        val children = (files.keys + directories)
+        val children = (files.keys + directories + links.keys)
             .filter { it != normalized && it.startsWith(prefix) }
             .filter { !it.removePrefix(prefix).contains('/') }
         return children.map { node(it) }
     }
 
+    /** stat follows links, matching POSIX stat and sshj's statExistence. */
     override suspend fun stat(path: String): FileNode? {
-        val normalized = FsPath.normalize(path)
-        return if (normalized in files || normalized in directories) node(normalized) else null
+        val resolved = resolve(path)
+        if (resolved !in files && resolved !in directories) return null
+        return FileNode(
+            path = FsPath.normalize(path),
+            name = FsPath.name(path),
+            isDirectory = resolved in directories,
+            size = files[resolved]?.size?.toLong() ?: 0L,
+            modifiedEpochSeconds = 0,
+        )
     }
 
+    override suspend fun canonicalize(path: String): String = resolve(path)
+
+    /** A listing reports the link itself, like readdir does. */
     private fun node(path: String) = FileNode(
         path = path,
         name = FsPath.name(path),
         isDirectory = path in directories,
         size = files[path]?.size?.toLong() ?: 0L,
         modifiedEpochSeconds = 0,
+        isSymlink = path in links,
     )
 
     override suspend fun mkdir(path: String) {
@@ -113,7 +142,7 @@ class FakeFileSystem(
     }
 
     override suspend fun openRead(path: String): Source {
-        val content = files[FsPath.normalize(path)] ?: throw FsError.NotFound(path)
+        val content = files[resolve(path)] ?: throw FsError.NotFound(path)
         return Buffer().write(content)
     }
 
@@ -132,4 +161,8 @@ class FakeFileSystem(
     override suspend fun freeSpace(path: String): Long = Long.MAX_VALUE
 
     override fun close() = Unit
+
+    private companion object {
+        const val MAX_LINK_HOPS = 40
+    }
 }

@@ -62,8 +62,23 @@ class PaneController(
         loadJob = scope.launch { loadInto(fs, target) }
     }
 
-    fun open(node: FileNode) {
-        if (node.navigable) navigateTo(node.path)
+    /**
+     * Opens a directory, or a symlink that turns out to point at one. Remote listings come
+     * from readdir, which reports the link rather than its target, so a symlink has to be
+     * resolved here — otherwise tapping one does nothing at all.
+     */
+    fun open(node: FileNode, onFile: (FileNode) -> Unit) {
+        when {
+            node.navigable -> navigateTo(node.path)
+            node.isSymlink -> {
+                val fs = fileSystem ?: return
+                scope.launch {
+                    val target = runCatching { fs.stat(node.path) }.getOrNull()
+                    if (target?.isDirectory == true) navigateTo(node.path) else onFile(node)
+                }
+            }
+            else -> onFile(node)
+        }
     }
 
     fun goUp() {

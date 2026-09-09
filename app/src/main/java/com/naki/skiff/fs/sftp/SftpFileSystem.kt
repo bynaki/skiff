@@ -116,6 +116,13 @@ class SftpFileSystem(
         }
     }
 
+    override suspend fun canonicalize(path: String): String = translating(path) {
+        browseConnection.withSftp { sftp ->
+            runCatching { FsPath.normalize(sftp.canonicalize(path)) }
+                .getOrDefault(FsPath.normalize(path))
+        }
+    }
+
     // Free space over SFTP needs the statvfs@openssh.com extension, which the base
     // protocol does not define and sshj does not expose. Reporting "unknown" is honest;
     // the transfer engine just skips the pre-flight space check for remote targets.

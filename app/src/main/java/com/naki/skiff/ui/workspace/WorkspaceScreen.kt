@@ -259,7 +259,7 @@ private fun Pane(
         },
         onNavigate = controller::navigateTo,
         onGoUp = controller::goUp,
-        onOpen = { node -> if (node.navigable) controller.open(node) else onOpenExternally(node) },
+        onOpen = { node -> controller.open(node, onFile = onOpenExternally) },
         onToggleSelection = controller::toggleSelection,
         scrollIndexFor = controller::scrollIndexFor,
         onScrollChanged = controller::rememberScroll,

@@ -147,6 +147,64 @@ class CopyEngineTest {
     }
 
     @Test
+    fun `a symlink to a file is copied by content, not dropped`() = runTest {
+        // Regression: symlinks used to be skipped by the walk. Combined with move, which
+        // deletes the source tree afterwards, that silently destroyed them.
+        val from = source().apply {
+            putFile("/a/real.txt", "payload".toByteArray())
+            putSymlink("/a/link.txt", "/a/real.txt")
+        }
+        val to = destination()
+
+        run(from, to, listOf("/a"), "/target")
+
+        assertArrayEquals("payload".toByteArray(), to.fileContent("/target/a/real.txt"))
+        assertArrayEquals("payload".toByteArray(), to.fileContent("/target/a/link.txt"))
+    }
+
+    @Test
+    fun `a symlink to a directory is followed`() = runTest {
+        val from = source().apply {
+            putFile("/other/inside.txt", "x".toByteArray())
+            putDirectory("/a")
+            putSymlink("/a/shortcut", "/other")
+        }
+        val to = destination()
+
+        run(from, to, listOf("/a"), "/target")
+
+        assertArrayEquals("x".toByteArray(), to.fileContent("/target/a/shortcut/inside.txt"))
+    }
+
+    @Test
+    fun `a symlink cycle terminates instead of recursing forever`() = runTest {
+        val from = source().apply {
+            putFile("/a/file.txt", "x".toByteArray())
+            putSymlink("/a/loop", "/a")
+        }
+        val to = destination()
+
+        run(from, to, listOf("/a"), "/target")
+
+        // The visited set stops the descent; the real contents still make it across.
+        assertArrayEquals("x".toByteArray(), to.fileContent("/target/a/file.txt"))
+    }
+
+    @Test
+    fun `plan counts symlinked files in the total`() = runTest {
+        val from = source().apply {
+            putFile("/a/real.bin", ByteArray(500))
+            putSymlink("/a/alias.bin", "/a/real.bin")
+        }
+        val to = destination()
+
+        val plan = engine.plan(from, listOf("/a"), to, "/", ConflictPolicy.KEEP_BOTH)
+
+        assertEquals(2, plan.fileCount)
+        assertEquals(1000L, plan.totalBytes)
+    }
+
+    @Test
     fun `missing source is reported rather than silently skipped`() = runTest {
         val from = source()
         val to = destination()

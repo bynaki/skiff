@@ -46,6 +46,7 @@ class CopyEngine {
         val directories = ArrayList<String>()
         val files = ArrayList<PlannedFile>()
         val takenAtRoot = destination.childNames(destinationDir).toMutableSet()
+        val visited = HashSet<String>()
 
         for (path in sourcePaths) {
             currentCoroutineContext().ensureActive()
@@ -63,8 +64,9 @@ class CopyEngine {
                 if (source.id == destination.id && FsPath.isAncestorOrSame(path, target)) {
                     throw FsError.Unknown("Cannot copy a folder into itself")
                 }
+                visited.add(source.canonicalize(path))
                 directories.add(target)
-                walk(source, path, target, directories, files)
+                walk(source, path, target, directories, files, visited)
             } else {
                 files.add(PlannedFile(path, target, node.size))
             }
@@ -79,16 +81,34 @@ class CopyEngine {
         to: String,
         directories: MutableList<String>,
         files: MutableList<PlannedFile>,
+        visited: MutableSet<String>,
     ) {
         currentCoroutineContext().ensureActive()
         for (child: FileNode in source.list(from)) {
             val childTo = FsPath.join(to, child.name)
-            // Symlinks are copied as whatever they point at; following them into a cycle
-            // is the one way a plain tree walk can hang forever.
-            if (child.isDirectory && !child.isSymlink) {
+
+            if (child.isSymlink) {
+                // Symlinks are dereferenced: we copy what they point at. Skipping them
+                // instead would be silent data loss, because a move deletes the source
+                // tree afterwards. stat() follows the link, so it reports the target.
+                val target = source.stat(child.path) ?: continue
+                val real = source.canonicalize(child.path)
+                if (target.isDirectory) {
+                    // A link pointing back up its own tree would otherwise recurse forever.
+                    if (!visited.add(real)) continue
+                    directories.add(childTo)
+                    walk(source, child.path, childTo, directories, files, visited)
+                } else {
+                    files.add(PlannedFile(child.path, childTo, target.size))
+                }
+                continue
+            }
+
+            if (child.isDirectory) {
+                visited.add(source.canonicalize(child.path))
                 directories.add(childTo)
-                walk(source, child.path, childTo, directories, files)
-            } else if (!child.isSymlink) {
+                walk(source, child.path, childTo, directories, files, visited)
+            } else {
                 files.add(PlannedFile(child.path, childTo, child.size))
             }
         }

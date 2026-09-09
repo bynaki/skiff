@@ -111,6 +111,10 @@ class LocalFileSystem(
         }
     }
 
+    override suspend fun canonicalize(path: String): String = withContext(dispatcher) {
+        runCatching { FsPath.normalize(File(path).canonicalPath) }.getOrDefault(FsPath.normalize(path))
+    }
+
     override suspend fun freeSpace(path: String): Long? = withContext(dispatcher) {
         runCatching { File(path).usableSpace }.getOrNull()
     }
@@ -127,6 +131,7 @@ class LocalFileSystem(
             modifiedEpochSeconds = lastModified() / 1000,
             mode = posixMode(this),
             isSymlink = symlink,
+            // isDirectory on a File follows the link, so this is the target's type.
             linkTargetIsDirectory = symlink && isDirectory,
         )
     }

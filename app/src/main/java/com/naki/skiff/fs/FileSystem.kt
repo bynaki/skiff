@@ -36,6 +36,12 @@ interface FileSystem {
 
     suspend fun openWrite(path: String, append: Boolean = false): Sink
 
+    /**
+     * Resolves [path] through any symlinks to its real location. The transfer engine uses
+     * this to detect a link that points back into the tree it is already walking.
+     */
+    suspend fun canonicalize(path: String): String
+
     /** Bytes free on the volume holding [path], or null when unknown. */
     suspend fun freeSpace(path: String): Long?
 
