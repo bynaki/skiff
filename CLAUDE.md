@@ -2,8 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Skiff is an Android SSH file manager. `requests.md` holds the original brief; the constraint
-that shapes everything is **nothing may be installed on the server**.
+Skiff is an Android SSH file manager. The original brief: ordinary file operations (create,
+move, delete), file transfer between phone and server, and a split screen with one side on each
+so moving things between them is direct. A code/markdown preview viewer comes later. The
+constraint that shapes every decision below is **nothing may be installed on the server**.
 
 ## Commands
 
@@ -167,7 +169,6 @@ implemented.
 
 ---
 
-An OpenAI Codex config exists at `~/.codex/config.toml`. To bring its MCP servers, commands,
-subagents, skills or instructions over, reply `/import` to see what is importable, then
-`/import --yes=<digest>` with the digest that scan prints. (If `/import` is unavailable here,
-run `claude import` from a terminal.) Do not hand-copy the config.
+An OpenAI Codex config exists at `~/.codex/config.toml` and has not been imported. `/import`
+is not available over Remote Control, so this has to be run as `claude import` from a terminal.
+Do not hand-copy the config.
