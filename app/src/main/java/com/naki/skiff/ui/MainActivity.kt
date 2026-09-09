@@ -1,6 +1,9 @@
 package com.naki.skiff.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.webkit.MimeTypeMap
 import androidx.activity.ComponentActivity
@@ -53,10 +56,12 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.RequestPermission(),
         ) { }
         LaunchedEffect(Unit) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                android.content.pm.PackageManager.PERMISSION_GRANTED
+            // The permission only exists from API 33; below that notifications are implicit.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
             ) {
-                launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }

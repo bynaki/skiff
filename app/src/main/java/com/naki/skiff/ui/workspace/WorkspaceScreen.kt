@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -383,7 +384,7 @@ private fun SelectionTopBar(
                 Icon(Icons.Default.Close, stringResource(R.string.action_clear_selection))
             }
         },
-        title = { Text(stringResource(R.string.items_selected, count)) },
+        title = { Text(pluralStringResource(R.plurals.items_selected, count, count)) },
         actions = {
             // Only meaningful when there is another pane to send things to.
             if (canTransfer) {

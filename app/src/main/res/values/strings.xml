@@ -16,22 +16,17 @@
     <string name="action_clear_selection">Clear selection</string>
     <string name="action_new_folder">New folder</string>
     <string name="action_new_file">New file</string>
-    <string name="action_open_with">Open with…</string>
     <string name="action_properties">Properties</string>
     <string name="action_close">Close</string>
     <string name="action_grant">Open settings</string>
-    <string name="action_retry">Retry</string>
 
     <string name="menu_show_hidden">Show hidden files</string>
     <string name="menu_sort_by">Sort by</string>
     <string name="sort_name">Name</string>
     <string name="sort_size">Size</string>
     <string name="sort_modified">Date modified</string>
-    <string name="sort_ascending">Ascending</string>
 
     <string name="empty_folder">This folder is empty</string>
-    <string name="items_selected">%1$d selected</string>
-    <string name="item_count">%1$d items</string>
 
     <string name="permission_title">Skiff needs access to your files</string>
     <string name="permission_body">To browse, move and transfer files on this device, Skiff needs the “All files access” permission. Android only lets you grant it from Settings.</string>
@@ -74,8 +69,6 @@
     <string name="server_start_path_hint">Leave as “.” for the login directory</string>
     <string name="action_save">Save</string>
     <string name="action_delete_server">Delete server</string>
-    <string name="action_test">Test connection</string>
-    <string name="server_test_ok">Connected</string>
     <string name="error_host_empty">Enter a host</string>
     <string name="error_username_empty">Enter a username</string>
     <string name="error_port_invalid">Port must be between 1 and 65535</string>
@@ -92,7 +85,6 @@
     <string name="transfer_copying">Copying %1$s</string>
     <string name="transfer_moving">Moving %1$s</string>
     <string name="transfer_progress_files">File %1$d of %2$d</string>
-    <string name="transfer_queued">%1$d more queued</string>
     <string name="transfer_title">Transfers</string>
     <string name="transfer_empty">No transfers yet</string>
     <string name="transfer_failed">Failed</string>

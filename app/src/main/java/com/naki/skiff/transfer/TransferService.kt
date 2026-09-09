@@ -81,7 +81,13 @@ class TransferService : Service() {
         return baseNotification()
             .setContentTitle(title)
             .setContentText(text)
-            .setSubText(if (queued > 1) getString(R.string.transfer_queued, queued - 1) else null)
+            .setSubText(
+                if (queued > 1) {
+                    resources.getQuantityString(R.plurals.transfer_queued, queued - 1, queued - 1)
+                } else {
+                    null
+                },
+            )
             // A job whose plan is still being walked has no total yet: show indeterminate.
             .setProgress(100, (job.fraction * 100).toInt(), job.totalBytes <= 0)
             .setOngoing(true)

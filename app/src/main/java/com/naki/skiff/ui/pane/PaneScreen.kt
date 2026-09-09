@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.naki.skiff.R
@@ -116,9 +117,9 @@ fun PaneScreen(
         HorizontalDivider()
         Text(
             text = if (state.inSelectionMode) {
-                stringResource(R.string.items_selected, state.selection.size)
+                pluralStringResource(R.plurals.items_selected, state.selection.size, state.selection.size)
             } else {
-                stringResource(R.string.item_count, entries.size)
+                pluralStringResource(R.plurals.item_count, entries.size, entries.size)
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

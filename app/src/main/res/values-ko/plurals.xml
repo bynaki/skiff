@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="items_selected">
+        <item quantity="other">%1$d개 선택됨</item>
+    </plurals>
+    <plurals name="item_count">
+        <item quantity="other">%1$d개 항목</item>
+    </plurals>
+    <plurals name="transfer_queued">
+        <item quantity="other">%1$d개 대기 중</item>
+    </plurals>
+</resources>
