@@ -16,6 +16,8 @@ bouncycastle = "1.85"
 eddsa = "0.3.0"
 junit = "4.13.2"
 minaSshd = "2.19.0"
+slf4j = "2.0.17"
+slf4jAndroid = "2.0.17-0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,11 +45,13 @@ sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
 bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
 eddsa = { group = "net.i2p.crypto", name = "eddsa", version.ref = "eddsa" }
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+slf4j-android = { group = "uk.uuid.slf4j", name = "slf4j-android", version.ref = "slf4jAndroid" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 mina-sshd-core = { group = "org.apache.sshd", name = "sshd-core", version.ref = "minaSshd" }
 mina-sshd-sftp = { group = "org.apache.sshd", name = "sshd-sftp", version.ref = "minaSshd" }
-slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.16" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -94,4 +94,11 @@
     <string name="action_copy_to_other">반대편으로 복사</string>
     <string name="action_move_to_other">반대편으로 이동</string>
     <string name="error_split_required">패널 간 전송은 분할 보기를 켜야 합니다</string>
+    <string name="error_unreachable">%1$s에 연결할 수 없습니다. 호스트와 포트, 그리고 서버가 같은 네트워크에 있는지 확인하세요.</string>
+    <string name="error_local_network_not_granted">로컬 네트워크의 기기에 접근하려면 권한이 필요합니다.</string>
+    <string name="local_network_title">로컬 네트워크 접근을 허용할까요?</string>
+    <string name="local_network_body">이 서버는 로컬 네트워크에 있습니다. 안드로이드 17에서는 별도 권한이 필요하며, 없으면 연결이 그냥 시간 초과됩니다.</string>
+    <string name="action_allow">허용</string>
+    <string name="action_split">화면 분할</string>
+    <string name="action_split_direction">분할 방향</string>
 </resources>

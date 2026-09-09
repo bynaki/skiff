@@ -14,6 +14,9 @@ sealed class FsError(message: String, cause: Throwable? = null) : Exception(mess
     class AuthFailed(cause: Throwable? = null) : FsError("Authentication failed", cause)
     class HostKeyRejected(val fingerprint: String) : FsError("Host key rejected: $fingerprint")
     class NetworkLost(cause: Throwable? = null) : FsError("Connection lost", cause)
+    class Unreachable(val host: String, cause: Throwable? = null) :
+        FsError("Cannot reach $host", cause)
+    class LocalNetworkNotGranted : FsError("Local network access has not been granted")
     class StorageNotGranted : FsError("Storage access has not been granted")
     class Unknown(message: String, cause: Throwable? = null) : FsError(message, cause)
 }

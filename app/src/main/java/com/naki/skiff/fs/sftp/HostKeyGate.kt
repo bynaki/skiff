@@ -3,7 +3,7 @@ package com.naki.skiff.fs.sftp
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.SkiffStore
 import kotlinx.coroutines.runBlocking
-import net.schmizz.sshj.common.SecurityUtils
+import net.schmizz.sshj.common.KeyType
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import java.security.PublicKey
 
@@ -35,8 +35,8 @@ class HostKeyGate(
 ) : HostKeyVerifier {
 
     override fun verify(hostname: String, port: Int, key: PublicKey): Boolean = runBlocking {
-        val fingerprint = SecurityUtils.getFingerprint(key)
-        val keyType = key.algorithm
+        val fingerprint = HostKeyFingerprint.of(key)
+        val keyType = KeyType.fromKey(key).toString()
         val known = store.knownHost(hostname, port)
 
         when {

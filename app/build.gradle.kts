@@ -79,9 +79,13 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okio)
 
-    implementation(libs.sshj) {
-        exclude(group = "org.slf4j")
-    }
+    // sshj resolves a logger in DefaultConfig's constructor, so slf4j is not optional:
+    // excluding it makes the very first connection attempt die with NoClassDefFoundError.
+    // The Android binding routes sshj's own logging to logcat, which is worth having when
+    // a connection misbehaves in the field.
+    implementation(libs.sshj)
+    implementation(libs.slf4j.api)
+    implementation(libs.slf4j.android)
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
     implementation(libs.eddsa)
@@ -92,5 +96,7 @@ dependencies {
     // than by a mock that agrees with whatever we assumed the protocol does.
     testImplementation(libs.mina.sshd.core)
     testImplementation(libs.mina.sshd.sftp)
-    testImplementation(libs.slf4j.simple)
+    // slf4j-android is a no-op off-device, so the JVM tests take the console binding at the
+    // same slf4j version. Nothing here may add a library the app itself lacks.
+    testRuntimeOnly(libs.slf4j.simple)
 }

@@ -94,4 +94,11 @@
     <string name="action_copy_to_other">Copy to other pane</string>
     <string name="action_move_to_other">Move to other pane</string>
     <string name="error_split_required">Turn on split view to transfer between panes</string>
+    <string name="error_unreachable">Cannot reach %1$s. Check the host, the port, and that the server is on this network.</string>
+    <string name="error_local_network_not_granted">Skiff needs permission to reach devices on your local network.</string>
+    <string name="local_network_title">Allow local network access?</string>
+    <string name="local_network_body">This server is on your local network. Android 17 requires a separate permission to reach it — without it the connection just times out.</string>
+    <string name="action_allow">Allow</string>
+    <string name="action_split">Split view</string>
+    <string name="action_split_direction">Split direction</string>
 </resources>

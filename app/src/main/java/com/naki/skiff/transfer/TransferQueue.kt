@@ -118,6 +118,7 @@ class TransferQueue(
             update(job.id) { it.copy(status = TransferStatus.CANCELLED) }
             throw e
         } catch (e: Throwable) {
+            com.naki.skiff.ui.logFailure("transfer ${job.label}", e)
             update(job.id) {
                 it.copy(status = TransferStatus.FAILED, error = describeError(e))
             }

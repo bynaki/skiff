@@ -3,6 +3,8 @@ package com.naki.skiff.ui.pane
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.fs.FileSystem
 import com.naki.skiff.fs.FsPath
+import com.naki.skiff.ui.logFailure
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +52,21 @@ class PaneController(
         }
         loadJob?.cancel()
         loadJob = scope.launch {
-            val target = path ?: runCatching { fs.startPath() }.getOrDefault(FsPath.ROOT)
+            val target = if (path != null) {
+                path
+            } else {
+                try {
+                    fs.startPath()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    // Connecting is what usually fails here. Falling back to "/" and letting
+                    // the listing fail again would hide the real reason, so report this one.
+                    logFailure("startPath on ${fs.displayName}", e)
+                    _state.update { it.copy(loading = false, error = errorText(e)) }
+                    return@launch
+                }
+            }
             loadInto(fs, target)
         }
     }
@@ -73,7 +89,14 @@ class PaneController(
             node.isSymlink -> {
                 val fs = fileSystem ?: return
                 scope.launch {
-                    val target = runCatching { fs.stat(node.path) }.getOrNull()
+                    val target = try {
+                        fs.stat(node.path)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        logFailure("stat ${node.path}", e)
+                        null
+                    }
                     if (target?.isDirectory == true) navigateTo(node.path) else onFile(node)
                 }
             }
@@ -94,7 +117,15 @@ class PaneController(
 
     private suspend fun loadInto(fs: FileSystem, path: String, keepSelection: Boolean = false) {
         _state.update { it.copy(loading = true, error = null) }
-        val result = runCatching { fs.list(path) }
+        val result = try {
+            Result.success(fs.list(path))
+        } catch (e: CancellationException) {
+            // A cancelled load is not an error the user needs to see; a newer one is running.
+            throw e
+        } catch (e: Throwable) {
+            logFailure("list $path on ${fs.displayName}", e)
+            Result.failure(e)
+        }
         _state.update { current ->
             result.fold(
                 onSuccess = { entries ->
@@ -111,7 +142,16 @@ class PaneController(
                     )
                 },
                 onFailure = { throwable ->
-                    current.copy(loading = false, error = errorText(throwable))
+                    // Show the path we failed on, not the one still listed underneath;
+                    // otherwise the breadcrumb and the error describe different folders.
+                    current.copy(
+                        path = path,
+                        entries = emptyList(),
+                        selection = emptySet(),
+                        canGoUp = !FsPath.isRoot(path),
+                        loading = false,
+                        error = errorText(throwable),
+                    )
                 },
             )
         }

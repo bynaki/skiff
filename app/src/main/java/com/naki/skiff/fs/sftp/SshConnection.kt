@@ -13,6 +13,8 @@ import net.schmizz.sshj.sftp.SFTPException
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import net.schmizz.sshj.userauth.UserAuthException
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 
 /**
@@ -126,6 +128,8 @@ class SshConnection(
 
     private fun IOException.toFsError(): Throwable = when {
         this is UserAuthException -> FsError.AuthFailed(this)
+        // A connect timeout is not a lost connection: the server was never reached.
+        this is SocketTimeoutException || this is ConnectException -> FsError.Unreachable(host, this)
         message?.contains("host key", ignoreCase = true) == true ->
             FsError.HostKeyRejected(message ?: "")
         else -> FsError.NetworkLost(this)

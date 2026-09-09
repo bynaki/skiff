@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import java.io.InputStream
@@ -70,8 +71,13 @@ class SkiffStore(private val context: Context) {
         }
     }
 
+    /**
+     * Read-only. This is reached from the SSH transport thread through runBlocking, so it
+     * must not take DataStore's write lock — updateData would serialize the whole file just
+     * to answer a lookup, and can block behind an unrelated write.
+     */
     suspend fun knownHost(host: String, port: Int): KnownHost? =
-        context.skiffDataStore.updateData { it }
+        context.skiffDataStore.data.first()
             .knownHosts.firstOrNull { it.host == host && it.port == port }
 
     suspend fun rememberHost(knownHost: KnownHost) {

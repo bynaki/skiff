@@ -15,6 +15,8 @@ fun Context.describe(throwable: Throwable): String = when (throwable) {
     is FsError.AuthFailed -> getString(R.string.error_auth_failed)
     is FsError.HostKeyRejected -> getString(R.string.error_host_key)
     is FsError.NetworkLost -> getString(R.string.error_network_lost)
+    is FsError.Unreachable -> getString(R.string.error_unreachable, throwable.host)
+    is FsError.LocalNetworkNotGranted -> getString(R.string.error_local_network_not_granted)
     is FsError.StorageNotGranted -> getString(R.string.error_storage_not_granted)
     else -> throwable.message ?: throwable::class.java.simpleName
 }

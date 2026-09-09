@@ -15,16 +15,19 @@ import com.naki.skiff.fs.FsPath
 import com.naki.skiff.fs.SourceId
 import com.naki.skiff.fs.childNames
 import com.naki.skiff.R
+import com.naki.skiff.fs.LocalNetworkAccess
 import com.naki.skiff.fs.local.LocalStorageAccess
 import com.naki.skiff.fs.sftp.HostKeyDecision
 import com.naki.skiff.fs.sftp.HostKeyPrompt
 import com.naki.skiff.ui.describe
+import com.naki.skiff.ui.logFailure
 import com.naki.skiff.ui.pane.PaneController
 import com.naki.skiff.ui.pane.SortBy
 import com.naki.skiff.ui.pane.SortOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,6 +48,8 @@ data class WorkspaceUiState(
     val editingProfile: EditingProfile? = null,
     /** Non-null while a connection is waiting on the user to accept a host key. */
     val hostKeyPrompt: HostKeyPrompt? = null,
+    /** Set when a server on the local network needs the ACCESS_LOCAL_NETWORK grant first. */
+    val pendingLocalNetworkSource: SourceId? = null,
     /** One-shot message for the snackbar. */
     val message: String? = null,
 )
@@ -160,7 +165,17 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun selectSource(side: PaneSide, id: SourceId) {
-        val fs = runCatching { registry.get(id) }.getOrElse { throwable ->
+        // Connecting to a LAN address without the grant does not fail, it hangs for 15
+        // seconds and then times out. Ask first, so the reason is visible.
+        if (id is SourceId.Remote && needsLocalNetworkGrant(id)) {
+            pendingLocalNetworkSide = side
+            _state.update { it.copy(pendingLocalNetworkSource = id) }
+            return
+        }
+        val fs = try {
+            registry.get(id)
+        } catch (throwable: Throwable) {
+            logFailure("opening source $id", throwable)
             _state.update { it.copy(message = context.describe(throwable)) }
             return
         }
@@ -171,6 +186,31 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
+    private var pendingLocalNetworkSide: PaneSide = PaneSide.A
+
+    private fun needsLocalNetworkGrant(id: SourceId.Remote): Boolean {
+        if (!LocalNetworkAccess.isRequired() || LocalNetworkAccess.isGranted(context)) return false
+        val profile = _state.value.profiles.firstOrNull { it.id == id.profileId } ?: return false
+        return LocalNetworkAccess.isLocalHost(profile.host)
+    }
+
+    /** Called after the permission dialog closes, whichever way the user answered. */
+    fun onLocalNetworkAnswered() {
+        val pending = _state.value.pendingLocalNetworkSource
+        _state.update { it.copy(pendingLocalNetworkSource = null) }
+        if (pending == null) return
+        if (LocalNetworkAccess.isGranted(context)) {
+            selectSource(pendingLocalNetworkSide, pending)
+        } else {
+            _state.update {
+                it.copy(message = context.getString(R.string.error_local_network_not_granted))
+            }
+        }
+    }
+
+    fun dismissLocalNetworkRequest() =
+        _state.update { it.copy(pendingLocalNetworkSource = null) }
 
     // ---- server profiles -------------------------------------------------
 
@@ -282,10 +322,14 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val controller = controller(side)
         val fs = controller.currentFileSystem() ?: return
         viewModelScope.launch {
-            runCatching { block(fs, controller.state.value.path) }
-                .onFailure { throwable ->
-                    _state.update { it.copy(message = context.describe(throwable)) }
-                }
+            try {
+                block(fs, controller.state.value.path)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                logFailure("file operation on ${fs.displayName}", throwable)
+                _state.update { it.copy(message = context.describe(throwable)) }
+            }
             controller.clearSelection()
             controller.refresh()
         }

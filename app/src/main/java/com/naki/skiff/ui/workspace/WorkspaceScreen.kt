@@ -48,6 +48,7 @@ import com.naki.skiff.R
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.ui.dialog.ConfirmDeleteDialog
 import com.naki.skiff.ui.dialog.HostKeyDialog
+import com.naki.skiff.ui.dialog.LocalNetworkDialog
 import com.naki.skiff.ui.dialog.NameDialog
 import com.naki.skiff.ui.dialog.PropertiesDialog
 import com.naki.skiff.ui.pane.PaneScreen
@@ -190,6 +191,13 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
         )
     }
 
+    if (state.pendingLocalNetworkSource != null) {
+        LocalNetworkDialog(
+            onAnswered = viewModel::onLocalNetworkAnswered,
+            onDismiss = viewModel::dismissLocalNetworkRequest,
+        )
+    }
+
     state.hostKeyPrompt?.let { prompt ->
         HostKeyDialog(
             prompt = prompt,
@@ -295,14 +303,14 @@ private fun BrowseTopBar(
                         } else {
                             Icons.Default.HorizontalSplit
                         },
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.action_split_direction),
                     )
                 }
             }
             IconButton(onClick = onToggleSplit) {
                 Icon(
                     imageVector = Icons.Default.VerticalSplit,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.action_split),
                     tint = if (state.splitEnabled) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
                     } else {

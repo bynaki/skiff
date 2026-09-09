@@ -1,6 +1,7 @@
 -keep class org.bouncycastle.** { *; }
 -keep class net.schmizz.** { *; }
 -keep class net.i2p.crypto.** { *; }
+-keep class uk.uuid.slf4j.android.** { *; }
 -dontwarn org.slf4j.**
 -dontwarn org.bouncycastle.**
 -dontwarn net.schmizz.**
