@@ -38,6 +38,13 @@ class SkiffStore(private val context: Context) {
     val profiles: Flow<List<ServerProfile>> =
         context.skiffDataStore.data.map { it.profiles }
 
+    val settings: Flow<Settings> =
+        context.skiffDataStore.data.map { it.settings }
+
+    suspend fun updateSettings(transform: (Settings) -> Settings) {
+        context.skiffDataStore.updateData { it.copy(settings = transform(it.settings)) }
+    }
+
     suspend fun upsertProfile(profile: ServerProfile) {
         context.skiffDataStore.updateData { data ->
             val existing = data.profiles.indexOfFirst { it.id == profile.id }

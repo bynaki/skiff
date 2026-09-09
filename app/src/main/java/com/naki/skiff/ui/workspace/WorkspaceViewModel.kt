@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.naki.skiff.data.SourceDescriptor
 import com.naki.skiff.data.store.ServerProfile
+import com.naki.skiff.data.store.Settings
 import com.naki.skiff.skiff
 import com.naki.skiff.transfer.TransferJob
 import com.naki.skiff.transfer.TransferService
@@ -19,6 +20,7 @@ import com.naki.skiff.fs.sftp.HostKeyDecision
 import com.naki.skiff.fs.sftp.HostKeyPrompt
 import com.naki.skiff.ui.describe
 import com.naki.skiff.ui.pane.PaneController
+import com.naki.skiff.ui.pane.SortBy
 import com.naki.skiff.ui.pane.SortOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,7 +82,44 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update { it.copy(hostKeyPrompt = prompt) }
             }
         }
+        viewModelScope.launch {
+            store.settings.collectLatest { saved ->
+                val sort = SortOrder(
+                    by = runCatching { SortBy.valueOf(saved.sortBy) }.getOrDefault(SortBy.NAME),
+                    ascending = saved.sortAscending,
+                )
+                _state.update {
+                    it.copy(
+                        splitEnabled = saved.splitEnabled,
+                        splitDirection = runCatching {
+                            SplitDirection.valueOf(saved.splitDirection)
+                        }.getOrDefault(SplitDirection.HORIZONTAL),
+                        splitRatio = saved.splitRatio,
+                    )
+                }
+                for (side in PaneSide.entries) {
+                    controller(side).setSort(sort)
+                    controller(side).setShowHidden(saved.showHidden)
+                }
+            }
+        }
+        // One observer for the whole ViewModel: refresh both panes when the queue drains.
+        // Launching a collector per transfer would pile them up for the session's lifetime.
+        viewModelScope.launch {
+            var wasBusy = false
+            container.transferQueue.jobs.collect { jobs ->
+                val busy = jobs.any { !it.finished }
+                if (wasBusy && !busy) {
+                    PaneSide.entries.forEach { controller(it).refresh() }
+                }
+                wasBusy = busy
+            }
+        }
         refreshStorageGrant()
+    }
+
+    private fun persist(transform: (Settings) -> Settings) {
+        viewModelScope.launch { store.updateSettings(transform) }
     }
 
     fun controller(side: PaneSide): PaneController = if (side == PaneSide.A) paneA else paneB
@@ -101,20 +140,24 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setActiveSide(side: PaneSide) = _state.update { it.copy(activeSide = side) }
 
-    fun toggleSplit() = _state.update { it.copy(splitEnabled = !it.splitEnabled) }
+    fun toggleSplit() = persist { it.copy(splitEnabled = !it.splitEnabled) }
 
-    fun toggleSplitDirection() = _state.update {
+    fun toggleSplitDirection() = persist {
         it.copy(
-            splitDirection = if (it.splitDirection == SplitDirection.HORIZONTAL) {
-                SplitDirection.VERTICAL
+            splitDirection = if (it.splitDirection == SplitDirection.HORIZONTAL.name) {
+                SplitDirection.VERTICAL.name
             } else {
-                SplitDirection.HORIZONTAL
+                SplitDirection.HORIZONTAL.name
             },
         )
     }
 
-    fun setSplitRatio(ratio: Float) =
-        _state.update { it.copy(splitRatio = ratio.coerceIn(0.2f, 0.8f)) }
+    fun setSplitRatio(ratio: Float) {
+        val clamped = ratio.coerceIn(0.2f, 0.8f)
+        // Update immediately so the divider tracks the finger, then persist.
+        _state.update { it.copy(splitRatio = clamped) }
+        persist { it.copy(splitRatio = clamped) }
+    }
 
     fun selectSource(side: PaneSide, id: SourceId) {
         val fs = runCatching { registry.get(id) }.getOrElse { throwable ->
@@ -195,25 +238,18 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         )
         TransferService.start(context)
         controller(fromSide).clearSelection()
-
-        // Refresh both sides once the job leaves the queue, so the result is visible.
-        viewModelScope.launch {
-            container.transferQueue.jobs.collectLatest { jobs ->
-                if (jobs.none { !it.finished }) {
-                    controller(toSide).refresh()
-                    if (move) controller(fromSide).refresh()
-                }
-            }
-        }
     }
 
     fun cancelTransfer(jobId: String) = container.transferQueue.cancel(jobId)
 
     fun clearFinishedTransfers() = container.transferQueue.clearFinished()
 
-    fun setSort(side: PaneSide, sort: SortOrder) = controller(side).setSort(sort)
+    // Sort and hidden-file choices apply to both panes: having them diverge silently is
+    // more confusing than useful.
+    fun setSort(side: PaneSide, sort: SortOrder) =
+        persist { it.copy(sortBy = sort.by.name, sortAscending = sort.ascending) }
 
-    fun setShowHidden(side: PaneSide, show: Boolean) = controller(side).setShowHidden(show)
+    fun setShowHidden(side: PaneSide, show: Boolean) = persist { it.copy(showHidden = show) }
 
     // ---- file operations -------------------------------------------------
 

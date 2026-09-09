@@ -4,8 +4,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.webkit.MimeTypeMap
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -13,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.fs.FsPath
 import com.naki.skiff.fs.SourceId
+import androidx.compose.runtime.Composable
 import com.naki.skiff.ui.theme.SkiffTheme
 import com.naki.skiff.ui.workspace.StorageGate
 import com.naki.skiff.ui.workspace.WorkspaceScreen
@@ -31,11 +35,28 @@ class MainActivity : ComponentActivity() {
                 val vm: WorkspaceViewModel = viewModel()
                 viewModel = vm
                 val state by vm.state.collectAsStateWithLifecycle()
+                // Without this grant the foreground transfer notification is created but
+                // never shown, so a background transfer looks like it silently stopped.
+                RequestNotificationPermissionOnce()
                 if (state.storageGranted) {
                     WorkspaceScreen(vm, onOpenExternally = ::openExternally)
                 } else {
                     StorageGate(onGranted = vm::refreshStorageGrant)
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun RequestNotificationPermissionOnce() {
+        val launcher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { }
+        LaunchedEffect(Unit) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
