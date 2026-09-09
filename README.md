@@ -1,5 +1,7 @@
 # Skiff
 
+*English · [한국어](README.ko.md)*
+
 An Android SSH file manager. Browse your phone and your servers side by side, and move files
 between them.
 
