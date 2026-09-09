@@ -1,11 +1,38 @@
-*.iml
-.gradle/
-/local.properties
-/.idea/
-.DS_Store
-/build
-/captures
+# Build output
+build/
+captures/
 .externalNativeBuild
 .cxx
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Gradle / Kotlin caches
+.gradle/
+.kotlin/
 local.properties
-/app/build/
+.gradletasknamecache
+
+# Signing material — never commit these.
+# A release keystore or its passwords in git history cannot be un-published;
+# rotating a signing key means users can no longer update the app.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+key.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Profiling / crash output
+*.hprof

@@ -16,6 +16,8 @@ import java.nio.file.Path
  */
 class SftpTestServer(
     val username: String = "tester",
+    // Not a credential: this server is created in-process on a random loopback port and
+    // torn down at the end of the test. It authenticates nothing that outlives the JVM.
     val password: String = "s3cret",
 ) {
     lateinit var root: Path
