@@ -40,6 +40,7 @@ fun PaneScreen(
     onActivate: () -> Unit,
     onSelectSource: (SourceId) -> Unit,
     onAddServer: () -> Unit,
+    onEditServer: (String) -> Unit,
     onNavigate: (String) -> Unit,
     onGoUp: () -> Unit,
     onOpen: (FileNode) -> Unit,
@@ -78,6 +79,7 @@ fun PaneScreen(
             sources = sources,
             onSelectSource = { onActivate(); onSelectSource(it) },
             onAddServer = onAddServer,
+            onEditServer = onEditServer,
             onNavigate = { onActivate(); onNavigate(it) },
             onGoUp = { onActivate(); onGoUp() },
         )

@@ -62,4 +62,44 @@
     <string name="error_storage_not_granted">파일 접근 권한이 없습니다</string>
     <string name="error_name_empty">이름을 입력하세요</string>
     <string name="error_name_separator">이름에 “/”를 쓸 수 없습니다</string>
+
+    <string name="server_new_title">서버 추가</string>
+    <string name="server_edit_title">서버 편집</string>
+    <string name="server_name">표시 이름</string>
+    <string name="server_host">호스트</string>
+    <string name="server_port">포트</string>
+    <string name="server_username">사용자 이름</string>
+    <string name="server_password">비밀번호</string>
+    <string name="server_start_path">시작 디렉토리</string>
+    <string name="server_start_path_hint">“.”으로 두면 로그인 디렉토리를 씁니다</string>
+    <string name="action_save">저장</string>
+    <string name="action_delete_server">서버 삭제</string>
+    <string name="action_test">연결 테스트</string>
+    <string name="server_test_ok">연결됨</string>
+    <string name="error_host_empty">호스트를 입력하세요</string>
+    <string name="error_username_empty">사용자 이름을 입력하세요</string>
+    <string name="error_port_invalid">포트는 1~65535 사이여야 합니다</string>
+
+    <string name="hostkey_title_new">이 서버를 신뢰할까요?</string>
+    <string name="hostkey_title_changed">호스트 키가 바뀌었습니다</string>
+    <string name="hostkey_body_new">%1$s에 처음 접속합니다. 아래 지문이 서버의 것과 같은지 확인하세요.</string>
+    <string name="hostkey_body_changed">%1$s의 키가 이전에 허용한 것과 다릅니다. 서버를 다시 설치했을 수도 있지만, 누군가 연결을 가로채고 있을 수도 있습니다.</string>
+    <string name="hostkey_previous">이전 지문</string>
+    <string name="action_trust">신뢰함</string>
+
+    <string name="transfer_channel_name">파일 전송</string>
+    <string name="transfer_preparing">전송 준비 중…</string>
+    <string name="transfer_copying">%1$s 복사 중</string>
+    <string name="transfer_moving">%1$s 이동 중</string>
+    <string name="transfer_progress_files">%2$d개 중 %1$d번째</string>
+    <string name="transfer_queued">%1$d개 대기 중</string>
+    <string name="transfer_title">전송</string>
+    <string name="transfer_empty">전송 내역이 없습니다</string>
+    <string name="transfer_failed">실패</string>
+    <string name="transfer_done">완료</string>
+    <string name="transfer_cancelled">취소됨</string>
+    <string name="transfer_clear_finished">완료 항목 지우기</string>
+    <string name="action_copy_to_other">반대편으로 복사</string>
+    <string name="action_move_to_other">반대편으로 이동</string>
+    <string name="error_split_required">패널 간 전송은 분할 보기를 켜야 합니다</string>
 </resources>

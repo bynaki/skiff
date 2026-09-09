@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -48,6 +49,7 @@ fun PaneHeader(
     sources: List<SourceDescriptor>,
     onSelectSource: (SourceId) -> Unit,
     onAddServer: () -> Unit,
+    onEditServer: (String) -> Unit,
     onNavigate: (String) -> Unit,
     onGoUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -63,6 +65,7 @@ fun PaneHeader(
                 sources = sources,
                 onSelectSource = onSelectSource,
                 onAddServer = onAddServer,
+                onEditServer = onEditServer,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onGoUp, enabled = state.canGoUp) {
@@ -84,6 +87,7 @@ private fun SourceDropdown(
     sources: List<SourceDescriptor>,
     onSelectSource: (SourceId) -> Unit,
     onAddServer: () -> Unit,
+    onEditServer: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -100,6 +104,14 @@ private fun SourceDropdown(
                     leadingIcon = {
                         if (source.id == currentId) {
                             Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    },
+                    trailingIcon = {
+                        val remote = source.id as? SourceId.Remote
+                        if (remote != null) {
+                            IconButton(onClick = { expanded = false; onEditServer(remote.profileId) }) {
+                                Icon(Icons.Default.Edit, contentDescription = null)
+                            }
                         }
                     },
                     onClick = {

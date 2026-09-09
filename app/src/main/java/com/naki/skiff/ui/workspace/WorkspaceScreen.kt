@@ -13,7 +13,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.HorizontalSplit
 import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.DropdownMenu
@@ -22,6 +25,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,11 +46,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naki.skiff.R
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.ui.dialog.ConfirmDeleteDialog
+import com.naki.skiff.ui.dialog.HostKeyDialog
 import com.naki.skiff.ui.dialog.NameDialog
 import com.naki.skiff.ui.dialog.PropertiesDialog
 import com.naki.skiff.ui.pane.PaneScreen
 import com.naki.skiff.ui.pane.SortBy
 import com.naki.skiff.ui.pane.SortOrder
+import com.naki.skiff.ui.transfer.TransferSheet
+import com.naki.skiff.ui.server.ServerEditScreen
+import com.naki.skiff.fs.sftp.HostKeyDecision
 import kotlinx.coroutines.launch
 
 private sealed interface WorkspaceDialog {
@@ -67,7 +76,9 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
     val activeState = if (activeSide == PaneSide.A) stateA else stateB
     val activeController = viewModel.controller(activeSide)
 
+    val transfers by viewModel.transfers.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<WorkspaceDialog?>(null) }
+    var showTransfers by remember { mutableStateOf(false) }
     var seedName by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -79,6 +90,16 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
         }
     }
 
+    state.editingProfile?.let { editing ->
+        ServerEditScreen(
+            existing = editing.profile,
+            onSave = viewModel::saveProfile,
+            onDelete = viewModel::deleteProfile,
+            onBack = viewModel::cancelEditServer,
+        )
+        return
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -86,6 +107,9 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
                 SelectionTopBar(
                     count = activeState.selection.size,
                     canRename = activeState.selection.size == 1,
+                    canTransfer = state.splitEnabled,
+                    onCopyToOther = { viewModel.transferToOtherPane(move = false) },
+                    onMoveToOther = { viewModel.transferToOtherPane(move = true) },
                     onClear = { activeController.clearSelection() },
                     onSelectAll = { activeController.selectAll() },
                     onRename = {
@@ -104,6 +128,8 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
             } else {
                 BrowseTopBar(
                     state = state,
+                    activeTransfers = transfers.count { !it.finished },
+                    onShowTransfers = { showTransfers = true },
                     showHidden = activeState.showHidden,
                     sort = activeState.sort,
                     onToggleSplit = viewModel::toggleSplit,
@@ -129,10 +155,16 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             val paneA: @Composable () -> Unit = {
-                Pane(viewModel, PaneSide.A, state, stateA, onOpenExternally)
+                Pane(
+                    viewModel, PaneSide.A, state, stateA, onOpenExternally,
+                    viewModel::startAddServer, viewModel::startEditServer,
+                )
             }
             val paneB: @Composable () -> Unit = {
-                Pane(viewModel, PaneSide.B, state, stateB, onOpenExternally)
+                Pane(
+                    viewModel, PaneSide.B, state, stateB, onOpenExternally,
+                    viewModel::startAddServer, viewModel::startEditServer,
+                )
             }
             if (state.splitEnabled) {
                 SplitContainer(
@@ -146,6 +178,23 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
                 paneA()
             }
         }
+    }
+
+    if (showTransfers) {
+        TransferSheet(
+            jobs = transfers,
+            onCancel = viewModel::cancelTransfer,
+            onClearFinished = viewModel::clearFinishedTransfers,
+            onDismiss = { showTransfers = false },
+        )
+    }
+
+    state.hostKeyPrompt?.let { prompt ->
+        HostKeyDialog(
+            prompt = prompt,
+            onTrust = { viewModel.respondToHostKey(HostKeyDecision.Accept) },
+            onReject = { viewModel.respondToHostKey(HostKeyDecision.Reject) },
+        )
     }
 
     when (val current = dialog) {
@@ -192,6 +241,8 @@ private fun Pane(
     workspace: WorkspaceUiState,
     paneState: com.naki.skiff.ui.pane.PaneUiState,
     onOpenExternally: (FileNode) -> Unit,
+    onAddServer: () -> Unit,
+    onEditServer: (com.naki.skiff.data.store.ServerProfile) -> Unit,
 ) {
     val controller = viewModel.controller(side)
     PaneScreen(
@@ -201,7 +252,10 @@ private fun Pane(
         isActive = workspace.splitEnabled && workspace.activeSide == side,
         onActivate = { viewModel.setActiveSide(side) },
         onSelectSource = { viewModel.selectSource(side, it) },
-        onAddServer = { /* wired up with server profiles */ },
+        onAddServer = onAddServer,
+        onEditServer = { profileId ->
+            workspace.profiles.firstOrNull { it.id == profileId }?.let(onEditServer)
+        },
         onNavigate = controller::navigateTo,
         onGoUp = controller::goUp,
         onOpen = { node -> if (node.navigable) controller.open(node) else onOpenExternally(node) },
@@ -215,6 +269,8 @@ private fun Pane(
 @Composable
 private fun BrowseTopBar(
     state: WorkspaceUiState,
+    activeTransfers: Int,
+    onShowTransfers: () -> Unit,
     showHidden: Boolean,
     sort: SortOrder,
     onToggleSplit: () -> Unit,
@@ -252,6 +308,11 @@ private fun BrowseTopBar(
                         androidx.compose.material3.LocalContentColor.current
                     },
                 )
+            }
+            IconButton(onClick = onShowTransfers) {
+                BadgedBox(badge = { if (activeTransfers > 0) Badge { Text("$activeTransfers") } }) {
+                    Icon(Icons.Default.SwapHoriz, stringResource(R.string.transfer_title))
+                }
             }
             IconButton(onClick = onNewFolder) {
                 Icon(Icons.Default.CreateNewFolder, stringResource(R.string.action_new_folder))
@@ -307,6 +368,9 @@ private fun BrowseTopBar(
 private fun SelectionTopBar(
     count: Int,
     canRename: Boolean,
+    canTransfer: Boolean,
+    onCopyToOther: () -> Unit,
+    onMoveToOther: () -> Unit,
     onClear: () -> Unit,
     onSelectAll: () -> Unit,
     onRename: () -> Unit,
@@ -321,6 +385,15 @@ private fun SelectionTopBar(
         },
         title = { Text(stringResource(R.string.items_selected, count)) },
         actions = {
+            // Only meaningful when there is another pane to send things to.
+            if (canTransfer) {
+                IconButton(onClick = onCopyToOther) {
+                    Icon(Icons.Default.ContentCopy, stringResource(R.string.action_copy_to_other))
+                }
+                IconButton(onClick = onMoveToOther) {
+                    Icon(Icons.Default.ContentCut, stringResource(R.string.action_move_to_other))
+                }
+            }
             IconButton(onClick = onSelectAll) {
                 Icon(Icons.Default.SelectAll, stringResource(R.string.action_select_all))
             }

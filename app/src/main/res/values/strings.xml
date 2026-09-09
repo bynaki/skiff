@@ -62,4 +62,44 @@
     <string name="error_storage_not_granted">File access has not been granted</string>
     <string name="error_name_empty">Enter a name</string>
     <string name="error_name_separator">A name cannot contain “/”</string>
+
+    <string name="server_new_title">New server</string>
+    <string name="server_edit_title">Edit server</string>
+    <string name="server_name">Display name</string>
+    <string name="server_host">Host</string>
+    <string name="server_port">Port</string>
+    <string name="server_username">Username</string>
+    <string name="server_password">Password</string>
+    <string name="server_start_path">Start directory</string>
+    <string name="server_start_path_hint">Leave as “.” for the login directory</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete_server">Delete server</string>
+    <string name="action_test">Test connection</string>
+    <string name="server_test_ok">Connected</string>
+    <string name="error_host_empty">Enter a host</string>
+    <string name="error_username_empty">Enter a username</string>
+    <string name="error_port_invalid">Port must be between 1 and 65535</string>
+
+    <string name="hostkey_title_new">Trust this server?</string>
+    <string name="hostkey_title_changed">Host key has changed</string>
+    <string name="hostkey_body_new">Skiff has not connected to %1$s before. Check that this fingerprint matches the server.</string>
+    <string name="hostkey_body_changed">The key for %1$s is different from the one you accepted before. This can mean the server was reinstalled — or that someone is intercepting the connection.</string>
+    <string name="hostkey_previous">Previously</string>
+    <string name="action_trust">Trust</string>
+
+    <string name="transfer_channel_name">File transfers</string>
+    <string name="transfer_preparing">Preparing transfer…</string>
+    <string name="transfer_copying">Copying %1$s</string>
+    <string name="transfer_moving">Moving %1$s</string>
+    <string name="transfer_progress_files">File %1$d of %2$d</string>
+    <string name="transfer_queued">%1$d more queued</string>
+    <string name="transfer_title">Transfers</string>
+    <string name="transfer_empty">No transfers yet</string>
+    <string name="transfer_failed">Failed</string>
+    <string name="transfer_done">Done</string>
+    <string name="transfer_cancelled">Cancelled</string>
+    <string name="transfer_clear_finished">Clear finished</string>
+    <string name="action_copy_to_other">Copy to other pane</string>
+    <string name="action_move_to_other">Move to other pane</string>
+    <string name="error_split_required">Turn on split view to transfer between panes</string>
 </resources>
