@@ -1,6 +1,5 @@
 package com.naki.skiff.fs.sftp
 
-import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.fs.FileSystem
 import com.naki.skiff.fs.FsError
@@ -26,14 +25,11 @@ import java.util.EnumSet
  * user has no shell at all — internal-sftp with a ChrootDirectory.
  */
 class SftpFileSystem(
-    private val profile: ServerProfile,
+    override val id: SourceId,
+    override val displayName: String,
     private val browseConnection: SshConnection,
     private val transferConnection: SshConnection,
 ) : FileSystem {
-
-    override val id: SourceId = SourceId.Remote(profile.id)
-
-    override val displayName: String = profile.name
 
     override suspend fun startPath(): String = browseConnection.resolveStartPath()
 

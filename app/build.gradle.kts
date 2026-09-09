@@ -88,4 +88,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // A real SFTP server, so SftpFileSystem is exercised by the real sshj client rather
+    // than by a mock that agrees with whatever we assumed the protocol does.
+    testImplementation(libs.mina.sshd.core)
+    testImplementation(libs.mina.sshd.sftp)
+    testImplementation(libs.slf4j.simple)
 }

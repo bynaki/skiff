@@ -1,8 +1,5 @@
 package com.naki.skiff.fs.sftp
 
-import com.naki.skiff.data.store.AuthMethod
-import com.naki.skiff.data.store.ServerProfile
-import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.fs.FsError
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -12,6 +9,7 @@ import kotlinx.coroutines.withContext
 import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.sftp.SFTPClient
+import net.schmizz.sshj.sftp.SFTPException
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import net.schmizz.sshj.userauth.UserAuthException
 import java.io.IOException
@@ -25,13 +23,22 @@ import java.util.concurrent.Executors
  * one for transfers — so a multi-gigabyte upload never blocks a directory listing.
  */
 class SshConnection(
-    private val profile: ServerProfile,
+    private val host: String,
+    private val port: Int,
+    private val username: String,
+    /**
+     * Supplies the password at connect time. Passing a supplier rather than the profile
+     * keeps this class free of the Android Keystore, which is also what lets it be tested
+     * against a real SSH server on a plain JVM.
+     */
+    private val password: suspend () -> String?,
+    private val startPathRequest: String,
     private val hostKeyVerifier: HostKeyVerifier,
     private val label: String,
 ) {
 
     private val executor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "skiff-ssh-${profile.name}-$label").apply { isDaemon = true }
+        Thread(runnable, "skiff-ssh-$host-$label").apply { isDaemon = true }
     }
     private val dispatcher: CoroutineDispatcher = executor.asCoroutineDispatcher()
     private val mutex = Mutex()
@@ -44,23 +51,32 @@ class SshConnection(
      * connection is reconnected once and the block retried — a phone changing networks
      * should not turn into an error toast.
      */
-    suspend fun <T> withSftp(block: (SFTPClient) -> T): T = withContext(dispatcher) {
-        mutex.withLock {
+    suspend fun <T> withSftp(block: (SFTPClient) -> T): T {
+        // Resolved off the connection thread: fetching it may touch the keystore or disk.
+        val secret = password()
+        return withContext(dispatcher) {
+            mutex.withLock {
             try {
-                block(ensureConnected())
+                block(ensureConnected(secret))
+            } catch (e: SFTPException) {
+                // A status reply ("no such file", "already exists", "permission denied") is
+                // the server answering, not the link dying. Reconnecting here would both
+                // churn the session on every ordinary error and mask it as "connection lost".
+                throw e
             } catch (e: IOException) {
                 if (isFatalAuth(e)) throw e.toFsError()
                 disconnectQuietly()
                 try {
-                    block(ensureConnected())
+                    block(ensureConnected(secret))
                 } catch (retry: IOException) {
                     throw retry.toFsError()
                 }
             }
+            }
         }
     }
 
-    private fun ensureConnected(): SFTPClient {
+    private fun ensureConnected(secret: String?): SFTPClient {
         sftp?.let { existing ->
             if (client?.isConnected == true) return existing
         }
@@ -71,8 +87,8 @@ class SshConnection(
         fresh.connectTimeout = CONNECT_TIMEOUT_MS
         fresh.timeout = READ_TIMEOUT_MS
         try {
-            fresh.connect(profile.host, profile.port)
-            authenticate(fresh)
+            fresh.connect(host, port)
+            fresh.authPassword(username, secret ?: throw FsError.AuthFailed())
             // Keeps NAT tables and idle-timeout servers from silently dropping us.
             fresh.connection.keepAlive.keepAliveInterval = KEEPALIVE_SECONDS
             val session = fresh.newSFTPClient()
@@ -85,21 +101,9 @@ class SshConnection(
         }
     }
 
-    private fun authenticate(client: SSHClient) {
-        when (val auth = profile.auth) {
-            is AuthMethod.Password -> {
-                val password = auth.encryptedPassword?.let(SecretStore::decrypt)
-                    ?: throw FsError.AuthFailed()
-                client.authPassword(profile.username, password)
-            }
-            // Key and keyboard-interactive auth are the next extension points.
-            else -> throw FsError.AuthFailed()
-        }
-    }
-
     /** Resolves the profile's start directory, expanding "." to the login directory. */
     suspend fun resolveStartPath(): String = withSftp { sftp ->
-        val requested = profile.startPath.ifBlank { "." }
+        val requested = startPathRequest.ifBlank { "." }
         runCatching { sftp.canonicalize(requested) }
             .recoverCatching { sftp.canonicalize(".") }
             .getOrDefault("/")

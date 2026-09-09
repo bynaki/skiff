@@ -2,6 +2,8 @@ package com.naki.skiff.data
 
 import android.content.Context
 import com.naki.skiff.R
+import com.naki.skiff.data.crypto.SecretStore
+import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.data.store.SkiffStore
 import com.naki.skiff.fs.FileSystem
@@ -47,9 +49,10 @@ class SourceRegistry(
                     ?: error("Unknown server profile ${id.profileId}")
                 val gate = HostKeyGate(store, askHostKey)
                 SftpFileSystem(
-                    profile = profile,
-                    browseConnection = SshConnection(profile, gate, "browse"),
-                    transferConnection = SshConnection(profile, gate, "transfer"),
+                    id = id,
+                    displayName = profile.name,
+                    browseConnection = profile.connection(gate, "browse"),
+                    transferConnection = profile.connection(gate, "transfer"),
                 )
             }
         }
@@ -65,5 +68,19 @@ class SourceRegistry(
         instances.clear()
     }
 }
+
+private fun ServerProfile.connection(
+    gate: HostKeyGate,
+    label: String,
+) = SshConnection(
+    host = host,
+    port = port,
+    username = username,
+    // Decrypted per connect rather than held in memory for the session.
+    password = { (auth as? AuthMethod.Password)?.encryptedPassword?.let(SecretStore::decrypt) },
+    startPathRequest = startPath,
+    hostKeyVerifier = gate,
+    label = label,
+)
 
 data class SourceDescriptor(val id: SourceId, val name: String)

@@ -15,6 +15,7 @@ sshj = "0.40.0"
 bouncycastle = "1.85"
 eddsa = "0.3.0"
 junit = "4.13.2"
+minaSshd = "2.19.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,6 +45,9 @@ bouncycastle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", versi
 eddsa = { group = "net.i2p.crypto", name = "eddsa", version.ref = "eddsa" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+mina-sshd-core = { group = "org.apache.sshd", name = "sshd-core", version.ref = "minaSshd" }
+mina-sshd-sftp = { group = "org.apache.sshd", name = "sshd-sftp", version.ref = "minaSshd" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.16" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
