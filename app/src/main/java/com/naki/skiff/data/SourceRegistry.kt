@@ -30,6 +30,16 @@ class SourceRegistry(
     private val newHostKeyGate: () -> HostKeyVerifier,
 ) {
 
+    /**
+     * Guards [instances] and [profiles] together. Panes read them on the main thread while the
+     * collector following the store writes them on another, and getOrPut is not atomic: two
+     * panes reaching for one server at the same moment would otherwise build two filesystems,
+     * which is two logins where this class promises one, and a leak of whichever loses.
+     *
+     * Never held across [FileSystem.close] — that disconnects on the calling thread.
+     */
+    private val lock = Any()
+
     private val instances = HashMap<SourceId, FileSystem>()
     private var profiles: List<ServerProfile> = emptyList()
 
@@ -43,45 +53,55 @@ class SourceRegistry(
     val sources: StateFlow<List<SourceDescriptor>> = _sources.asStateFlow()
 
     fun updateProfiles(list: List<ServerProfile>) {
-        profiles = list
-        // Drop cached filesystems for servers that were deleted or edited away.
-        val liveIds = list.map { it.id }.toSet()
-        val stale = instances.keys.filterIsInstance<SourceId.Remote>()
-            .filter { it.profileId !in liveIds }
-        stale.forEach { instances.remove(it)?.close() }
-        // Publish last: whoever sees these descriptors sees the profiles behind them.
-        _sources.value = descriptors()
+        val dropped = synchronized(lock) {
+            profiles = list
+            // Drop cached filesystems for servers that were deleted or edited away.
+            val liveIds = list.map { it.id }.toSet()
+            val stale = instances.keys.filterIsInstance<SourceId.Remote>()
+                .filter { it.profileId !in liveIds }
+            val removed = stale.mapNotNull { instances.remove(it) }
+            // Publish last: whoever sees these descriptors sees the profiles behind them.
+            _sources.value = descriptors()
+            removed
+        }
+        // Outside the lock: closing disconnects on this thread.
+        dropped.forEach { it.close() }
     }
 
+    /** Call under [lock], or before this object is shared. */
     private fun descriptors(): List<SourceDescriptor> =
         listOf(SourceDescriptor(SourceId.Local, localSourceName)) +
             profiles.map { SourceDescriptor(SourceId.Remote(it.id), it.name) }
 
-    fun get(id: SourceId): FileSystem = instances.getOrPut(id) {
-        when (id) {
-            is SourceId.Local -> LocalFileSystem(localSourceName)
-            is SourceId.Remote -> {
-                val profile = profiles.firstOrNull { it.id == id.profileId }
-                    ?: error("Unknown server profile ${id.profileId}")
-                val gate = newHostKeyGate()
-                SftpFileSystem(
-                    id = id,
-                    displayName = profile.name,
-                    browseConnection = profile.connection(gate, "browse"),
-                    transferConnection = profile.connection(gate, "transfer"),
-                )
+    fun get(id: SourceId): FileSystem = synchronized(lock) {
+        instances.getOrPut(id) {
+            when (id) {
+                is SourceId.Local -> LocalFileSystem(localSourceName)
+                is SourceId.Remote -> {
+                    val profile = profiles.firstOrNull { it.id == id.profileId }
+                        ?: error("Unknown server profile ${id.profileId}")
+                    val gate = newHostKeyGate()
+                    SftpFileSystem(
+                        id = id,
+                        displayName = profile.name,
+                        browseConnection = profile.connection(gate, "browse"),
+                        transferConnection = profile.connection(gate, "transfer"),
+                    )
+                }
             }
         }
     }
 
     /** Forces the next access to reconnect — used after editing a server's credentials. */
     fun invalidate(id: SourceId) {
-        instances.remove(id)?.close()
+        synchronized(lock) { instances.remove(id) }?.close()
     }
 
     fun closeAll() {
-        instances.values.forEach { it.close() }
-        instances.clear()
+        val open = synchronized(lock) {
+            instances.values.toList().also { instances.clear() }
+        }
+        open.forEach { it.close() }
     }
 }
 

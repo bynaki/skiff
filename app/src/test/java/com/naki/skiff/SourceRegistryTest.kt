@@ -10,9 +10,13 @@ import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.security.PublicKey
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * The picker used to build its list from the store while this registry built its profiles from
@@ -91,6 +95,32 @@ class SourceRegistryTest {
         assertEquals(listOf(SourceId.Local), registry.sources.value.map { it.id })
         assertThrows(IllegalStateException::class.java) {
             registry.get(SourceId.Remote(NAS.id))
+        }
+    }
+
+    /**
+     * A stress test, not a proof: it exercises the window rather than forcing it. Against an
+     * unguarded HashMap it fails nearly every run, because getOrPut reads and writes in two
+     * steps and every thread starts on the same barrier.
+     */
+    @Test
+    fun `panes reaching for one server at once get the same filesystem`() {
+        registry.updateProfiles(listOf(NAS))
+        val remote = SourceId.Remote(NAS.id)
+        val racers = 8
+        val barrier = CyclicBarrier(racers)
+        val pool = Executors.newFixedThreadPool(racers)
+        try {
+            val got = (1..racers)
+                .map { pool.submit<Any> { barrier.await(); registry.get(remote) } }
+                .map { it.get(10, TimeUnit.SECONDS) }
+
+            assertTrue(
+                "expected one shared filesystem, got ${got.distinctBy(System::identityHashCode).size}",
+                got.all { it === got.first() },
+            )
+        } finally {
+            pool.shutdownNow()
         }
     }
 

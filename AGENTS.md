@@ -126,7 +126,10 @@ the same rule for the same reason — it takes the local source's name and a fac
 key gate, not a `Context` and the store — and it publishes the source list itself rather than
 letting a second reader derive one from the store. Two readers of `store.profiles` drifted
 apart once already, and a descriptor the registry cannot resolve is an `error()` when picked,
-not a stale menu entry.
+not a stale menu entry. Its map and profile list are guarded by one lock, because `getOrPut` is
+not atomic and two panes opening one server at the same moment would otherwise log in twice.
+**Never hold that lock across `close()`** — closing disconnects on the calling thread, so the
+doomed filesystems are collected under it and closed outside.
 
 **Do not swallow `CancellationException`.** `runCatching` around a suspending call catches it
 too, which renders a cancelled load's cancellation message as a user-facing error. Catch
