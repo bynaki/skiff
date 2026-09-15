@@ -160,6 +160,26 @@ semantics deliberately: `stat` and `list` resolve links, a listing reports the l
 End-to-end against a real server means enabling Remote Login on macOS
 (System Settings → General → Sharing) and registering it as a profile in the app.
 
+## Before committing
+
+Read the diff before every commit, looking for two things.
+
+**Anything that identifies this machine or its network.** Host names, IP addresses, SSIDs,
+account names, passwords, private keys, host key fingerprints, absolute paths carrying a user
+name. This has already gone wrong once: a real server and the network around it reached the
+repository and had to be taken back out of it. Fixtures and docs use addresses reserved for
+documentation (`192.0.2.0/24`, RFC 5737) and throwaway credentials that authenticate nothing
+outside the test JVM, the way `SftpTestServer` does. Screenshots, logcat excerpts and dumps of
+`SkiffData` carry the same details as plainly as source does. `local.properties` is gitignored;
+keep it excluded rather than sanitizing it by hand.
+
+**Whether the change weakens what guards a connection.** The host key gate, `SecretStore`'s
+Keystore encryption and the absence of an `exec` channel are each one edit away from being
+undone, and none of them fails a test when they are. A diff touching `fs/sftp/`,
+`data/crypto/` or a permission in the manifest earns a second read for that reason alone.
+
+Commit once both reads come back clean.
+
 ## Not yet built
 
 The preview viewer (code/markdown) is deliberately absent. `fs/FileKind` and the `onOpen` hook
