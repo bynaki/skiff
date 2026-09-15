@@ -75,9 +75,15 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     init {
         viewModelScope.launch {
             store.profiles.collectLatest { profiles ->
-                _state.update {
-                    it.copy(profiles = profiles, sources = registry.descriptors())
-                }
+                _state.update { it.copy(profiles = profiles) }
+            }
+        }
+        // The picker follows the registry rather than the store. Both observe the same profile
+        // flow, and collecting it twice left the descriptors a beat behind whichever collector
+        // woke first: a server the user had just saved stayed missing until the next launch.
+        viewModelScope.launch {
+            registry.sources.collect { sources ->
+                _state.update { it.copy(sources = sources) }
             }
         }
         // The prompt is owned by the process, not this screen, so a transfer that meets an
