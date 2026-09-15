@@ -121,7 +121,12 @@ live in one JSON `SkiffData` blob behind `data/store/SkiffStore` — there is no
 Passwords are encrypted by `data/crypto/SecretStore` with an Android Keystore key and decrypted
 per connect. `SshConnection` takes host/port/user and a password *supplier*, deliberately
 knowing nothing about the Keystore; `SourceRegistry` owns the profile→connection wiring. That
-separation is what lets the SFTP layer be tested on a plain JVM.
+separation is what lets the SFTP layer be tested on a plain JVM. `SourceRegistry` is held to
+the same rule for the same reason — it takes the local source's name and a factory for the host
+key gate, not a `Context` and the store — and it publishes the source list itself rather than
+letting a second reader derive one from the store. Two readers of `store.profiles` drifted
+apart once already, and a descriptor the registry cannot resolve is an `error()` when picked,
+not a stale menu entry.
 
 **Do not swallow `CancellationException`.** `runCatching` around a suspending call catches it
 too, which renders a cancelled load's cancellation message as a user-facing error. Catch
@@ -152,6 +157,9 @@ These are non-obvious and each one has already broken the build or the app:
 a random port over a real socket (`SftpTestServer`). This is the highest-value test in the repo
 — it has already caught a protocol assumption a mock would have agreed with. Prefer extending it
 over mocking sshj.
+
+`SourceRegistryTest` covers that registry contract on a plain JVM: what the picker offers,
+`get` resolves.
 
 `FakeFileSystem` is an in-memory `FileSystem` used to drive `CopyEngine`, including symlink
 cases (dereferenced file, followed directory, cycle that must terminate). It follows POSIX
