@@ -120,7 +120,7 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
   - 읽기 전용 unified 뷰다. 현재 버퍼를 문서로 두고 `@codemirror/merge`의 `unifiedMergeView({original, mergeControls: false})`로 비교 대상과 비교한다. 지운 줄은 블록 위젯으로 끼워진다.
   - **diff 알고리즘은 줄 단위로 먼저 하고, 바뀐 줄 범위 안에서만 글자 단위로 한다(`diffConfig.override`).** 패키지 기본값(`scanLimit` 500)은 큰 파일에서 파일 전체를 청크 하나로 포기하고, 제한을 풀면 2MB에 6.7초가 걸리며 그래도 부정확하다. 줄 단위는 2MB에 약 240ms다(M0에서 확인). git 거터의 `Chunk.build`도 같은 설정을 쓴다.
   - +/- 기호는 별도 거터로 그린다. 추가된 줄은 `lineMarker`, 지운 줄 블록은 `widgetMarker`에 지운 줄 수만큼 `-`를 쌓는다. 초록/빨강 배경의 투명도는 CSS 변수 `--diff-alpha`로 조절한다. 하이라이팅도 한다.
-  - **`@codemirror/view` 6.43.12에 버그가 있다.** 블록 위젯이 줄 경계에 있으면 `HeightMapBranch.forEachLine`이 범위를 clamp하지 않아서 `viewportLineBlocks`가 화면 밖 수천 줄로 늘어난다. 모든 거터가 그만큼 요소를 만들어서 줌 한 단계가 5배 이상 느려진다. 두 곳에 `Math.max(from, …)`/`Math.min(to, …)`를 넣으면 고쳐진다. 사용자는 "upstream에 알리고 고쳐지기 전까지 `patch-package`로 패치"를 골랐다. 그런데 CodeMirror는 AI가 쓴 코드를 받지 않아서 PR은 보낼 수 없고, 이슈는 `code.haverbeke.berlin/codemirror/dev`에서만 받는다. 사용자가 직접 이슈를 올릴지는 **아직 확인받지 않았다.** `patch-package` 패치는 M5 diff 레이어에서 적용한다.
+  - **`@codemirror/view` 6.43.12에 버그가 있다.** 블록 위젯이 줄 경계에 있으면 `HeightMapBranch.forEachLine`이 범위를 clamp하지 않아서 `viewportLineBlocks`가 화면 밖 수천 줄로 늘어난다. 모든 거터가 그만큼 요소를 만들어서 줌 한 단계가 5배 이상 느려진다. 두 곳에 `Math.max(from, …)`/`Math.min(to, …)`를 넣으면 고쳐진다. **정한 것:** upstream에는 올리지 않고, M5 diff 레이어에서 `patch-package`로 이 두 줄을 패치한다. CM6 버전을 올릴 때마다 이 함수에 clamp가 들어갔는지 확인하고, 들어갔으면 패치를 뺀다.
   - 스크롤과 줌은 viewer 코드를 그대로 쓴다.
 
 ### 화면 메뉴 (`menu.layout.jpg`를 글로 옮김)
