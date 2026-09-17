@@ -16,7 +16,9 @@ import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.naki.skiff.code.lsp.StubLsp
 import org.json.JSONObject
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 private const val TAG = "SkiffCode"
@@ -28,9 +30,15 @@ private const val ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
  * Launch with `--ez selftest true` to have the page run its scripted scroll and zoom measurements,
  * `--ei bytes N` to change the file size from 2 MB, `--es layer diff` for the unified diff and
  * `--es alpha 0.15` for the diff background opacity, `--es diff char|line` for the diff algorithm and
- * `--ez nopatch true` to leave out the CodeMirror viewport workaround.
+ * `--ez nopatch true` to leave out the CodeMirror viewport workaround. `--es layer lsp` connects the page's
+ * `@codemirror/lsp-client` to the stub server in `lsp/StubLsp` over this same bridge, where
+ * `--ez fullsync true` makes that server ask for whole-document syncing instead of incremental.
  */
 class MainActivity : Activity() {
+
+    /** The stub server answers off the UI thread, in order, the way a real process's stdout would. */
+    private val lspThread = Executors.newSingleThreadExecutor()
+    private var lspServer: StubLsp? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,10 +82,37 @@ class MainActivity : Activity() {
         webView.loadUrl("$ORIGIN/assets/web/index.html" + if (query.isEmpty()) "" else "?$query")
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        lspThread.shutdownNow()
+    }
+
+    /**
+     * The stub server, created with the first message that needs it. It keeps that reply proxy so it
+     * can push notifications (diagnostics) to the page on its own, which is what a real server does.
+     */
+    private fun lsp(reply: JavaScriptReplyProxy): StubLsp = lspServer ?: StubLsp(intent.getBooleanExtra("fullsync", false)) { outgoing ->
+        val envelope = JSONObject().put("jsonrpc", "2.0").put("method", "lspMessage")
+            .put("params", JSONObject().put("message", outgoing)).toString()
+        runOnUiThread { reply.postMessage(envelope) }
+    }.also { lspServer = it }
+
     private fun handle(message: WebMessageCompat, sourceOrigin: Uri, reply: JavaScriptReplyProxy) {
         val request = JSONObject(message.data ?: return)
-        val id = request.get("id")
         val method = request.getString("method")
+        // No id means the page is notifying, not calling: there is nothing to answer.
+        if (!request.has("id")) {
+            Log.i(TAG, "notification $method from $sourceOrigin")
+            when (method) {
+                "lspSend" -> {
+                    val payload = request.getJSONObject("params").getString("message")
+                    lspThread.execute { lsp(reply).receive(payload) }
+                }
+                else -> Log.w(TAG, "unhandled notification $method")
+            }
+            return
+        }
+        val id = request.get("id")
         Log.i(TAG, "request $method from $sourceOrigin")
         when (method) {
             "sampleText" -> {

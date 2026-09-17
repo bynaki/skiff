@@ -8,6 +8,7 @@ import { getChunks } from '@codemirror/merge'
 import { rpc } from './bridge'
 import { anchorAt, currentFontSize, installPinchZoom, zoomTo } from './zoom'
 import { type DiffMode, patchViewportLineBlocks, sampleEdits, unifiedDiff } from './diff'
+import { bridgeTransport, lspClient, lspEditorExtension, runLspSpike, watchPublishes } from './lsp'
 
 const hud = document.getElementById('hud')!
 const hudLines = new Map<string, string>()
@@ -67,6 +68,17 @@ async function main() {
 
   // ?layer=diff shows the sample against an edited copy of itself as a unified diff.
   const diff = params.get('layer') === 'diff'
+  // ?layer=lsp talks to the Kotlin stub server over the bridge, and needs a writable editor.
+  const client = params.get('layer') === 'lsp' ? lspClient() : null
+  let initialize = 0
+  let publishes: number[] = []
+  if (client) {
+    const started = performance.now()
+    publishes = watchPublishes()
+    client.connect(bridgeTransport())
+    await client.initializing
+    initialize = performance.now() - started
+  }
   document.documentElement.style.setProperty('--code-font-size', `${currentFontSize()}px`)
   document.documentElement.style.setProperty('--diff-alpha', params.get('alpha') ?? '0.15')
   const edited = diff ? sampleEdits(text) : text
@@ -78,9 +90,10 @@ async function main() {
       doc: edited,
       extensions: [
         diff ? unifiedDiff(text, mode) : [],
+        client ? lspEditorExtension(client) : [],
         lineNumbers(),
-        EditorState.readOnly.of(true),
-        EditorView.editable.of(false),
+        EditorState.readOnly.of(client === null),
+        EditorView.editable.of(client !== null),
         javascript({ typescript: true }),
         syntaxHighlighting(defaultHighlightStyle),
         EditorView.theme({
@@ -98,6 +111,10 @@ async function main() {
   const t3 = performance.now()
   report('file', `${(text.length / 1024 / 1024).toFixed(2)} M chars, ${view.state.doc.lines} lines`)
   report('load', `bridge ${(t1 - t0).toFixed(0)} ms, view ${(t2 - t1).toFixed(0)} ms, first paint ${(t3 - t2).toFixed(0)} ms`)
+  if (client) {
+    report('lsp handshake', `initialize ${initialize.toFixed(0)} ms, didOpen with the view in ${(t2 - t1).toFixed(0)} ms`)
+    await runLspSpike(client, view, publishes, t2, report)
+  }
   if (diff) {
     const chunks = getChunks(view.state)?.chunks ?? []
     report('diff', `${mode}: ${chunks.length} chunks, ${chunks.filter((c) => !c.precise).length} imprecise, view with diff ${(t2 - t1edits).toFixed(0)} ms (edits ${(t1edits - t1).toFixed(0)} ms)`)

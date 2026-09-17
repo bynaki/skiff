@@ -61,6 +61,10 @@ settings.gradle.kts   include(":core", ":app", ":code")
 **Kotlin과 Web의 역할.** 바이트, SSH, git, LSP 프로세스는 Kotlin이 맡는다. 문서 상태, 렌더링,
 diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `bridge.ts`의 RPC 하나로 한다.
 
+**브리지는 양쪽 다 알림을 보낼 수 있어야 한다.** id가 있는 요청/응답만으로는 LSP 진단이나 파일
+변경처럼 Kotlin이 먼저 말하는 것을 실을 수 없다. id가 없는 메시지는 알림으로 보고, 받는 쪽이
+method로 구독한다(M0에서 확인).
+
 ### URI
 
 ```
@@ -164,12 +168,28 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
 - **`LspProcess`:**
   - exec로 `cd <root> && exec <command>`를 `$SHELL -lc`로 감싸 실행한다. 사용자의 PATH를 쓰기 위해서다.
   - stdio에 Content-Length 프레이밍을 한다.
-  - 메시지는 브리지로 Web의 `@codemirror/lsp-client` Transport에 넘긴다.
+  - 메시지는 브리지로 Web의 `@codemirror/lsp-client` Transport에 넘긴다. **Transport는 `send`,
+    `subscribe`, `unsubscribe` 셋뿐이고 프레이밍을 모른다.** 그래서 브리지에는 LSP JSON을
+    **문자열 그대로** 실어 보낸다. Kotlin은 그 문자열의 바이트에 헤더만 붙여 stdout에 쓰면 되고
+    파싱할 일이 없다(M0에서 확인).
+- **위치는 UTF-16 코드 단위다.** `@codemirror/lsp-client`는 CM6 오프셋을 그대로 LSP 위치로 쓰고
+  `positionEncoding`을 협상하지 않는다. 그래서 `initialize` 응답의 `positionEncoding`이 `utf-16`이
+  아니면(빠져 있으면 `utf-16`) 한글이 든 줄에서 위치가 어긋난다. **`LspManager`가 이것을 확인하고,
+  다르면 그 서버를 끄고 이유를 알린다.**
+- **동기화는 incremental(`textDocumentSync: 2`)을 쓰는 서버만 값이 있다.** Full이면 편집이 멈출
+  때마다 문서 전체가 브리지와 SSH를 지나간다. 2MB 파일에서 didChange가 246자 대 199만자, 편집에서
+  진단까지 591ms 대 744ms였다(둘 다 `autoSync`의 500ms 디바운스 포함, M0에서 확인). Full만 하는
+  서버는 큰 파일에서 편집 중 동기화를 끄는 것을 검토한다.
+- **요청 기본 타임아웃은 3초다.** 원격 서버에는 짧으니 `LSPClient`의 `timeout`을 설정에서 올린다.
 - **`LspManager`:**
   - (프로젝트, 언어)마다 서버 하나를 둔다. 그 언어 파일을 처음 열 때 띄운다.
   - 유휴 10분이 지나거나, 앱이 오래 백그라운드에 있거나, 프로젝트가 비활성화되면 `shutdown`→`exit` 후 채널을 닫는다.
   - 연결이 끊기면 다시 띄우고 열린 문서에 `didOpen`을 다시 보낸다.
 - **기본 LSP 명령:** python은 `pyright-langserver --stdio`, 없으면 `pylsp`. js/ts는 `typescript-language-server --stdio`, markdown은 `marksman server`. `command -v`로 없으면 조용히 끈다. 문서 URI는 `file://<원격 절대경로>`다.
+- **Web 쪽 붙이는 방법:** `new LSPClient({rootUri, extensions: languageServerExtensions()})`를
+  만들고 `LSPPlugin.create(client, uri, languageID)`를 에디터 확장에 넣는다. `languageServerSupport`는
+  deprecated이고 진단이 빠져 있다. 진단은 `languageServerExtensions()`에 든 `serverDiagnostics`가
+  `@codemirror/lint`로 넣으므로 lint 확장을 따로 넣을 필요는 없다.
 
 ### 보안 규칙 (커밋 전 두 번째 읽기 대상)
 
@@ -201,7 +221,10 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
 - [x] CM6로 2MB 파일 스크롤 성능과 핀치 줌(`--code-font-size`, 줌 중심 줄 고정)을 실기기(갤럭시탭 S10 FE, SM-X526N)에서 확인
   - 자동 측정 통과(`HANDOFF.md` 참조), 사용자가 탭에서 직접 스크롤과 핀치 줌을 해 보고 좋다고 확인했다.
 - [x] `@codemirror/merge`로 +/- 거터와 초록/빨강 줄의 읽기 전용 unified diff를 그리는 방법 확인
-- [ ] `@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지 확인
+- [x] `@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지 확인
+  - Kotlin 스텁 LSP 서버(`lsp/StubLsp`)를 붙여 실기기에서 initialize 4ms, 2MB didOpen 후 진단 252ms,
+    hover 4ms, 완성 3ms, 편집 후 재동기화 591ms를 확인했다. 진단 50개의 범위가 모두 의도한 글자
+    위에 있었고 한글 주석도 맞았다. 설계에 반영한 것은 위 "git과 LSP" 절에 있다.
 - [ ] ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지 확인. 안 되면 설계의 TOML 줄을 `smol-toml`로 고치기
 - [ ] **확인:** 위 결과를 `AGENTS.md`에 적고, 막힌 것이 있으면 설계를 고친 뒤 넘어간다
 
