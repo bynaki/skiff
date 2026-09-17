@@ -337,9 +337,9 @@ Skiff는 처음 요구사항을 거의 다 구현한 상태다. 남은 건 처�
   `CopyEngine.plan`에 넣고, 바이트가 움직이기 전에 `FsError.NoSpace`를 던지게 한다.
 - **`androidx.window`** — `libs.versions.toml`에 선언돼 있는데 import한 곳이 한 군데도 없다.
   원래는 분할선을 폴드 힌지에 스냅시키려던 것이었다. `ui/workspace/SplitContainer.kt`에서
-  `WindowInfoTracker`/`FoldingFeature`로 구현하거나, 아니면 의존성을 뺀다. 실기기는 힌지가 없는
-  갤럭시탭 S10 FE라서 이 기기에서는 쓸 데가 없고 동작을 확인할 수도 없다 — 어느 쪽이든 **안 쓰는
-  의존성이 카탈로그에 남아 있어선 안 된다**.
+  `WindowInfoTracker`/`FoldingFeature`로 구현하거나, 아니면 의존성을 뺀다. 폴더블 폰도 지원 대상이라
+  가치는 있다. 다만 지금 실기기는 힌지가 없는 갤럭시탭 S10 FE라서 폴더블 기기 없이는 동작을
+  확인할 수 없다 — 어느 쪽이든 **안 쓰는 의존성이 카탈로그에 남아 있어선 안 된다**.
 
 ---
 
