@@ -40,7 +40,9 @@
   - diff 알고리즘: 패키지 기본값은 2MB에서 청크 1개(파일 전체)로 포기한다. `scanLimit`을 풀면(`--es diff char`) 6.7초에 283개 청크가 전부 부정확하다. 줄 단위 diff 후 바뀐 범위만 글자 단위로 보는 `override`(`--es diff line`, 기본)는 약 240ms에 333개 청크가 모두 정확하다.
   - **CM6 버그를 찾았다.** diff 모드에서 줌 한 단계가 dispatch 57ms + measure 86ms로 느렸다. 기능(거터, 글자 강조, 지운 줄 하이라이팅)을 하나씩 꺼 봐도 그대로였다. 그래서 debug 빌드에서만 `WebView.setWebContentsDebuggingEnabled`를 켜고 CDP로 프로파일했다. `viewportLineBlocks`가 화면에 보이는 69줄이 아니라 3,531줄이었고, 줄 번호 거터 요소도 그만큼 있었다. 원인은 `@codemirror/view` 6.43.12의 `HeightMapBranch.forEachLine`(`break == 0` 분기)이 `mid.to + 1`, `mid.from - 1`을 요청 범위로 clamp하지 않는 것이다. GitHub `main`에도 그대로 있다.
   - 스파이크에서는 `patchViewportLineBlocks`로 prototype을 런타임에 바꿔 우회했다(private 내부 사용). 패치 후 diff 모드는 viewer와 같다: 스크롤 87fps(p95 11.2ms), 점프 32ms, 줌 dispatch p50 3ms + measure p50 10ms, 어긋남 0.6px. `--ez nopatch true`로 버그의 비용을 다시 잴 수 있다.
-  - **실제 구현에서 이 버그를 어떻게 다룰지는 사용자가 정하지 않았다.** 후보: CodeMirror에 이슈/PR 보내기(외부 공개 행동이라 사용자 승인 필요), `patch-package`로 node_modules 패치, 런타임 패치 유지. M5 diff 레이어 전에 정한다.
+  - **처리 방법:** 사용자는 "upstream에 알리고(PR), 고쳐지기 전까지 `patch-package`로 패치"를 골랐다. `patch-package` 쪽은 M5 diff 레이어에서 적용한다.
+    - 그런데 CodeMirror `CONTRIBUTING.md`는 AI가 일부라도 쓴 코드를 받지 않고, 이슈는 GitHub가 아니라 `code.haverbeke.berlin/codemirror/dev/issues`에서만 받는다. 그래서 PR은 보내지 않았다. 사용자가 직접 계정을 만들어 이슈를 올릴지는 **아직 답을 받지 않았다.**
+    - CodeMirror만 쓴 최소 재현 스크립트를 데스크톱 headless Chrome에서 돌려 확인했다. 20,000줄, 100줄마다 `block: true, side: -1` 위젯, 뷰포트 1~36줄에서 `viewportLineBlocks` 9,999개, 줄 번호 거터 요소 10,000개. 영문 리포트 초안과 스크립트는 사용자에게 전달했다(레포에는 넣지 않았다). 사용자가 이슈를 올리면 링크를 받아 여기에 적는다.
 
 ### 사용자와 정한 것, 그리고 이유
 질문으로 정했고 사용자는 네 가지 모두 추천안을 골랐다. 다시 논의하지 말고 이대로 진행한다.
