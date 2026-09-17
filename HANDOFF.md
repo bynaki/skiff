@@ -9,14 +9,15 @@
 
 ---
 
-## 마지막 세션 (2026-09-17): Skiff Code 계획 수립
+## 마지막 세션 (2026-09-17): M0 첫 항목, WebView 브리지 왕복
 
 ### 한 일
-- 원래 요구사항 [`skiff.code.plan.md`](skiff.code.plan.md)와 손그림 [`menu.layout.jpg`](menu.layout.jpg)를 읽고 설계를 세웠다.
-- 설계를 `plan.md` 맨 위 `# Skiff Code` 섹션에 적었다. 세션 단위 체크리스트(M0~M6)와 손그림을 글로 옮긴 내용도 함께 들어 있다.
-- `plan.md`에 원래 있던 Skiff 계획은 `# Skiff 다음 계획`으로 아래에 남겼다. 그중 §1 뷰어는 Skiff Code로 넘어갔다고 표시했다.
-- `AGENTS.md`의 "Not yet built" 섹션에 Skiff Code와 이 문서를 적었다.
-- **코드는 한 줄도 쓰지 않았다.** 빌드, 테스트, 실기기 확인도 하지 않았다.
+- **실기기를 확인했다.** 연결된 기기는 Fold 7이 아니라 **갤럭시탭 S10 FE(SM-X526N)**, Android 16 / API 36, arm64, WebView 152다. 사용자가 이 기기를 기준으로 하기로 해서 `plan.md`의 M0 항목을 고쳤다. 화면은 하나라서 `screencap`에 display id가 필요 없다.
+- **예전 Skiff Code 시도를 지웠다.** 합치지 않은 로컬 브랜치 `claude/next-steps-2afbda`(9/14, Compose UI, 비밀번호까지 Provider로 공유)가 있었다. 사용자 지시로 브랜치를 삭제하고(원격에는 없었다), 그 브랜치에서 설치했던 `com.naki.skiffcode`도 기기에서 지웠다. **없었던 것으로 친다. 참고하거나 되살리지 않는다.**
+- `:code` 모듈을 추가했다(`com.naki.skiff.code`, minSdk 30, Compose 없음, 의존성은 `androidx.webkit` 1.17.0 하나).
+  - `ui/MainActivity`: WebView 하나 + `WebViewAssetLoader`(`https://appassets.androidplatform.net/assets/`) + `addWebMessageListener("skiffBridge", 허용 origin은 appassets 하나)`. `org.json`으로 `ping`에 응답한다.
+  - `assets/web/index.html`: 손으로 쓴 임시 페이지. 다음 항목에서 Vite 빌드 결과로 바뀐다.
+- 기기에서 확인: 요청 → Kotlin 응답 → JS 수신까지 한 번 왕복했고 한글도 깨지지 않았다(logcat `SkiffCode` 태그와 화면 모두).
 
 ### 사용자와 정한 것, 그리고 이유
 질문으로 정했고 사용자는 네 가지 모두 추천안을 골랐다. 다시 논의하지 말고 이대로 진행한다.
@@ -35,19 +36,22 @@
 3. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전에 확인)
 
 ### 아직 모르는 것 (M0에서 확인할 것)
-계획은 아래가 모두 된다는 전제로 세웠고, 실제로는 하나도 확인하지 않았다. 안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
+안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
 - ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지. KSP와 Room이 이미 안 됐던 환경이다.
 - `@codemirror/merge`로 원하는 모양(+/- 기호, 초록/빨강 배경의 읽기 전용 unified diff)이 나오는지.
 - `@codemirror/lsp-client` Transport를 WebView 브리지로 대신할 수 있는지.
-- Fold 7 실기기에서 CM6 핀치 줌과 2MB 파일 스크롤이 쓸 만한지.
-- 라이브러리 버전은 하나도 확정하지 않았다. 실제로 확인한 최신 안정판을 쓰고 `AGENTS.md`에 적는다.
+- 실기기(갤럭시탭 S10 FE)에서 CM6 핀치 줌과 2MB 파일 스크롤이 쓸 만한지.
+- `androidx.webkit` 1.17.0 말고는 라이브러리 버전을 확정하지 않았다. 실제로 확인한 최신 안정판을 쓰고, M0 마지막 항목에서 `AGENTS.md`에 모아 적는다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints와 Before committing을 본다.
-2. `plan.md`에서 처음 나오는 `- [ ]`부터 시작한다. 이번 커밋 기준으로는 **M0의 첫 항목(`:code` 최소 앱 + WebView 브리지 왕복)**이다.
+2. `plan.md`에서 처음 나오는 `- [ ]`부터 시작한다. 지금은 **M0 둘째 항목(`code/web` Vite+TS + Gradle `buildWeb` 태스크)**이다. 손으로 쓴 `code/src/main/assets/web/index.html`을 빌드 결과로 바꾸고, 설계대로 `assets/web/`을 gitignore한다.
 3. 세션을 끝낼 때 체크리스트를 갱신하고 이 파일을 덮어쓴다.
 
 ### 주의할 점
 - **exec 금지 원칙은 아직 유효하다.** `AGENTS.md`의 원칙을 바꾸는 것은 M5의 체크리스트 항목이다. 그 전에는 `:code`에도 exec를 넣지 않는다.
 - M1(`:core` 추출)은 Skiff를 건드리는 리팩터링이다. 옮기기 전과 후에 `:app` 테스트가 모두 통과해야 하고, 실기기에서 SFTP 탐색과 전송이 이전과 같은지 확인한다.
-- 환경: 작업 브랜치는 `plan/skiffcode`(git worktree)이고, `node`(v24)와 `npm`은 PATH에 있다. `java`는 PATH에 없어서 `JAVA_HOME`이 필요하다(`AGENTS.md` 참조).
+- M0 코드는 스파이크다. `:code:lintDebug`는 경고 8개로 통과한다(`MissingOnRenderProcessGone` 4, `RequiresFeature` 2, `SetJavaScriptEnabled` 1, `DataExtractionRules` 1). 앞의 둘은 M2에서 `WebBridge`를 정식으로 만들 때 처리한다(렌더러 프로세스가 죽으면 WebView를 다시 만들고, 기능 확인은 `if`로 분기).
+- adb 명령에 기기 시리얼이 필요하면 `adb devices`로 얻는다. 시리얼은 레포에 적지 않는다.
+- 기기 화면이 꺼져 있으면 `screencap`이 검은 화면을 찍는다. `adb shell input keyevent KEYCODE_WAKEUP` 뒤에 찍는다.
+- 환경: 작업 브랜치는 `plan/skiffcode`(git worktree)이고, `node`(v24)와 `npm`은 PATH에 있다. `java`는 PATH에 없어서 `JAVA_HOME`이 필요하다. `adb`도 PATH에 없고 `/opt/homebrew/share/android-commandlinetools/platform-tools/adb`에 있다. worktree에는 `local.properties`가 따로 있어야 한다(메인 체크아웃에서 복사했다).

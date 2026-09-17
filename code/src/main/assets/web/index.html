@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skiff Code</title>
+  <style>
+    body { font: 20px monospace; padding: 64px 24px; }
+  </style>
+</head>
+<body>
+  <p id="status">waiting…</p>
+  <script>
+    // M0 spike: one JSON-RPC round trip through the web message listener Kotlin injects.
+    const status = document.getElementById('status');
+    skiffBridge.onmessage = (event) => {
+      console.log('round trip ok: ' + event.data);
+      status.textContent = 'round trip ok: ' + event.data;
+    };
+    const request = { jsonrpc: '2.0', id: 1, method: 'ping', params: { text: '안녕 from web' } };
+    skiffBridge.postMessage(JSON.stringify(request));
+    status.textContent = 'sent: ' + JSON.stringify(request);
+  </script>
+</body>
+</html>

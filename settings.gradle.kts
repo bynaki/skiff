@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Skiff"
-include(":app")
+include(":app", ":code")
