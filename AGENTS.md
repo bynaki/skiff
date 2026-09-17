@@ -58,6 +58,25 @@ Screenshots on a foldable need an explicit display id, otherwise `screencap` wri
 to stdout instead of a PNG:
 `adb -s <serial> shell dumpsys SurfaceFlinger --display-id`, then `screencap -d <id> -p`.
 
+### Skiff Code (`:code`)
+
+```bash
+./gradlew :code:installDebug                 # runs buildWeb first; needs npm on PATH
+./gradlew :code:testDebugUnitTest
+./gradlew :code:lintDebug
+adb -s <serial> shell am start -n com.naki.skiff.code/.ui.MainActivity
+adb -s <serial> logcat -s SkiffCode:V        # bridge traffic and the page's console.log
+```
+
+The module is still M0 spike code and its launch arguments are documented in `MainActivity`'s
+KDoc. To inspect the page itself, forward Chrome DevTools to the WebView:
+
+```bash
+PID=$(adb -s <serial> shell pidof com.naki.skiff.code)
+adb -s <serial> forward tcp:9333 localabstract:webview_devtools_remote_$PID
+# then http://127.0.0.1:9333/json for the page's webSocketDebuggerUrl
+```
+
 ## Architecture
 
 ### `FileSystem` is the spine
@@ -154,6 +173,27 @@ These are non-obvious and each one has already broken the build or the app:
 - BouncyCastle is re-registered in `SkiffApplication` because Android ships a cut-down provider
   under the same `"BC"` name.
 
+These apply to `:code` only:
+
+- **The Gradle daemon must have `npm` on its PATH.** `:code:preBuild` depends on `buildWeb`, which
+  shells out to npm. node is installed with fnm, so the path differs per shell and is deliberately
+  not written into the build script. A daemon started from a terminal is fine; Android Studio is
+  not, and needs its own answer.
+- **ktoml needs the serialization compiler plugin, not KSP**, which is why it works here when Room
+  does not. `:code` applies `kotlin-serialization` for it.
+- **TypeScript 7's `tsc` treats a file with no import or export as a global script**, so a
+  top-level `status` collides with `window.status`.
+- **`@codemirror/view` 6.43.12 grows `viewportLineBlocks` to thousands of off-screen lines** when a
+  block widget sits on a line boundary, which every gutter then renders. `code/web/src/diff.ts`
+  patches the prototype at runtime for the spike; M5 does it with `patch-package`. Check
+  `HeightMapBranch.forEachLine` for a clamp when raising the CodeMirror version, and drop the patch
+  once it is there.
+- **`@codemirror/lsp-client` converts positions as UTF-16 code units and never negotiates
+  `positionEncoding`.** A server that counts UTF-8 bytes puts diagnostics in the wrong place on any
+  line with Korean text.
+- **`org.json` writes `/` escaped as `\/`.** Valid JSON, but it means a message carrying an LSP
+  method name cannot be matched as a substring — parse it.
+
 ## Testing
 
 `SftpFileSystemTest` runs the production SFTP code against a **real Apache MINA SSH server** on
@@ -203,6 +243,24 @@ implemented.
 Skiff Code will relax one rule above: an SSH `exec` channel is planned, but only in its project
 mode, in one class. Until that step lands and this file says so, the no-`exec` rule stands
 everywhere.
+
+**M0 settled that all of it fits in one WebView**, on the tablet, against a 2 MB file: scrolling
+holds 86–91 fps, a pinch-zoom step costs 3 ms to dispatch and 8 ms to measure, a line-level
+unified diff takes about 240 ms, and `@codemirror/lsp-client` runs over the Kotlin bridge with
+diagnostics 252 ms after `didOpen`. The measurements and what they changed in the design are in
+`plan.md`. Everything under `:code/` is spike code that M2 rewrites; the versions it pinned are
+not:
+
+- Kotlin: `androidx.webkit` 1.17.0, `com.akuleshov7:ktoml-core` 0.7.1
+- Build: `vite` 8.3.0, `typescript` 7.0.2
+- `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,
+  `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7
+
+The bridge's shape is settled too, and the security rules on it are in `plan.md`: one
+`WebViewCompat.addWebMessageListener` named `skiffBridge`, `https://appassets.androidplatform.net`
+as the only allowed origin, no `addJavascriptInterface`, the bundle served only through
+`WebViewAssetLoader`, and JSON-RPC both ways — a message without an `id` is a notification, which
+is what carries LSP diagnostics and file changes.
 
 `plan.md` holds the next round of work in more detail, in Korean. Its top section, `# Skiff
 Code`, is the design and a checklist split into session-sized items — **a new session picks up at
