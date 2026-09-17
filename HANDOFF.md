@@ -12,7 +12,7 @@
 ## 마지막 세션 (2026-09-17): M0 첫째~넷째 항목
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **원격에 push하지 않았고 main에 합치지 않았다.** 작업 트리는 깨끗하다.
+- 브랜치 `plan/skiffcode`(git worktree). `origin/plan/skiffcode`에 push했고(원격 저장소는 공개), **main에는 합치지 않았다.** 작업 트리는 깨끗하다.
 - M0 체크리스트: 1~4번 완료. **다음은 5번(`@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지)**이다.
 - 탭에는 `com.naki.skiff.code`(debug)가 설치돼 있다.
 - `:code` 모듈(`com.naki.skiff.code`, minSdk 30, Compose 없음)은 전부 **스파이크 코드**다. M2에서 정식으로 다시 만든다.
