@@ -193,9 +193,25 @@ Commit once both reads come back clean.
 
 ## Not yet built
 
-The preview viewer (code/markdown) is deliberately absent. `fs/FileKind` and the `onOpen` hook
-in `PaneScreen` are the seams left for it; tapping a file currently hands it to an external app.
-Key and keyboard-interactive auth are extension points on `AuthMethod` — only password is
+The preview viewer (code/markdown) is deliberately absent from Skiff. It is being built as a
+separate app, **Skiff Code** (viewer / editor / diff layers on CodeMirror 6 in a WebView, remote
+projects with git and LSP), in this same repository. `fs/FileKind` and the `onOpen` hook in
+`PaneScreen` are the seams Skiff keeps for it; tapping a file currently hands it to an external
+app. Key and keyboard-interactive auth are extension points on `AuthMethod` — only password is
 implemented.
 
-`plan.md` holds the next round of work in more detail, in Korean.
+Skiff Code will relax one rule above: an SSH `exec` channel is planned, but only in its project
+mode, in one class. Until that step lands and this file says so, the no-`exec` rule stands
+everywhere.
+
+`plan.md` holds the next round of work in more detail, in Korean. Its top section, `# Skiff
+Code`, is the design and a checklist split into session-sized items — **a new session picks up at
+the first unchecked `- [ ]`**, ticks it in the same commit as the work, and follows the
+hand-off rules written there. The original brief is `skiff.code.plan.md`, and the hand-drawn
+menu layout is `menu.layout.jpg` (transcribed in `plan.md`). The rest of `plan.md` is the
+remaining Skiff work.
+
+**Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries what the
+checklist cannot: what the last session did, why the decisions went the way they did, which
+assumptions the user has not confirmed yet, and what is still unverified. It is a snapshot of
+the current state, not a log — the history lives in git.
