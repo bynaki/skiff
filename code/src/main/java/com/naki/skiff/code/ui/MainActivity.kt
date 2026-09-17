@@ -1,6 +1,7 @@
 package com.naki.skiff.code.ui
 
 import android.app.Activity
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -25,7 +26,9 @@ private const val ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
  * M0 spike: one WebView served from assets, JSON-RPC over a web message listener.
  * `sampleText` hands the page a generated source file so CodeMirror can be measured on a real device.
  * Launch with `--ez selftest true` to have the page run its scripted scroll and zoom measurements,
- * and `--ei bytes N` to change the file size from 2 MB.
+ * `--ei bytes N` to change the file size from 2 MB, `--es layer diff` for the unified diff and
+ * `--es alpha 0.15` for the diff background opacity, `--es diff char|line` for the diff algorithm and
+ * `--ez nopatch true` to leave out the CodeMirror viewport workaround.
  */
 class MainActivity : Activity() {
 
@@ -36,6 +39,7 @@ class MainActivity : Activity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
         val webView = WebView(this)
         webView.settings.javaScriptEnabled = true
         webView.settings.allowFileAccess = false
@@ -62,6 +66,10 @@ class MainActivity : Activity() {
         val query = buildList {
             if (intent.getBooleanExtra("selftest", false)) add("selftest=1")
             intent.getIntExtra("bytes", 0).takeIf { it > 0 }?.let { add("bytes=$it") }
+            intent.getStringExtra("layer")?.let { add("layer=${Uri.encode(it)}") }
+            intent.getStringExtra("alpha")?.let { add("alpha=${Uri.encode(it)}") }
+            intent.getStringExtra("diff")?.let { add("diff=${Uri.encode(it)}") }
+            if (intent.getBooleanExtra("nopatch", false)) add("nopatch=1")
         }.joinToString("&")
         webView.loadUrl("$ORIGIN/assets/web/index.html" + if (query.isEmpty()) "" else "?$query")
     }

@@ -9,7 +9,7 @@
 
 ---
 
-## 마지막 세션 (2026-09-17): M0 첫째~셋째 항목, WebView 브리지·Vite 빌드·CM6 성능
+## 마지막 세션 (2026-09-17): M0 첫째~넷째 항목, WebView 브리지·Vite 빌드·CM6 성능·unified diff
 
 ### 한 일
 - **실기기를 확인했다.** 연결된 기기는 Fold 7이 아니라 **갤럭시탭 S10 FE(SM-X526N)**, Android 16 / API 36, arm64, WebView 152다. 사용자가 이 기기를 기준으로 하기로 해서 `plan.md`의 M0 항목을 고쳤다. 화면은 하나라서 `screencap`에 display id가 필요 없다.
@@ -23,7 +23,7 @@
   - Gradle: `npmCi`(package.json, lock → node_modules) → `buildWeb`(web 소스 → assets/web) → `preBuild`.
   - 확인한 것: node_modules와 assets가 없는 상태에서 `:code:assembleDebug` 한 번에 빌드된다. 바뀐 게 없으면 두 태스크 모두 UP-TO-DATE다. `main.ts`를 바꾸면 `buildWeb`이 다시 돌고, 결과물이 달라질 때만 `mergeDebugAssets`와 `packageDebug`가 다시 돈다. 기기에서 새 번들로 왕복을 다시 확인했다.
   - `val x by tasks.registering(...)`은 Gradle 9.7에서 폐기 경고가 떠서 `tasks.register<Exec>(...)`로 썼다.
-- M0 셋째 항목(CM6 2MB 스크롤·핀치 줌)은 **자동 측정까지 끝났고 사용자의 손 확인을 기다린다.** 체크하지 않았다.
+- M0 셋째 항목(CM6 2MB 스크롤·핀치 줌): 자동 측정 뒤 사용자가 탭에서 직접 해 보고 "아주 좋아"라고 확인해서 체크했다.
   - 구성: Kotlin `sampleText`가 한글 주석이 섞인 TypeScript 모양의 텍스트를 만들어 브리지로 보낸다(기본 2MB, `--ei bytes N`). 웹은 읽기 전용 CM6(줄 번호, `lang-javascript` 하이라이팅)로 보여준다. 오른쪽 위 HUD와 logcat(`SkiffCode`)에 수치를 찍는다. `--ez selftest true`로 띄우면 스크롤·점프·줌 측정을 자동으로 돌린다.
   - CM6 패키지(정확한 버전으로 고정): `@codemirror/view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5. 번들 374KB(gzip 128KB).
   - 결과(2MB, 35,473줄, 화면 90Hz):
@@ -33,7 +33,14 @@
     - 중간으로 점프: 25~30ms.
     - 줌 36단계(14→40→8→14px): 기준 줄 어긋남 최대 0.8px. 한 단계 비용은 dispatch p50 3ms + measure p50 8ms(p90 15ms). 최대 100ms가 한 번 있었다. 20KB 파일과 비용이 비슷하다. 즉 파일 크기에 거의 비례하지 않는다.
   - **처음 구현은 실패했다.** `requestMeasure`의 write에서 `scrollTop`을 쓰면 CM6 measure 루프의 스크롤 앵커 보정과 겹친다. 그래서 "Viewport failed to stabilize" 경고가 나고 12만 px 어긋났다. `EditorView.scrollIntoView(pos, {y: 'start', yMargin})`로 바꿔서 해결했다. `yMargin`은 caret 사각형 기준이다. 그래서 줄 상자 안에서 caret이 시작하는 비율(`glyph`)을 줌 시작 때 재서 보정한다. 이 내용은 `plan.md` 설계의 viewer 항목에도 적었다.
-  - adb로는 멀티터치를 만들 수 없다. 그래서 실제 핀치 제스처(`touchmove` 경로)는 아직 아무도 확인하지 않았다. 자동 측정은 같은 `zoomTo`를 직접 부른 것이다.
+  - adb로는 멀티터치를 만들 수 없다. 그래서 실제 핀치 제스처는 사용자가 손으로 확인했다.
+- M0 넷째 항목(`@codemirror/merge` unified diff)을 끝냈다. `code/web/src/diff.ts`, `--es layer diff`로 띄운다.
+  - 테스트 데이터: 같은 2MB 파일에서 40블록마다 한 줄 수정, 두 줄 삭제, 세 줄 추가(`sampleEdits`). 청크 333개.
+  - 그리는 방법: `unifiedMergeView({mergeControls: false, gutter: false})` + 직접 만든 +/- 거터 + CSS 변수 `--diff-alpha`(`--es alpha 0.3`)로 배경 투명도. 탭 스크린샷으로 +/- 기호, 지운 줄마다 `-` 하나, 바뀐 글자 강조, 지운 줄의 구문 하이라이팅을 확인했다.
+  - diff 알고리즘: 패키지 기본값은 2MB에서 청크 1개(파일 전체)로 포기한다. `scanLimit`을 풀면(`--es diff char`) 6.7초에 283개 청크가 전부 부정확하다. 줄 단위 diff 후 바뀐 범위만 글자 단위로 보는 `override`(`--es diff line`, 기본)는 약 240ms에 333개 청크가 모두 정확하다.
+  - **CM6 버그를 찾았다.** diff 모드에서 줌 한 단계가 dispatch 57ms + measure 86ms로 느렸다. 기능(거터, 글자 강조, 지운 줄 하이라이팅)을 하나씩 꺼 봐도 그대로였다. 그래서 debug 빌드에서만 `WebView.setWebContentsDebuggingEnabled`를 켜고 CDP로 프로파일했다. `viewportLineBlocks`가 화면에 보이는 69줄이 아니라 3,531줄이었고, 줄 번호 거터 요소도 그만큼 있었다. 원인은 `@codemirror/view` 6.43.12의 `HeightMapBranch.forEachLine`(`break == 0` 분기)이 `mid.to + 1`, `mid.from - 1`을 요청 범위로 clamp하지 않는 것이다. GitHub `main`에도 그대로 있다.
+  - 스파이크에서는 `patchViewportLineBlocks`로 prototype을 런타임에 바꿔 우회했다(private 내부 사용). 패치 후 diff 모드는 viewer와 같다: 스크롤 87fps(p95 11.2ms), 점프 32ms, 줌 dispatch p50 3ms + measure p50 10ms, 어긋남 0.6px. `--ez nopatch true`로 버그의 비용을 다시 잴 수 있다.
+  - **실제 구현에서 이 버그를 어떻게 다룰지는 사용자가 정하지 않았다.** 후보: CodeMirror에 이슈/PR 보내기(외부 공개 행동이라 사용자 승인 필요), `patch-package`로 node_modules 패치, 런타임 패치 유지. M5 diff 레이어 전에 정한다.
 
 ### 사용자와 정한 것, 그리고 이유
 질문으로 정했고 사용자는 네 가지 모두 추천안을 골랐다. 다시 논의하지 말고 이대로 진행한다.
@@ -56,12 +63,11 @@
 - ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지. KSP와 Room이 이미 안 됐던 환경이다.
 - `@codemirror/merge`로 원하는 모양(+/- 기호, 초록/빨강 배경의 읽기 전용 unified diff)이 나오는지.
 - `@codemirror/lsp-client` Transport를 WebView 브리지로 대신할 수 있는지.
-- 실기기(갤럭시탭 S10 FE)에서 손으로 했을 때 CM6 핀치 줌과 2MB 파일 스크롤이 쓸 만한지. 수치는 위에 있다.
-- `androidx.webkit` 1.17.0, Vite 8.3.0, TypeScript 7.0.2, 위 CM6 패키지 말고는 라이브러리 버전을 확정하지 않았다. 실제로 확인한 최신 안정판을 쓰고, M0 마지막 항목에서 `AGENTS.md`에 모아 적는다.
+- `androidx.webkit` 1.17.0, Vite 8.3.0, TypeScript 7.0.2, 위 CM6 패키지와 `@codemirror/merge` 6.12.2 말고는 라이브러리 버전을 확정하지 않았다. 실제로 확인한 최신 안정판을 쓰고, M0 마지막 항목에서 `AGENTS.md`에 모아 적는다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints와 Before committing을 본다.
-2. `plan.md`에서 처음 나오는 `- [ ]`부터 시작한다. 지금은 **M0 셋째 항목**이다. 사용자가 탭에서 직접 스크롤과 핀치 줌을 만져 본 결과를 먼저 묻는다. 쓸 만하다고 하면 체크하고 넷째 항목(`@codemirror/merge` unified diff)으로 간다. 문제가 있다고 하면 그 증상부터 고친다.
+2. `plan.md`에서 처음 나오는 `- [ ]`부터 시작한다. 지금은 **M0 다섯째 항목(`@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지)**이다.
 3. 세션을 끝낼 때 체크리스트를 갱신하고 이 파일을 덮어쓴다.
 
 ### 주의할 점
@@ -71,6 +77,7 @@
 - adb 명령에 기기 시리얼이 필요하면 `adb devices`로 얻는다. 시리얼은 레포에 적지 않는다.
 - 기기 화면이 꺼져 있으면 `screencap`이 검은 화면을 찍는다. `adb shell input keyevent KEYCODE_WAKEUP` 뒤에 찍는다.
 - **이제 `:code`를 빌드하려면 Gradle 데몬의 PATH에 `npm`이 있어야 한다.** node는 fnm으로 설치돼 있고 셸마다 경로가 달라서 빌드 스크립트에 경로를 적지 않았다. 터미널에서 띄운 데몬은 문제없다. Android Studio처럼 PATH가 없는 곳에서 빌드하려면 대책이 필요하다. `AGENTS.md`의 Commands와 Toolchain 섹션에는 아직 적지 않았다(M0 마지막 항목에서 정리한다).
+- **WebView 프로파일링:** debug 빌드는 WebView 디버깅이 켜져 있다. `adb forward tcp:9333 localabstract:webview_devtools_remote_$(adb shell pidof com.naki.skiff.code)` 뒤 `http://127.0.0.1:9333/json`에서 페이지를 찾고, Node 24의 전역 `WebSocket`으로 CDP(`Runtime.evaluate`, `Profiler.start/stop`)를 바로 쓸 수 있다. 페이지는 스파이크용으로 `window.view`와 `window.zoomTest`를 내놓는다. 번들이 압축돼 있어서 프로파일의 함수 이름은 번들 파일에서 `function 이름(`로 찾아 확인한다.
 - 기기 화면은 2분(120000ms) 뒤 꺼진다. adb 측정 전에 `KEYCODE_WAKEUP`을 보내고 `dumpsys window | grep mCurrentFocus`로 앱이 앞에 있는지 확인한다. 기기는 가로 방향(2304x1440)이다. 아래 가장자리에서 시작하는 스와이프는 시스템 제스처에 먹히므로 y 250~1100 사이에서 한다.
 - `npm install` 때 fsevents의 install 스크립트는 npm 11 기본 정책 때문에 실행되지 않는다. macOS용 선택 의존성이라 빌드에는 영향이 없다.
 - TypeScript 7의 `tsc`는 import/export가 없는 파일을 전역 스크립트로 본다. 그래서 `status` 같은 이름이 `window.status`와 충돌한다. 모듈로 만들거나 이름을 피한다.

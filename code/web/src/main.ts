@@ -4,8 +4,10 @@ import { EditorState } from '@codemirror/state'
 import { EditorView, lineNumbers } from '@codemirror/view'
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { javascript } from '@codemirror/lang-javascript'
+import { getChunks } from '@codemirror/merge'
 import { rpc } from './bridge'
 import { anchorAt, currentFontSize, installPinchZoom, zoomTo } from './zoom'
+import { type DiffMode, patchViewportLineBlocks, sampleEdits, unifiedDiff } from './diff'
 
 const hud = document.getElementById('hud')!
 const hudLines = new Map<string, string>()
@@ -63,12 +65,19 @@ async function main() {
   const { text } = await rpc<{ text: string }>('sampleText', { bytes })
   const t1 = performance.now()
 
+  // ?layer=diff shows the sample against an edited copy of itself as a unified diff.
+  const diff = params.get('layer') === 'diff'
   document.documentElement.style.setProperty('--code-font-size', `${currentFontSize()}px`)
+  document.documentElement.style.setProperty('--diff-alpha', params.get('alpha') ?? '0.15')
+  const edited = diff ? sampleEdits(text) : text
+  const t1edits = performance.now()
+  const mode = (params.get('diff') ?? 'line') as DiffMode
   const view = new EditorView({
     parent: document.getElementById('editor')!,
     state: EditorState.create({
-      doc: text,
+      doc: edited,
       extensions: [
+        diff ? unifiedDiff(text, mode) : [],
         lineNumbers(),
         EditorState.readOnly.of(true),
         EditorView.editable.of(false),
@@ -81,12 +90,18 @@ async function main() {
       ],
     }),
   })
+  // ?nopatch leaves CodeMirror's viewport line bug in place, to measure what it costs.
+  if (diff && !params.has('nopatch')) patchViewportLineBlocks(view)
   const t2 = performance.now()
   await nextFrame()
   await nextFrame()
   const t3 = performance.now()
   report('file', `${(text.length / 1024 / 1024).toFixed(2)} M chars, ${view.state.doc.lines} lines`)
   report('load', `bridge ${(t1 - t0).toFixed(0)} ms, view ${(t2 - t1).toFixed(0)} ms, first paint ${(t3 - t2).toFixed(0)} ms`)
+  if (diff) {
+    const chunks = getChunks(view.state)?.chunks ?? []
+    report('diff', `${mode}: ${chunks.length} chunks, ${chunks.filter((c) => !c.precise).length} imprecise, view with diff ${(t2 - t1edits).toFixed(0)} ms (edits ${(t1edits - t1).toFixed(0)} ms)`)
+  }
 
   const monitor = new FrameMonitor((summary) => report('last motion', summary))
   view.scrollDOM.addEventListener('scroll', () => monitor.poke(), { passive: true })
@@ -96,6 +111,7 @@ async function main() {
     report('font', `${size.toFixed(1)} px`)
   })
 
+  Object.assign(window, { zoomTest: () => zoomTest(view), view })
   if (params.has('selftest')) await selftest(view)
 }
 
@@ -125,7 +141,14 @@ async function selftest(view: EditorView) {
   await nextFrame()
   report('selftest jump', `${(performance.now() - jump).toFixed(0)} ms to middle, line ${view.state.doc.lineAt(view.lineBlockAtHeight(scroller.scrollTop).from).number}`)
 
-  // Zoom around the vertical centre: up to 40 px, down to 8 px, back to 14 px.
+  await zoomTest(view)
+  report('font', `${currentFontSize()} px`)
+  console.log('selftest done')
+}
+
+/** Zoom around the vertical centre: up to 40 px, down to 8 px, back to 14 px. */
+async function zoomTest(view: EditorView) {
+  const scroller = view.scrollDOM
   const rect = scroller.getBoundingClientRect()
   const clientY = rect.top + rect.height / 2
   const anchor = anchorAt(view, clientY)
@@ -150,8 +173,6 @@ async function selftest(view: EditorView) {
     maxDrift = Math.max(maxDrift, Math.abs(actual - clientY))
   }
   report('selftest zoom', `${sizes.length} steps, max drift ${maxDrift.toFixed(1)} px, dispatch ${spread(dispatchTimes)}, measure ${spread(measureTimes)}`)
-  report('font', `${currentFontSize()} px`)
-  console.log('selftest done')
 }
 
 main().catch((error) => report('error', String(error)))

@@ -117,8 +117,10 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
   - 글자 크기 ±는 하단 메뉴에 둔다.
   - LSP 진단과 자동완성을 붙인다.
 - **diff:**
-  - 읽기 전용 unified 뷰다. 비교 대상 텍스트와 현재 버퍼를 `@codemirror/merge`의 `Chunk.build`로 비교한다.
-  - +/- 기호와 초록/빨강 배경을 쓰고, 두 색의 투명도는 설정에서 조절한다. 하이라이팅도 한다.
+  - 읽기 전용 unified 뷰다. 현재 버퍼를 문서로 두고 `@codemirror/merge`의 `unifiedMergeView({original, mergeControls: false})`로 비교 대상과 비교한다. 지운 줄은 블록 위젯으로 끼워진다.
+  - **diff 알고리즘은 줄 단위로 먼저 하고, 바뀐 줄 범위 안에서만 글자 단위로 한다(`diffConfig.override`).** 패키지 기본값(`scanLimit` 500)은 큰 파일에서 파일 전체를 청크 하나로 포기하고, 제한을 풀면 2MB에 6.7초가 걸리며 그래도 부정확하다. 줄 단위는 2MB에 약 240ms다(M0에서 확인). git 거터의 `Chunk.build`도 같은 설정을 쓴다.
+  - +/- 기호는 별도 거터로 그린다. 추가된 줄은 `lineMarker`, 지운 줄 블록은 `widgetMarker`에 지운 줄 수만큼 `-`를 쌓는다. 초록/빨강 배경의 투명도는 CSS 변수 `--diff-alpha`로 조절한다. 하이라이팅도 한다.
+  - **`@codemirror/view` 6.43.12에 버그가 있다.** 블록 위젯이 줄 경계에 있으면 `HeightMapBranch.forEachLine`이 범위를 clamp하지 않아서 `viewportLineBlocks`가 화면 밖 수천 줄로 늘어난다. 모든 거터가 그만큼 요소를 만들어서 줌 한 단계가 5배 이상 느려진다. 두 곳에 `Math.max(from, …)`/`Math.min(to, …)`를 넣으면 고쳐진다. 실제 구현에서 어떻게 적용할지는 아직 정하지 않았다(M5 전에 결정).
   - 스크롤과 줌은 viewer 코드를 그대로 쓴다.
 
 ### 화면 메뉴 (`menu.layout.jpg`를 글로 옮김)
@@ -198,7 +200,7 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
 - [x] `code/web` Vite+TS 프로젝트와 Gradle `buildWeb` Exec 태스크(inputs/outputs 지정, `preBuild`에 연결, 증분 빌드 확인)
 - [x] CM6로 2MB 파일 스크롤 성능과 핀치 줌(`--code-font-size`, 줌 중심 줄 고정)을 실기기(갤럭시탭 S10 FE, SM-X526N)에서 확인
   - 자동 측정 통과(`HANDOFF.md` 참조), 사용자가 탭에서 직접 스크롤과 핀치 줌을 해 보고 좋다고 확인했다.
-- [ ] `@codemirror/merge`로 +/- 거터와 초록/빨강 줄의 읽기 전용 unified diff를 그리는 방법 확인
+- [x] `@codemirror/merge`로 +/- 거터와 초록/빨강 줄의 읽기 전용 unified diff를 그리는 방법 확인
 - [ ] `@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지 확인
 - [ ] ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지 확인. 안 되면 설계의 TOML 줄을 `smol-toml`로 고치기
 - [ ] **확인:** 위 결과를 `AGENTS.md`에 적고, 막힌 것이 있으면 설계를 고친 뒤 넘어간다
