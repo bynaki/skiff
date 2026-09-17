@@ -9,43 +9,32 @@
 
 ---
 
-## 마지막 세션 (2026-09-17): M0 첫째~넷째 항목
+## 마지막 세션 (2026-09-18): M0 완료
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree). `origin/plan/skiffcode`에 push했고(원격 저장소는 공개), **main에는 합치지 않았다.** 작업 트리는 깨끗하다.
-- M0 체크리스트: 1~4번 완료. **다음은 5번(`@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지)**이다.
+- **M0이 끝났다. 다음은 M1(`:core` 추출)이다.** 확정한 버전과 결론은 `AGENTS.md`에 옮겨 적었고, 설계에 반영한 것은 `plan.md` 본문에 있다. 이 문서는 그것을 다시 적지 않는다.
 - 탭에는 `com.naki.skiff.code`(debug)가 설치돼 있다.
-- `:code` 모듈(`com.naki.skiff.code`, minSdk 30, Compose 없음)은 전부 **스파이크 코드**다. M2에서 정식으로 다시 만든다.
-  - `ui/MainActivity.kt`: WebView 하나를 둔다.
-    - 번들은 `WebViewAssetLoader`(`https://appassets.androidplatform.net/assets/`)로 불러온다.
-    - 브리지는 `addWebMessageListener("skiffBridge")`이고, 허용 origin은 appassets 하나다.
-    - RPC 메서드는 `sampleText` 하나다. 한글 주석이 섞인 TypeScript 모양 텍스트를 만들어 JSON-RPC로 돌려준다.
-    - debug 빌드에서만 `WebView.setWebContentsDebuggingEnabled(true)`를 켠다.
-  - `code/web`(Vite 8.3.0 + TypeScript 7.0.2):
-    - `bridge.ts`: id로 응답을 짝짓는 `rpc()`
-    - `zoom.ts`: 핀치 줌
-    - `diff.ts`: unified diff와 CM6 버그 우회
-    - `main.ts`: viewer/diff 화면, HUD, 자기 측정
-    - 빌드 결과는 `code/src/main/assets/web/`에 생기고 gitignore된다.
-  - Gradle은 `npmCi` → `buildWeb` → `preBuild` 순서로 돈다. 입출력을 지정해서 바뀐 게 없으면 둘 다 UP-TO-DATE다.
-- 고정한 버전:
-  - `androidx.webkit` 1.17.0
-  - `vite` 8.3.0, `typescript` 7.0.2
-  - `@codemirror/view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5, `merge` 6.12.2
+- `:code` 모듈은 전부 **스파이크 코드**다. M2에서 정식으로 다시 만든다. 지금 들어 있는 것:
+  - `ui/MainActivity.kt`: WebView 하나, `WebViewAssetLoader`, `addWebMessageListener("skiffBridge")`. RPC는 `sampleText` 하나, 알림은 `lspSend`/`lspMessage`다. 실행 인자는 KDoc에 적혀 있다.
+  - `lsp/StubLsp.kt`: 가짜 LSP 서버. exec 금지 원칙 때문에 실제 원격 서버를 띄울 수 없어서 쓴다.
+  - `code/web/src/`: `bridge.ts`(RPC + 알림), `zoom.ts`, `diff.ts`, `lsp.ts`, `main.ts`
+  - `code/src/test/.../KtomlSpikeTest.kt`: ktoml 확인용. M4가 진짜 `SettingsTomlTest`를 쓴다.
+- `:code:lintDebug`는 경고 10개로 통과한다: `RequiresFeature` 4, `MissingOnRenderProcessGone` 4, `SetJavaScriptEnabled` 1, `DataExtractionRules` 1. 앞의 둘은 M2에서 `WebBridge`를 정식으로 만들 때 처리한다(렌더러 프로세스가 죽으면 WebView를 다시 만들고, 기능 확인은 `if`로 분기).
 
 ### 스파이크 앱 띄우기와 측정
 `am start -n com.naki.skiff.code/.ui.MainActivity`에 붙이는 인자:
-- `--ez selftest true`: 스크롤 180프레임, 중간 점프, 줌 36단계를 자동으로 돌리고 결과를 HUD와 logcat(`SkiffCode`)에 찍는다. `selftest done`이 찍히면 끝이다.
+- `--ez selftest true`: 스크롤 180프레임, 중간 점프, 줌 36단계를 자동으로 돌린다. `selftest done`이 찍히면 끝이다.
 - `--ei bytes N`: 파일 크기. 기본 2MB다.
 - `--es layer diff`: unified diff. `--es alpha 0.3`은 배경 투명도, `--es diff char|line`은 알고리즘(기본 line), `--ez nopatch true`는 CM6 버그 우회를 끈다.
+- `--es layer lsp`: 스텁 LSP 서버에 붙어 핸드셰이크, 진단, hover, 완성, 편집 후 재동기화를 스스로 확인한다. `--ez fullsync true`면 서버가 incremental 대신 전체 동기화를 요구한다.
 
-측정 보조 스크립트(`selftest.sh`, CDP용 `profile.mjs`/`eval.mjs`)는 세션 스크래치패드에만 있었고 **레포에는 없다.** 필요하면 아래 방법으로 다시 만든다.
-- CDP: `adb forward tcp:9333 localabstract:webview_devtools_remote_$(adb shell pidof com.naki.skiff.code)`로 포트를 연다. `http://127.0.0.1:9333/json`에서 페이지의 `webSocketDebuggerUrl`을 얻고, Node 24 전역 `WebSocket`으로 `Runtime.evaluate`, `Profiler.start/stop`을 보낸다.
-- 페이지는 `window.view`(EditorView)와 `window.zoomTest()`를 내놓는다.
-- 번들이 압축돼 있다. 프로파일에 나온 함수 이름은 번들 파일에서 `function 이름(`로 찾는다.
+결과는 HUD와 logcat(`SkiffCode`)에 찍힌다. 페이지는 `window.view`(EditorView)와 `window.zoomTest()`를 내놓는다. CDP 붙이는 방법은 `AGENTS.md`에 있다. 번들이 압축돼 있어서 프로파일의 함수 이름은 번들 파일에서 `function 이름(`으로 찾는다.
+
+측정 보조 스크립트(`selftest.sh`, `profile.mjs`, `eval.mjs`)는 세션 스크래치패드에만 있었고 **레포에는 없다.** `eval.mjs`는 `Runtime.evaluate` 한 번 보내는 20줄이라 다시 쓰면 된다.
 
 ### 측정 결과 (갤럭시탭 S10 FE, 2MB 35,473줄, 90Hz)
-- **불러오기:** 브리지 수신 750~940ms. 대부분 스파이크 생성기 비용(약 800ms)이고, `org.json` 인코딩 73ms, 전송은 약 60ms다. EditorView 생성 56ms, 첫 페인트 12ms.
+- **불러오기:** 브리지 수신 670~940ms. 대부분 스파이크 생성기 비용(약 550~800ms)이고, `org.json` 인코딩 73ms, 전송은 약 60ms다. EditorView 생성 56~68ms, 첫 페인트 12~41ms.
 - **스크롤:** 스크립트 스크롤 85~91fps(p95 11.2ms). adb 스와이프 플링 86fps, `gfxinfo` jank 0.5%. 중간으로 점프 25~30ms.
 - **줌:** 한 단계 dispatch p50 3ms + measure p50 8ms. 기준 줄 어긋남 최대 0.8px. 파일 크기에 거의 비례하지 않는다. 사용자가 탭에서 직접 스크롤과 핀치 줌을 해 보고 좋다고 확인했다.
 - **diff:** 청크 333개(40블록마다 1줄 수정, 2줄 삭제, 3줄 추가).
@@ -53,16 +42,7 @@
   - 패키지 기본값은 파일 전체를 청크 1개로 처리하고, 글자 단위로 제한을 풀면 6.7초에 전부 부정확하다.
   - CM6 버그 우회를 넣으면 스크롤 87fps, 줌 3+10ms로 viewer와 같다. 우회가 없으면 줌 한 단계가 57+86ms이고 줌 중 14fps다.
   - +/- 기호, 지운 줄마다 `-` 하나, 바뀐 글자 강조, 지운 줄 구문 하이라이팅, 투명도 변경을 탭 스크린샷으로 확인했다.
-
-### 이번 세션에 알게 된 것 (설계에 반영함)
-- **줌 기준 줄 고정은 `EditorView.scrollIntoView(pos, {y: 'start', yMargin})`로 한다.**
-  - 실패한 방법: `requestMeasure`의 write에서 `scrollTop`을 쓰면 CM6 measure 루프의 스크롤 앵커 보정과 겹친다. "Viewport failed to stabilize" 경고가 나고 12만 px 어긋났다.
-  - 보정: `yMargin`은 caret 사각형 기준이라, 줄 상자 안에서 caret이 시작하는 비율을 줌 시작 때 잰다.
-- **diff는 줄 단위를 먼저 하고, 바뀐 줄 범위 안에서만 글자 단위로 한다(`diffConfig.override`).**
-- **`@codemirror/view` 6.43.12 버그:**
-  - 증상: 블록 위젯이 줄 경계에 있으면 `HeightMapBranch.forEachLine`(`break == 0` 분기)이 `mid.to + 1`/`mid.from - 1`을 요청 범위로 clamp하지 않는다. 그래서 `viewportLineBlocks`가 화면 밖 수천 줄이 되고, 모든 거터가 그만큼 요소를 만든다.
-  - 확인: GitHub `main`에도 그대로다. CodeMirror만 쓴 최소 스크립트로 데스크톱 Chrome에서도 재현했다(20,000줄, 뷰포트 1~36줄에서 `viewportLineBlocks` 9,999개).
-  - 스파이크: `diff.ts`의 `patchViewportLineBlocks`로 prototype을 런타임에 바꿔 우회한다.
+- **LSP:** initialize 4ms. didOpen(199만자, Kotlin 파싱 56ms) 후 진단 252ms. hover 4ms, 완성 3ms. 진단 50개의 범위가 모두 의도한 글자 위에 있었고 한글 주석도 맞았다(`cm-lintRange-info`가 정확히 `원격 파일을 읽어`를 덮는다). 편집 후 재동기화는 incremental 591ms 대 full 744ms(둘 다 `autoSync`의 500ms 디바운스 포함), didChange 크기는 246자 대 199만자다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -76,6 +56,7 @@
 | 실기기 | 갤럭시탭 S10 FE(SM-X526N, Android 16/API 36, WebView 152) | 연결된 기기가 이것이다. **폴더블 폰도 지원 대상**이라 폴더블 관련 문서와 코드는 지우지 않는다 |
 | 예전 시도 | 로컬 브랜치 `claude/next-steps-2afbda`와 기기의 `com.naki.skiffcode`를 삭제 | 사용자 지시. 없었던 것으로 친다. 참고하거나 되살리지 않는다 |
 | CM6 버그 처리 | **upstream에 올리지 않는다.** M5 diff 레이어에서 `patch-package`로 두 줄을 패치한다 | CodeMirror는 AI가 쓴 코드를 받지 않고 이슈는 자체 트래커에서만 받는다. 사용자는 리포트를 올리지 않기로 했다 |
+| TOML | ktoml을 쓴다. `smol-toml`로 옮기지 않는다 | M0에서 확인했다. 컴파일러 플러그인만 필요하고 KSP를 안 써서 Room과 다르다 |
 | 보고 방식 | 작업마다 한국어로 보고하고 푸시 알림을 보낸다 | 사용자가 자리를 비울 때가 많다. `AGENTS.md`에 적었다 |
 
 ### 사용자 확인을 아직 받지 않은 가정
@@ -84,29 +65,22 @@
 2. 로컬 파일은 `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 두 경로로 받는다. (M2 전)
 3. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전)
 
-### 아직 모르는 것 (M0 남은 항목)
-안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
-- `@codemirror/lsp-client` Transport를 WebView 브리지로 대신할 수 있는지 (5번)
-- ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지. KSP와 Room이 이미 안 됐던 환경이다. (6번)
-- 위에 적은 것 말고는 라이브러리 버전을 확정하지 않았다. 확인한 최신 안정판을 쓰고, M0 마지막 항목(7번)에서 `AGENTS.md`에 모아 적는다.
+### 아직 확인하지 않은 것
+M0에서 답을 낸 것 말고 남은 것들이다. 안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
+- **실제 LSP 서버로는 아무것도 확인하지 못했다.** exec 금지 원칙 때문에 스텁 서버까지만 했다. 실제 서버의 `positionEncoding`, incremental 지원, 초기화 시간, 진단이 수백 개일 때의 비용은 M6에서 처음 본다.
+- Content-Length 프레이밍은 아직 아무것도 없다. M6의 `LspFramingTest`가 처음이다.
+- 마크다운 렌더링(`markdown-it`), lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다.
+- 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 알고, 실제 서버가 어디서 버거워하는지는 모른다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M0 5번**부터 시작한다.
-   - **exec 금지 원칙 때문에 실제 원격 LSP 서버는 아직 띄울 수 없다.** Transport가 브리지 위에서 도는지는 Kotlin이나 Web 쪽의 스텁 LSP 서버(예: `initialize`에 응답하고 진단 하나를 보내는 가짜)로 확인한다.
-   - 기존 스파이크 페이지(`main.ts`)에 모드를 하나 더하는 식으로 붙이면 된다.
+2. `plan.md`의 첫 `- [ ]`인 **M1 첫째 항목(`:core` 라이브러리 모듈 추가)**부터 시작한다.
 3. 세션을 끝낼 때 체크리스트를 갱신하고 이 파일을 덮어쓴다.
 
 ### 주의할 점
+- **M1은 Skiff를 건드리는 리팩터링이다.** 옮기기 전과 후에 `:app` 테스트가 모두 통과해야 하고(지금 52개), 실기기에서 SFTP 탐색과 전송이 이전과 같은지 확인한다. 패키지명은 유지한다.
 - **exec 금지 원칙은 아직 유효하다.** `AGENTS.md`의 원칙을 바꾸는 것은 M5의 체크리스트 항목이다.
-- M1(`:core` 추출)은 Skiff를 건드리는 리팩터링이다. 옮기기 전과 후에 `:app` 테스트가 모두 통과해야 하고, 실기기에서 SFTP 탐색과 전송이 이전과 같은지 확인한다.
-- `:code:lintDebug`는 경고 9개로 통과한다: `MissingOnRenderProcessGone` 4, `RequiresFeature` 3, `SetJavaScriptEnabled` 1, `DataExtractionRules` 1. 앞의 둘은 M2에서 `WebBridge`를 정식으로 만들 때 처리한다(렌더러 프로세스가 죽으면 WebView를 다시 만들고, 기능 확인은 `if`로 분기).
-- **`:code`를 빌드하려면 Gradle 데몬의 PATH에 `npm`이 있어야 한다.**
-  - node는 fnm으로 설치돼 있고 셸마다 경로가 달라서 빌드 스크립트에 경로를 적지 않았다.
-  - 터미널에서 띄운 데몬은 문제없고, Android Studio처럼 PATH가 없는 곳에서는 대책이 필요하다.
-  - `AGENTS.md`에는 아직 적지 않았다(M0 7번에서 정리).
-- CM6 버전을 올릴 때는 `node_modules/@codemirror/view/dist/index.js`의 `HeightMapBranch.forEachLine`에 clamp가 들어갔는지 먼저 본다. 들어갔으면 패치를 뺀다.
-- TypeScript 7의 `tsc`는 import/export가 없는 파일을 전역 스크립트로 본다. 그래서 `status` 같은 이름이 `window.status`와 충돌한다.
+- `:code`에 kotlinx.serialization 플러그인이 붙어 있는데 main 소스에서는 아직 안 쓴다. ktoml이 요구한다. M2에서 `SkiffCodeStore`가 쓴다.
 - `npm install` 때 fsevents install 스크립트는 npm 11 기본 정책으로 실행되지 않는다. macOS용 선택 의존성이라 영향이 없다.
 - 기기:
   - 시리얼은 `adb devices`로 얻고 레포에 적지 않는다.
