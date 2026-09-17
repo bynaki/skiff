@@ -65,12 +65,34 @@
 2. 로컬 파일은 `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 두 경로로 받는다. (M2 전)
 3. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전)
 
+### 실제 LSP 서버 확인 (exec 규칙을 고치고 추가로 한 것)
+
+**사용자가 exec 금지의 근거를 물었고, 문서가 틀렸다는 것이 드러났다.** "서버에 아무것도 설치하지
+않는다"는 사용자가 정한 제약이지만, "그러므로 exec를 두지 않는다"는 AI가 유도한 것이고 논리가
+맞지 않는다(서버에 이미 있는 `git`을 exec로 돌리는 것은 아무것도 설치하지 않는다). 실제로 그 규칙이
+지키는 것은 **셸 없는 `internal-sftp` 계정 지원**이다. `AGENTS.md`를 그렇게 고쳤고, `:code`는
+exec를 쓸 수 있다고 명시했다. `:app`은 여전히 금지다.
+
+사용자가 스파이크에서 exec를 허용해서 실제 서버로 확인했다. **하네스는 사용자 지시로 지웠다.**
+M6에서 다시 만들 때 필요한 것은 이것뿐이다:
+- 서버 쪽: MINA `SshServer`에 `commandFactory = ProcessShellCommandFactory.INSTANCE`.
+  `SftpTestServer`(`:app`)와 같은 구성이고 subsystem 대신 commandFactory를 둔다.
+- 클라이언트 쪽: sshj `session.exec("/bin/sh -lc 'cd <root> && exec <command>'")`.
+- 프레이밍: 헤더는 `\r\n\r\n`까지 한 바이트씩, 본문은 `Content-Length`만큼 채워 읽는다.
+- 언어 서버: `npm i pyright` → `node_modules/.bin/pyright-langserver --stdio`. 레포에 넣지 않았다.
+- **`org.json`은 유닛 테스트 JVM에서 스텁이라 전부 던진다.** `org.json:json`을 테스트 의존성으로
+  넣어야 한다. Gradle의 `-D`는 테스트 JVM에 전달되지 않으니 `systemProperty`로 넘겨야 한다.
+- 결과: initialize 98ms, 진단까지 346ms(로컬 루프백). `positionEncoding`은 응답에 없고(= `utf-16`),
+  `textDocumentSync`는 2(incremental). `값 = "한글" + 1`의 진단이 char 4..12로 UTF-16 인덱스와
+  정확히 맞았다(UTF-8이면 4..18이다).
+
 ### 아직 확인하지 않은 것
-M0에서 답을 낸 것 말고 남은 것들이다. 안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
-- **실제 LSP 서버로는 아무것도 확인하지 못했다.** exec 금지 원칙 때문에 스텁 서버까지만 했다. 실제 서버의 `positionEncoding`, incremental 지원, 초기화 시간, 진단이 수백 개일 때의 비용은 M6에서 처음 본다.
-- Content-Length 프레이밍은 아직 아무것도 없다. M6의 `LspFramingTest`가 처음이다.
+안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
+- **실기기에서 원격 서버로는 아직 안 해 봤다.** 위 확인은 이 맥 안의 MINA 루프백이라 네트워크 지연, 재접속, 끊김이 빠져 있다. 탭에서 실제 SSH 서버로 붙는 것은 M6에서 처음이다.
+- 진단이 수백~수천 개일 때의 비용. 스텁은 50개, pyright는 1개였다.
 - 마크다운 렌더링(`markdown-it`), lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다.
 - 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 알고, 실제 서버가 어디서 버거워하는지는 모른다.
+- pyright 말고 다른 서버(typescript-language-server, marksman)는 확인하지 않았다. TypeScript 7은 네이티브 재작성이라 `tsserver.js`가 없고, `typescript-language-server`가 그 위에서 도는지 모른다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.

@@ -96,11 +96,22 @@ that only exists on one side breaks the symmetry the whole design rests on.
 
 ### The SFTP side, and what it must not do
 
-Only the SFTP subsystem that OpenSSH already ships. **There is no `exec` channel anywhere and
-there must not be one** — no `rm -rf`, no `cp -r`, no `du`. Recursive delete lives in
-`SftpFileSystem.deleteTreeBlocking`, recursive copy in `CopyEngine.walk`, both client-side. That
-is what makes the app work against an `internal-sftp` account with no shell, which is the point
-of "nothing to install on the server".
+Only the SFTP subsystem that OpenSSH already ships. **Skiff (`:app`) has no `exec` channel and
+must not grow one** — no `rm -rf`, no `cp -r`, no `du`. Recursive delete lives in
+`SftpFileSystem.deleteTreeBlocking`, recursive copy in `CopyEngine.walk`, both client-side.
+
+What that buys is an account with no shell: Skiff works against `internal-sftp`, where an `exec`
+request is refused outright. It is a separate thing from "nothing to install on the server",
+which `exec` does not violate on its own — running a `git` the server already has installs
+nothing. Earlier revisions of this file gave the second reason for the first rule; the rule
+stands, the reason was wrong.
+
+Skiff Code (`:code`) is allowed `exec`, because git and language servers need it. It stays
+confined: M5 puts it in `RemoteExec` alone, on its own `SSHClient`, in project mode only, with
+every argument quoted through `ShellQuote`, and a refusal is handled by opening the project
+without git and LSP rather than failing. There is no `exec` in the tree yet — M0 reached a real
+language server through one and then deleted the harness. **The first one to land belongs in
+`RemoteExec`; a call site anywhere else is a design change, not an implementation detail.**
 
 `SFTPClient` is not thread safe, so `SshConnection` pins every call to a single-threaded
 dispatcher it owns. Each profile gets **two** connections, browse and transfer, so a large
@@ -189,8 +200,12 @@ These apply to `:code` only:
   `HeightMapBranch.forEachLine` for a clamp when raising the CodeMirror version, and drop the patch
   once it is there.
 - **`@codemirror/lsp-client` converts positions as UTF-16 code units and never negotiates
-  `positionEncoding`.** A server that counts UTF-8 bytes puts diagnostics in the wrong place on any
-  line with Korean text.
+  `positionEncoding`.** It advertises no `general.positionEncodings`, which by the spec obliges the
+  server to use UTF-16, and pyright does. A server that counts UTF-8 bytes anyway would put every
+  diagnostic in the wrong place on a line with Korean text, so `LspManager` still checks the
+  `initialize` reply rather than trusting it.
+- **`org.json` is part of the Android framework, so the unit test JVM gets a stub** whose every
+  method throws "not mocked". A test that touches it needs `org.json:json` as a test dependency.
 - **`org.json` writes `/` escaped as `\/`.** Valid JSON, but it means a message carrying an LSP
   method name cannot be matched as a substring — parse it.
 
@@ -225,9 +240,10 @@ outside the test JVM, the way `SftpTestServer` does. Screenshots, logcat excerpt
 keep it excluded rather than sanitizing it by hand.
 
 **Whether the change weakens what guards a connection.** The host key gate, `SecretStore`'s
-Keystore encryption and the absence of an `exec` channel are each one edit away from being
-undone, and none of them fails a test when they are. A diff touching `fs/sftp/`,
-`data/crypto/` or a permission in the manifest earns a second read for that reason alone.
+Keystore encryption and the confinement of `exec` are each one edit away from being undone, and
+none of them fails a test when they are. A diff touching `fs/sftp/`, `data/crypto/`, a permission
+in the manifest, or anything that starts a remote command earns a second read for that reason
+alone.
 
 Commit once both reads come back clean.
 
@@ -240,9 +256,8 @@ projects with git and LSP), in this same repository. `fs/FileKind` and the `onOp
 app. Key and keyboard-interactive auth are extension points on `AuthMethod` — only password is
 implemented.
 
-Skiff Code will relax one rule above: an SSH `exec` channel is planned, but only in its project
-mode, in one class. Until that step lands and this file says so, the no-`exec` rule stands
-everywhere.
+Skiff Code relaxes one rule above, under the terms written there: `exec` is Skiff Code's to use
+and never `:app`'s.
 
 **M0 settled that all of it fits in one WebView**, on the tablet, against a 2 MB file: scrolling
 holds 86–91 fps, a pinch-zoom step costs 3 ms to dispatch and 8 ms to measure, a line-level

@@ -179,13 +179,18 @@ method로 구독한다(M0에서 확인).
     **문자열 그대로** 실어 보낸다. Kotlin은 그 문자열의 바이트에 헤더만 붙여 stdout에 쓰면 되고
     파싱할 일이 없다(M0에서 확인).
 - **위치는 UTF-16 코드 단위다.** `@codemirror/lsp-client`는 CM6 오프셋을 그대로 LSP 위치로 쓰고
-  `positionEncoding`을 협상하지 않는다. 그래서 `initialize` 응답의 `positionEncoding`이 `utf-16`이
-  아니면(빠져 있으면 `utf-16`) 한글이 든 줄에서 위치가 어긋난다. **`LspManager`가 이것을 확인하고,
-  다르면 그 서버를 끄고 이유를 알린다.**
+  `positionEncoding`을 협상하지 않는다. 다만 `general.positionEncodings`를 광고하지도 않으니
+  명세상 서버는 UTF-16을 써야 한다. **실제 pyright를 SSH exec로 띄워 확인했다**(M0):
+  `positionEncoding`이 응답에 없고(= `utf-16`), `값 = "한글" + 1`의 진단 범위가 char 4..12로
+  UTF-16 인덱스와 정확히 맞았다(UTF-8이면 4..18이다). 그래도 `LspManager`는 `initialize` 응답을
+  확인하고, `utf-16`이 아니면 그 서버를 끄고 이유를 알린다.
 - **동기화는 incremental(`textDocumentSync: 2`)을 쓰는 서버만 값이 있다.** Full이면 편집이 멈출
   때마다 문서 전체가 브리지와 SSH를 지나간다. 2MB 파일에서 didChange가 246자 대 199만자, 편집에서
-  진단까지 591ms 대 744ms였다(둘 다 `autoSync`의 500ms 디바운스 포함, M0에서 확인). Full만 하는
-  서버는 큰 파일에서 편집 중 동기화를 끄는 것을 검토한다.
+  진단까지 591ms 대 744ms였다(둘 다 `autoSync`의 500ms 디바운스 포함, M0에서 확인). pyright는
+  incremental을 준다. Full만 하는 서버는 큰 파일에서 편집 중 동기화를 끄는 것을 검토한다.
+- **exec + Content-Length 프레이밍은 동작한다.** MINA의 `ProcessShellCommandFactory`를 서버로,
+  sshj의 exec 채널을 클라이언트로 두고 실제 pyright를 띄워 initialize 98ms, 진단까지 346ms였다
+  (로컬 루프백이라 네트워크 지연은 없다, M0에서 확인). 이 하네스가 M6의 시작점이다.
 - **요청 기본 타임아웃은 3초다.** 원격 서버에는 짧으니 `LSPClient`의 `timeout`을 설정에서 올린다.
 - **`LspManager`:**
   - (프로젝트, 언어)마다 서버 하나를 둔다. 그 언어 파일을 처음 열 때 띄운다.
