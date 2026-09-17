@@ -36,3 +36,7 @@ Thumbs.db
 
 # Profiling / crash output
 *.hprof
+
+# Skiff Code web bundle: node_modules, and the build output that lands in assets
+code/web/node_modules/
+code/src/main/assets/web/

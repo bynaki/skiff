@@ -194,7 +194,7 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
 ### M0. 스파이크: 전부 WebView에 붙는지 먼저 확인
 버리는 코드로 확인만 한다. 결론과 확정된 라이브러리 버전은 `AGENTS.md`에 남긴다.
 - [x] `:code` 최소 앱: WebView 하나 + `WebViewAssetLoader` + `addWebMessageListener`로 JSON-RPC 한 번 왕복
-- [ ] `code/web` Vite+TS 프로젝트와 Gradle `buildWeb` Exec 태스크(inputs/outputs 지정, `preBuild`에 연결, 증분 빌드 확인)
+- [x] `code/web` Vite+TS 프로젝트와 Gradle `buildWeb` Exec 태스크(inputs/outputs 지정, `preBuild`에 연결, 증분 빌드 확인)
 - [ ] CM6로 2MB 파일 스크롤 성능과 핀치 줌(`--code-font-size`, 줌 중심 줄 고정)을 실기기(갤럭시탭 S10 FE, SM-X526N)에서 확인
 - [ ] `@codemirror/merge`로 +/- 거터와 초록/빨강 줄의 읽기 전용 unified diff를 그리는 방법 확인
 - [ ] `@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지 확인
