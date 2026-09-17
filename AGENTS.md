@@ -211,6 +211,11 @@ hand-off rules written there. The original brief is `skiff.code.plan.md`, and th
 menu layout is `menu.layout.jpg` (transcribed in `plan.md`). The rest of `plan.md` is the
 remaining Skiff work.
 
+**Report and notify after every piece of work.** Each time a checklist item or other requested task
+is finished (or blocked), report the result to the user in Korean — what was done, what was
+verified and how, what is left — and send a push notification with a one-line summary. The user
+often steps away while work runs, so the notification is not optional.
+
 **Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries what the
 checklist cannot: what the last session did, why the decisions went the way they did, which
 assumptions the user has not confirmed yet, and what is still unverified. It is a snapshot of
