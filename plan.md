@@ -111,6 +111,7 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
   - 읽기 전용 CM6에 하이라이팅, 줄 번호, git 거터를 보여준다.
   - 마크다운은 `markdown-it`(`html: false`)으로 렌더링하고 테마를 적용한다.
   - 스크롤과 확대/축소를 가장 먼저 잘 만든다. 핀치 줌은 CSS 변수 `--code-font-size`를 바꾸고, 손가락 사이의 줄이 제자리에 있게 한다.
+  - 줌 중심 줄 고정은 CM6의 `EditorView.scrollIntoView(pos, {y: 'start', yMargin})` 효과로 한다. CM6가 줄 높이를 다시 잰 뒤 적용하기 때문이다. `requestMeasure`에서 `scrollTop`을 직접 쓰면 CM6의 스크롤 앵커와 싸워서 수만 px씩 어긋난다(M0에서 확인).
 - **editor:**
   - viewer와 같은 `EditorState`를 쓰고, `Compartment`로 readOnly와 확장만 바꾼다.
   - 글자 크기 ±는 하단 메뉴에 둔다.
@@ -196,6 +197,7 @@ diff 계산, 퍼지 검색은 Web이 맡는다. Web은 원격 호출을 모두 `
 - [x] `:code` 최소 앱: WebView 하나 + `WebViewAssetLoader` + `addWebMessageListener`로 JSON-RPC 한 번 왕복
 - [x] `code/web` Vite+TS 프로젝트와 Gradle `buildWeb` Exec 태스크(inputs/outputs 지정, `preBuild`에 연결, 증분 빌드 확인)
 - [ ] CM6로 2MB 파일 스크롤 성능과 핀치 줌(`--code-font-size`, 줌 중심 줄 고정)을 실기기(갤럭시탭 S10 FE, SM-X526N)에서 확인
+  - 자동 측정은 통과(`HANDOFF.md` 참조). 사용자가 탭에서 직접 스크롤과 핀치 줌을 만져 보고 쓸 만하다고 답하면 체크한다.
 - [ ] `@codemirror/merge`로 +/- 거터와 초록/빨강 줄의 읽기 전용 unified diff를 그리는 방법 확인
 - [ ] `@codemirror/lsp-client` Transport를 브리지로 대체할 수 있는지 확인
 - [ ] ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지 확인. 안 되면 설계의 TOML 줄을 `smol-toml`로 고치기
