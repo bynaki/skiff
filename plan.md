@@ -152,7 +152,13 @@ method로 구독한다(M0에서 확인).
 - `settings.toml`: 폰트, 폰트 크기, 탭 크기, 줄바꿈, 테마, diff 투명도, 크기 상한, 열린 파일 상한, 폴링 주기, LSP 명령.
 - `themes/*.toml`: `[ui]`(메뉴, 사이드바, 팔레트), `[editor]`, `[syntax]`, `[diff]`. Web에서 CSS 변수로 바꾸고 **메뉴와 레이어에 똑같이** 적용한다. 다크와 라이트를 기본 번들한다. 잘못된 값은 기본값으로 폴백하고 오류를 알린다.
 - 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다.
-- TOML 파싱은 Kotlin의 ktoml로 한다. M0에서 컴파일이 안 되면 Web의 `smol-toml`로 옮긴다.
+- TOML 파싱은 Kotlin의 ktoml(`com.akuleshov7:ktoml-core` 0.7.1)로 한다. M0에서 확인했다.
+  - 중첩 테이블, 문자열 리스트, 언어로 키를 삼은 테이블(`[lsp.python]` → `Map<String, …>`),
+    빠진 키의 생성자 기본값이 모두 된다.
+  - `:code`에 kotlinx.serialization 플러그인이 필요하다. **KSP는 아니라서 Room과 달리 문제가 없다.**
+  - ktoml은 kotlinx-serialization-core 1.9.0으로 빌드됐는데, M2에서 `:code`에 serialization-json
+    1.11.0이 들어오면 core가 1.11.0으로 올라간다. 그 조합으로도 테스트가 통과한다.
+  - `kotlinx-datetime`이 함께 들어온다. 설정에 날짜가 없어도 APK에 들어간다.
 
 ### git과 LSP (프로젝트 모드)
 
@@ -225,7 +231,9 @@ method로 구독한다(M0에서 확인).
   - Kotlin 스텁 LSP 서버(`lsp/StubLsp`)를 붙여 실기기에서 initialize 4ms, 2MB didOpen 후 진단 252ms,
     hover 4ms, 완성 3ms, 편집 후 재동기화 591ms를 확인했다. 진단 50개의 범위가 모두 의도한 글자
     위에 있었고 한글 주석도 맞았다. 설계에 반영한 것은 위 "git과 LSP" 절에 있다.
-- [ ] ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지 확인. 안 되면 설계의 TOML 줄을 `smol-toml`로 고치기
+- [x] ktoml이 Kotlin 2.4.20 / AGP 9에서 컴파일되는지 확인. 안 되면 설계의 TOML 줄을 `smol-toml`로 고치기
+  - 된다. `KtomlSpikeTest` 3개가 통과하고 APK에 dex까지 들어간다. `smol-toml`로 옮기지 않는다.
+    자세한 것은 위 "설정과 테마" 절에 있다.
 - [ ] **확인:** 위 결과를 `AGENTS.md`에 적고, 막힌 것이 있으면 설계를 고친 뒤 넘어간다
 
 ### M1. `:core` 추출 (Skiff 동작 변화 없음)

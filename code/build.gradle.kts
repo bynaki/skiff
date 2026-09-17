@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -29,6 +30,9 @@ android {
 
 dependencies {
     implementation(libs.androidx.webkit)
+    implementation(libs.ktoml.core)
+
+    testImplementation(libs.junit)
 }
 
 // The UI is a Vite + TypeScript bundle in web/, built into src/main/assets/web/ (gitignored)
