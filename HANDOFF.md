@@ -12,7 +12,7 @@
 ## 마지막 세션 (2026-09-18): M1 완료, M2 셋째 항목까지 완료
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **아직 push하지 않았다.** main에는 합치지 않았다.
+- 브랜치 `plan/skiffcode`(git worktree). `origin/plan/skiffcode`에 push했다. main에는 합치지 않았다.
 - **M2의 `SkiffCodeUri`, `SkiffCodeStore`, 인텐트와 여는 흐름까지 끝났다. 다음은 M2 넷째 항목
   `TextLoader`다.** M1은 실기기에서 실제 SSH 서버로 탐색과 전송까지 확인했다(아래 "실서버 확인 결과").
 - 모듈은 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code). 무엇이 어디 있는지는
