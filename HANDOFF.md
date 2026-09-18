@@ -96,8 +96,19 @@
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M2 넷째 항목(`TextLoader`)**부터 시작한다. `ui/OpenFlow`의 `Opened`가
+2. 아래 "아직 답을 받지 못한 것"의 순서 질문을 먼저 한다. 계획 순서라면 `plan.md`의 첫 `- [ ]`인
+   **M2 넷째 항목(`TextLoader`)**부터 시작한다. `ui/OpenFlow`의 `Opened`가
    읽을 파일을 넘겨준다. 원격은 `RemoteSessions.get(profile)`의 `SftpFileSystem`으로 읽는다.
+
+### 사용자가 물었고 아직 답을 받지 못한 것
+- **Skiff에서 원격(`mac-mini`) 파일을 탭하면 아무 일도 일어나지 않는다.** 버그가 아니라 원래 동작이다.
+  `app/.../ui/MainActivity.kt`의 `openExternally`가 `SourceId.Local`이 아니면 그냥 돌아간다(외부 앱은
+  SFTP 경로를 못 읽는다). 이것을 Skiff Code로 넘기는 것이 M2의 "Skiff 쪽: `onOpen`에서 …
+  `skiffcode://` 인텐트" 항목이다.
+- 사용자에게 두 안을 물었고 답을 받지 못한 채 세션이 끝났다. **다음 세션에서 먼저 물어본다.**
+  1. 계획 순서대로(권장): `TextLoader` → 브리지 → viewer 뒤에 Skiff 쪽을 연결한다. 탭하면 실제로 파일이 보인다.
+  2. Skiff 쪽 연결을 먼저: 탭하면 Skiff Code로 넘어가지만 "열 준비 완료" 토스트까지만 가고, `ProfileProvider`
+     전이라 처음 한 번은 "알 수 없는 서버" 창에서 비밀번호와 호스트키를 다시 받아야 한다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
