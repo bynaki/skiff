@@ -55,6 +55,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // org.json is part of the framework, so the unit test JVM only has a stub that throws.
+    testImplementation(libs.org.json)
     // TextLoaderTest reads through a real SFTP server, the same one :core's tests use.
     testImplementation(testFixtures(project(":core")))
     // slf4j-android is a no-op off-device, so the JVM tests take the console binding, as :app does.

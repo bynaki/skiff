@@ -329,6 +329,13 @@ as the only allowed origin, no `addJavascriptInterface`, the bundle served only 
 `WebViewAssetLoader`, and JSON-RPC both ways — a message without an `id` is a notification, which
 is what carries LSP diagnostics and file changes.
 
+That shape is now `:code`'s `bridge/WebBridge` and `web/src/bridge.ts`, no longer spike code.
+**Kotlin cannot reach the page until the page has spoken**: a reply proxy only arrives with a
+message from it, so `bridge.ts` sends a `ready` notification as it loads and `WebBridge` holds
+anything sent earlier until then. `WebBridgeTest` runs on a plain JVM, which is why `:code` has
+`org.json:json` as a test dependency and `WebBridge` takes its logger as a parameter — `Log` is a
+stub that throws there too.
+
 `plan.md` holds the next round of work in more detail, in Korean. Its top section, `# Skiff
 Code`, is the design and a checklist split into session-sized items — **a new session picks up at
 the first unchecked `- [ ]`**, ticks it in the same commit as the work, and follows the

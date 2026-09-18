@@ -2,6 +2,7 @@ package com.naki.skiff.code.ui
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -15,26 +16,25 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.webkit.JavaScriptReplyProxy
-import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import com.naki.skiff.code.R
+import com.naki.skiff.code.bridge.WebBridge
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.lsp.StubLsp
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.util.concurrent.Executors
-import kotlin.concurrent.thread
 
 private const val TAG = "SkiffCode"
-private const val ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
+private const val ORIGIN = WebBridge.ORIGIN
 
 /**
  * M0 spike: one WebView served from assets, JSON-RPC over a web message listener.
@@ -54,19 +54,19 @@ class MainActivity : Activity() {
 
     private val container by lazy { application.skiffCode }
     private val scope = MainScope()
+    private val bridge = WebBridge(scope)
     private var hostKeyDialog: AlertDialog? = null
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
 
     /** The stub server answers off the UI thread, in order, the way a real process's stdout would. */
     private val lspThread = Executors.newSingleThreadExecutor()
-    private var lspServer: StubLsp? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val assetLoader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/assets/web/", WebViewAssetLoader.AssetsPathHandler(this).underWeb())
             .build()
 
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
@@ -75,8 +75,16 @@ class MainActivity : Activity() {
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                assetLoader.shouldInterceptRequest(request.url)
+            // The bundle is the only thing the page may load. Anything else — an image in a
+            // rendered document, a stray fetch — gets an empty 403 instead of reaching the network.
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse =
+                assetLoader.shouldInterceptRequest(request.url) ?: refused()
+
+            // The page is never navigated away from. A link the user taps goes to another app.
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                openExternally(request.url)
+                return true
+            }
         }
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
@@ -85,12 +93,8 @@ class MainActivity : Activity() {
             }
         }
 
-        check(WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            "WebView does not support WEB_MESSAGE_LISTENER"
-        }
-        WebViewCompat.addWebMessageListener(webView, "skiffBridge", setOf(ORIGIN)) { _, message, sourceOrigin, _, reply ->
-            handle(message, sourceOrigin, reply)
-        }
+        registerSpikeMethods()
+        bridge.attach(webView)
 
         setContentView(webView)
         val query = buildList {
@@ -164,54 +168,36 @@ class MainActivity : Activity() {
         lspThread.shutdownNow()
     }
 
-    /**
-     * The stub server, created with the first message that needs it. It keeps that reply proxy so it
-     * can push notifications (diagnostics) to the page on its own, which is what a real server does.
-     */
-    private fun lsp(reply: JavaScriptReplyProxy): StubLsp = lspServer ?: StubLsp(intent.getBooleanExtra("fullsync", false)) { outgoing ->
-        val envelope = JSONObject().put("jsonrpc", "2.0").put("method", "lspMessage")
-            .put("params", JSONObject().put("message", outgoing)).toString()
-        runOnUiThread { reply.postMessage(envelope) }
-    }.also { lspServer = it }
-
-    private fun handle(message: WebMessageCompat, sourceOrigin: Uri, reply: JavaScriptReplyProxy) {
-        val request = JSONObject(message.data ?: return)
-        val method = request.getString("method")
-        // No id means the page is notifying, not calling: there is nothing to answer.
-        if (!request.has("id")) {
-            Log.i(TAG, "notification $method from $sourceOrigin")
-            when (method) {
-                "lspSend" -> {
-                    val payload = request.getJSONObject("params").getString("message")
-                    lspThread.execute { lsp(reply).receive(payload) }
-                }
-                else -> Log.w(TAG, "unhandled notification $method")
-            }
+    /** Links out of the page. Only schemes another app should handle; `intent:` and the like are dropped. */
+    private fun openExternally(uri: Uri) {
+        if (uri.scheme !in setOf("http", "https", "mailto")) {
+            Log.w(TAG, "link not opened: ${uri.scheme}")
             return
         }
-        val id = request.get("id")
-        Log.i(TAG, "request $method from $sourceOrigin")
-        when (method) {
-            "sampleText" -> {
-                val bytes = request.getJSONObject("params").getInt("bytes")
-                thread {
-                    val started = System.nanoTime()
-                    val text = sampleText(bytes)
-                    val built = System.nanoTime()
-                    val response = JSONObject().put("jsonrpc", "2.0").put("id", id)
-                        .put("result", JSONObject().put("text", text)).toString()
-                    Log.i(
-                        TAG,
-                        "sampleText: ${text.length} chars, built in ${(built - started) / 1_000_000} ms, " +
-                            "JSON encoded in ${(System.nanoTime() - built) / 1_000_000} ms",
-                    )
-                    runOnUiThread { reply.postMessage(response) }
-                }
-            }
-            else -> reply.postMessage(
-                JSONObject().put("jsonrpc", "2.0").put("id", id)
-                    .put("error", JSONObject().put("code", -32601).put("message", "Method not found")).toString(),
-            )
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+        } catch (e: ActivityNotFoundException) {
+            Log.w(TAG, "no app for $uri", e)
+        }
+    }
+
+    /**
+     * The spike page's two calls, until the viewer replaces it: `sampleText`, and the stub LSP
+     * server, whose messages cross as notifications both ways — the server pushes diagnostics on
+     * its own, the way a real one does.
+     */
+    private fun registerSpikeMethods() {
+        bridge.method("sampleText") { params ->
+            val bytes = params.getInt("bytes")
+            val text = withContext(Dispatchers.Default) { sampleText(bytes) }
+            JSONObject().put("text", text)
+        }
+        val lsp = StubLsp(intent.getBooleanExtra("fullsync", false)) { outgoing ->
+            bridge.notify("lspMessage", JSONObject().put("message", outgoing))
+        }
+        bridge.onNotify("lspSend") { params ->
+            val payload = params.getString("message")
+            lspThread.execute { lsp.receive(payload) }
         }
     }
 
@@ -231,6 +217,11 @@ class MainActivity : Activity() {
 }
 
 private const val REQUEST_PERMISSION = 1
+
+private fun refused() = WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+
+/** Serves `/assets/web/…` from the `web/` asset directory and nothing above it. */
+private fun WebViewAssetLoader.AssetsPathHandler.underWeb() = WebViewAssetLoader.PathHandler { path -> handle("web/$path") }
 
 private val TEMPLATE = """
     |// 블록 #N: 원격 파일을 읽어 줄 단위로 나눈다

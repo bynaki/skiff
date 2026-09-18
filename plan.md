@@ -228,8 +228,10 @@ method로 구독한다(M0에서 확인).
 - **브리지:**
   - `WebViewCompat.addWebMessageListener`의 허용 origin은 `https://appassets.androidplatform.net` 하나뿐이다.
   - `addJavascriptInterface`는 쓰지 않는다.
-  - 번들은 `WebViewAssetLoader`로만 로드하고 file:// 접근은 끈다.
-  - CSP 메타 태그를 넣는다.
+  - 번들은 `WebViewAssetLoader`로만 로드하고 file:// 접근은 끈다. 로더는 `/assets/web/` 아래만 내주고, 그 밖의 요청은 모두 빈 403으로 막는다(외부 네트워크에 닿지 않는다).
+  - CSP 메타 태그를 넣는다: `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:`. 마크다운 속 외부 이미지(추적 픽셀)도 여기서 막힌다.
+  - 메시지는 메인 프레임에서 온 것만 받는다.
+  - 페이지는 다른 곳으로 이동하지 않는다. 링크는 `shouldOverrideUrlLoading`에서 가로채 http, https, mailto만 다른 앱으로 넘기고, `intent:` 같은 나머지는 버린다.
   - `setWebContentsDebuggingEnabled`는 debug 빌드에서만 켠다.
 - **원격 파일 내용은 권한 있는 브리지와 같은 페이지에 렌더링된다.** 그래서 마크다운의 raw HTML은 끄고, 링크는 `shouldOverrideUrlLoading`에서 외부 브라우저로 넘긴다.
 - **exec:**
@@ -299,7 +301,10 @@ method로 구독한다(M0에서 확인).
   - `doc/TextLoader`. `load(fs, path)`는 `FileSystem`이면 로컬과 원격 모두 읽는다. `content://`는 바이트를 직접 읽어 `decode`에 넘기면 된다(viewer 항목에서 연결한다).
   - `TextLoaderTest` 11개(디코딩 규칙)와 `TextLoaderTest$OverSftp` 6개(`:core`의 `SftpTestServer`로 한글 이름의 한글 파일, EUC-KR, 상한 경계, 바이너리, 없는 파일). `:code` 테스트가 `:core`의 testFixtures를 쓰게 됐다.
   - `stat` 뒤에 파일이 커져도 상한+1바이트까지만 읽는다. 아직 `OpenFlow`에는 연결하지 않았다. 여는 흐름은 여전히 토스트에서 끝난다.
-- [ ] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용
+- [x] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용
+  - `bridge/WebBridge`와 `WebBridgeTest` 12개(응답과 id, 오류 코드 -32601/-32602/-32000, 알림, `ready` 전 알림 보관, 다시 불러온 페이지, `/`가 든 LSP 문자열 왕복). 스파이크 페이지의 `sampleText`와 스텁 LSP를 새 브리지로 옮겨 실기기에서 M0과 같은 수치를 확인했다(initialize 4ms, didOpen 후 진단 250ms).
+  - 실기기에서 DevTools로 확인: 외부 fetch, 외부 이미지, 인라인 스크립트, iframe이 CSP로 막히고, `web/` 밖의 자산은 403이다. `location.href`로 https에 가면 페이지는 그대로이고 Chrome이 열린다. `intent:` 링크는 버려진다.
+  - DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았다. 원인은 확인하지 않았다. viewer에서 마크다운 링크를 실제로 탭해 다시 볼 것.
 - [ ] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
 - [ ] 상단 메뉴 ①~⑤ 자리와 스크롤에 따른 숨김/표시(①④⑤는 이후 단계에서 채운다)
 - [ ] Skiff 쪽: `onOpen`에서 CODE/TEXT/MARKDOWN이면 `skiffcode://` 인텐트를 보내고, Skiff Code가 없으면 기존 외부 앱으로 열기

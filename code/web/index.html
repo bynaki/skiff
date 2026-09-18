@@ -3,6 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <!--
+    The page renders remote file contents next to a privileged bridge, so it runs only the bundle.
+    Styles allow 'unsafe-inline' for the <style> below; CodeMirror's own go through constructed
+    stylesheets. img-src stops a rendered document from calling out to a tracking pixel, and
+    MainActivity refuses such requests again at the network layer.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
   <title>Skiff Code</title>
   <style>
     html, body { margin: 0; height: 100%; }
