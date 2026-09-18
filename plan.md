@@ -109,8 +109,9 @@ method로 구독한다(M0에서 확인).
 - **읽기 (`TextLoader`):**
   - 먼저 `stat`한다. 크기 상한은 설정값이고 기본 2MB다.
   - 바이너리 여부는 **앞 8KB에 NUL 바이트가 있는지**로 판별한다. 확장자는 믿지 않는다.
-  - UTF-8로 읽다가 대체 문자가 나오면 **EUC-KR로 폴백**한다.
-  - 원래 인코딩, CRLF, 끝 줄바꿈을 기억해 두고 저장할 때 되돌린다.
+  - UTF-8로 **엄격하게** 디코딩하고(깨진 바이트를 U+FFFD로 바꾸지 않는다), 실패하면 **EUC-KR로 폴백**한다. 둘 다 실패하면 열지 않는다(`UnknownEncoding`). 대체 문자로 채운 텍스트를 저장하면 원래 바이트를 덮어쓰기 때문이다. 파일에 원래 들어 있던 U+FFFD는 정상 UTF-8이라 폴백하지 않는다.
+  - 원래 인코딩, UTF-8 BOM, CRLF, 끝 줄바꿈을 기억해 두고 저장할 때 되돌린다. 텍스트의 줄바꿈은 `\n`으로 바꿔 넘긴다(CM6가 갖는 형태). 줄바꿈은 첫 줄의 것으로 정하므로, 섞인 파일은 저장하면 한 가지로 통일된다.
+  - 읽기 전에 한 `stat`의 크기와 mtime을 결과에 담아 `DocumentSaver`가 비교에 쓴다.
 - **저장 (`DocumentSaver`):**
   - 쓰기 직전에 `stat`해서 불러올 때의 mtime/size와 비교한다. 다르면 충돌 배너를 띄운다.
   - 같으면 제자리에 truncate 쓰기를 한다. 임시 파일에 쓰고 rename하는 방식은 소유권, 하드링크, 심링크를 깨서 쓰지 않는다.
@@ -294,7 +295,10 @@ method로 구독한다(M0에서 확인).
   - 알 수 없는 서버는 확인창에서 비밀번호를 받아 프로필로 만든다. "서버로 저장"(기본 켬)을 끄면 프로세스가 끝날 때까지 메모리에만 둔다.
   - 흐름은 파일이 있는지 `stat`하고 최근 파일에 넣는 데서 끝나고, 토스트로 알린다. 읽고 보여 주는 것은 `TextLoader`와 viewer 항목이다.
   - `singleTask`라 두 번째 링크는 `onNewIntent`로 온다. `configChanges`로 회전이나 접기에서 다시 만들어지지 않게 해서 대화상자를 기다리는 흐름이 끊기지 않는다.
-- [ ] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)
+- [x] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)
+  - `doc/TextLoader`. `load(fs, path)`는 `FileSystem`이면 로컬과 원격 모두 읽는다. `content://`는 바이트를 직접 읽어 `decode`에 넘기면 된다(viewer 항목에서 연결한다).
+  - `TextLoaderTest` 11개(디코딩 규칙)와 `TextLoaderTest$OverSftp` 6개(`:core`의 `SftpTestServer`로 한글 이름의 한글 파일, EUC-KR, 상한 경계, 바이너리, 없는 파일). `:code` 테스트가 `:core`의 testFixtures를 쓰게 됐다.
+  - `stat` 뒤에 파일이 커져도 상한+1바이트까지만 읽는다. 아직 `OpenFlow`에는 연결하지 않았다. 여는 흐름은 여전히 토스트에서 끝난다.
 - [ ] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용
 - [ ] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
 - [ ] 상단 메뉴 ①~⑤ 자리와 스크롤에 따른 숨김/표시(①④⑤는 이후 단계에서 채운다)

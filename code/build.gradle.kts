@@ -55,6 +55,10 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // TextLoaderTest reads through a real SFTP server, the same one :core's tests use.
+    testImplementation(testFixtures(project(":core")))
+    // slf4j-android is a no-op off-device, so the JVM tests take the console binding, as :app does.
+    testRuntimeOnly(libs.slf4j.simple)
 }
 
 // The UI is a Vite + TypeScript bundle in web/, built into src/main/assets/web/ (gitignored)
