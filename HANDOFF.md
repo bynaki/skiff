@@ -9,20 +9,33 @@
 
 ---
 
-## 마지막 세션 (2026-09-18): M1 완료. 다음은 M2다
+## 마지막 세션 (2026-09-18): M1 완료, M2 첫 항목(`SkiffCodeUri`) 완료
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree). **아직 push하지 않았다.** main에는 합치지 않았다.
-- **M1이 끝났다. 다음은 M2(`SkiffCodeUri` 파서)다.** 실기기에서 실제 SSH 서버로 탐색과 전송까지
+- **M1이 끝났고 M2의 첫 항목 `SkiffCodeUri` 파서도 끝났다. 다음은 M2 둘째 항목 `SkiffCodeStore`다.** 실기기에서 실제 SSH 서버로 탐색과 전송까지
   확인했다(아래 "실서버 확인 결과").
 - 모듈은 이제 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code, 여전히 M0 스파이크 코드).
   무엇이 어디로 갔는지는 `AGENTS.md`의 "Three modules"에 적었다. 이 문서는 다시 적지 않는다.
 - 테스트는 이동 전 52개가 그대로 `:core` 28개 + `:app` 24개로 갈렸다. 실패 없음.
+  `:code`는 `SkiffCodeUriTest` 27개와 M0의 ktoml 스파이크 3개로 30개다.
+- `:code:lintDebug`는 경고 10개인데 전부 M0 스파이크의 `MainActivity`와 매니페스트에서 나온다.
 - `:app:lintDebug`는 경고 5개(기존과 같음), `:core:lintDebug`는 경고 10개로 통과한다. `:core`의 것은
   `:app`에 있던 경고가 모듈을 따라 옮겨간 것이다(라이브러리 새 버전 알림, BouncyCastle jar 안의
   `TrustAllX509TrustManager`, `LocalFileSystem`의 `UsableSpace`).
 
-### 이번에 내린 판단
+### `SkiffCodeUri`에서 내린 판단
+- **직접 파싱한다.** `android.net.Uri`는 유닛 테스트 JVM에서 스텁이고, `java.net.URI`는 인코딩하지
+  않은 한글 경로를 거부한다. 노트 앱에 붙여 넣은 링크는 인코딩되지 않은 채로 올 수 있다.
+- **user는 없어도 된다.** `skiffcode://192.0.2.10/a?alias=x`처럼 alias만으로 서버를 가리킬 수 있다.
+  포트가 없으면 22, host는 소문자로 바꾸고, IPv6는 괄호를 뗀다.
+- **파서는 alias와 (user, host, port)를 둘 다 넘기기만 한다.** alias 우선으로 프로필을 찾는 것은
+  저장소가 필요해서 OpenRequest 해석 항목(M2 셋째)으로 넘겼고, `plan.md`의 그 항목에 적었다.
+- `+`는 공백으로 바꾸지 않는다(폼 본문이 아니다). 잘못된 퍼센트 인코딩, UTF-8이 아닌 바이트,
+  NUL은 거부한다. 모르는 쿼리 키는 무시하고, 키가 반복되면 첫 값을 쓴다.
+- 로컬 형식에 붙은 `alias`는 조용히 무시한다.
+
+### M1에서 내린 판단
 - **M1의 1번과 2번 항목은 같이 할 수밖에 없다.** `HostKeyGate`를 `:core`로 옮기려면 `SkiffStore` 의존을
   먼저 `KnownHostStore`로 끊어야 컴파일이 된다. 그래서 한 커밋에 넣었다.
 - **`SftpTestServer`는 `:core`의 testFixtures로 내보냈다.** `SftpFileSystemTest` 19개 중 3개가
@@ -58,8 +71,8 @@
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M2 첫째 항목(`SkiffCodeUri` 파서)**부터 시작한다.
-3. M2에 들어가기 전에 "사용자 확인을 아직 받지 않은 가정"의 2번(로컬 파일을 받는 두 경로)을 물어본다.
+2. `plan.md`의 첫 `- [ ]`인 **M2 둘째 항목(`SkiffCodeStore`)**부터 시작한다. `:code`는 아직
+   `:core`에 의존하지 않는다. `KnownHostStore`를 구현하려면 이 항목에서 의존을 붙여야 한다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -76,13 +89,13 @@
 | TOML | ktoml을 쓴다. `smol-toml`로 옮기지 않는다 | M0에서 확인했다. 컴파일러 플러그인만 필요하고 KSP를 안 써서 Room과 다르다 |
 | exec | `:app`은 금지, `:code`는 허용. 근거는 "서버에 설치하지 않기 위해"가 아니라 **"셸 없는 `internal-sftp` 계정을 지원하기 위해"** 다 | 사용자가 금지의 출처를 물었고, 사용자가 정한 것이 아니라 AI가 잘못 유도한 것으로 드러났다. 규칙은 남기고 이유를 고쳤다 |
 | M0 스파이크 코드 | 확인이 끝나면 지운다. exec 하네스도 지웠다 | 사용자 지시. M0은 버리는 코드로 확인만 하는 단계다 |
+| 로컬 파일 경로 | `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 둘 다 받는다 | 2026-09-18 사용자가 가정대로 진행하라고 했다. `plan.md` "정한 것" 5번 |
 | 보고 방식 | 작업마다 한국어로 보고하고 푸시 알림을 보낸다 | 사용자가 자리를 비울 때가 많다. `AGENTS.md`에 적었다 |
 
 ### 사용자 확인을 아직 받지 않은 가정
 해당 단계에 들어가기 전에 한 번 물어본다.
 1. diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "직전 커밋과 HEAD"는 두 번째 옵션이다. (M5 전)
-2. 로컬 파일은 `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 두 경로로 받는다. (M2 전)
-3. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전)
+2. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전)
 
 ### 실제 LSP 서버 확인 (exec 규칙을 고치고 추가로 한 것)
 

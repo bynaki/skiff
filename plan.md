@@ -39,10 +39,10 @@
 4. **서버 프로필만 공유한다.**
    - Skiff가 서명 보호(`protectionLevel="signature"`) ContentProvider로 비밀이 아닌 정보(별칭, host, port, user, startPath, 알려진 호스트키)를 내보낸다.
    - Keystore 키는 앱마다 따로라서, 비밀번호는 Skiff Code가 처음 한 번 입력받아 자기 Keystore에 저장한다.
+5. **로컬 파일은 두 경로로 받는다** (2026-09-18 사용자 확인). Skiff에서는 `skiffcode:///절대경로`로 받고(MANAGE_EXTERNAL_STORAGE 사용), 다른 앱에서는 표준 `ACTION_VIEW`/`ACTION_EDIT`의 `content://`로 받는다. 로컬은 항상 단일 파일 모드다.
 
 **가정** (틀렸으면 여기부터 고칠 것):
 - diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "이 파일을 건드린 직전 커밋과 HEAD"는 더보기(⑤) 메뉴에서 바꾸는 두 번째 비교 대상이다.
-- 로컬 파일은 두 경로로 받는다. Skiff에서는 `skiffcode:///절대경로`로 받고(MANAGE_EXTERNAL_STORAGE 사용), 다른 앱에서는 표준 `ACTION_VIEW`/`ACTION_EDIT`의 `content://`로 받는다. 로컬은 항상 단일 파일 모드다.
 - LSP 서버는 원격에 **자동 설치하지 않는다.** PATH에서 찾고, 경로는 설정에서 덮어쓸 수 있다.
 
 ## 설계
@@ -280,9 +280,11 @@ method로 구독한다(M0에서 확인).
     M1이 건드린 곳이 아니고, 내려받기 속도는 read-ahead가 살아 있다는 증거다(없으면 약 1 MB/s).
 
 ### M2. 골격 + URI 인텐트 + 단일 파일 viewer
-- [ ] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)
+- [x] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)
+  - 파서는 alias와 (user, host, port)를 둘 다 넘기기만 한다. alias 우선으로 프로필을 찾는 것은 프로필 저장소가 있어야 해서 OpenRequest 해석 항목에서 테스트한다.
+  - `android.net.Uri`(유닛 테스트에서 스텁)와 `java.net.URI`(인코딩 안 된 한글 경로를 거부)를 쓰지 않고 직접 파싱한다. user 없이 alias만으로 서버를 가리키는 링크도 받는다.
 - [ ] `SkiffCodeStore`(DataStore JSON): 프로필(비밀번호 암호문), knownHosts, 최근 파일
-- [ ] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석, 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
+- [ ] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석(alias → (user, host, port) 순으로 프로필 찾기 + 테스트), 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
 - [ ] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)
 - [ ] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용
 - [ ] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
