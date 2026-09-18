@@ -270,11 +270,14 @@ method로 구독한다(M0에서 확인).
 - [x] `KnownHostStore` 인터페이스 도입. `HostKeyGate`가 이것에 의존하고 `SkiffStore`가 구현한다(`data.first()`로만 읽는다는 규칙을 KDoc에 옮기기)
 - [x] `SshConnection.ensureConnected`의 접속, 인증, 호스트키 부분을 `SshClientFactory`로 분리
 - [x] `AGENTS.md`의 명령, 구조, 테스트 경로를 멀티모듈 기준으로 갱신
-- [ ] **확인:** `./gradlew :core:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug` 통과. 실기기에서 Skiff의 SFTP 탐색과 전송이 이전과 같다
+- [x] **확인:** `./gradlew :core:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug` 통과. 실기기에서 Skiff의 SFTP 탐색과 전송이 이전과 같다
   - 테스트와 린트는 통과한다. 이동 전 52개가 `:core` 28개 + `:app` 24개로 갈렸고 실패는 없다.
-  - 실기기에서 로컬 탐색과 연결 실패 경로(`FsError.Unreachable`)는 확인했다. **원격 SFTP 탐색과 전송은
-    아직이다** — 탭에 남아 있는 프로필이 문서용 주소(`192.0.2.0/24`)를 가리켜 응답하지 않는다.
-    사용자가 실제 서버 프로필로 직접 확인해 주어야 한다.
+  - 실기기에서 실제 SSH 서버로 확인했다: 접속, 홈 디렉터리 목록, 하위 디렉터리 이동, 새로고침
+    (서버에서 방금 만든 디렉터리가 바로 보인다), 분할 화면, 양방향 전송. 내려받은 파일과 올린 파일
+    모두 MD5가 원본과 같았고(한글 내용 포함), 로그에 경고나 오류가 하나도 없었다.
+  - 29.3MB 전송은 **내려받기 7.8 MB/s, 올리기 0.9 MB/s**였다. 비대칭은 설계대로다 —
+    `openRead`에만 read-ahead가 붙어 있고(`READ_AHEAD_MAX`), 쓰기는 파이프라이닝이 없다.
+    M1이 건드린 곳이 아니고, 내려받기 속도는 read-ahead가 살아 있다는 증거다(없으면 약 1 MB/s).
 
 ### M2. 골격 + URI 인텐트 + 단일 파일 viewer
 - [ ] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)
