@@ -9,22 +9,63 @@
 
 ---
 
-## 마지막 세션 (2026-09-18): M1 완료, M2 셋째 항목까지 완료
+## 마지막 세션 (2026-09-18 저녁): M2 넷째·다섯째 항목 완료
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). `origin/plan/skiffcode`에 push했다. main에는 합치지 않았다.
-- **M2의 `SkiffCodeUri`, `SkiffCodeStore`, 인텐트와 여는 흐름까지 끝났다. 다음은 M2 넷째 항목
-  `TextLoader`다.** M1은 실기기에서 실제 SSH 서버로 탐색과 전송까지 확인했다(아래 "실서버 확인 결과").
+- 브랜치 `plan/skiffcode`(git worktree). **이번 세션 커밋(`ef1e6d7`, `dfb5434`, 그리고 이 인수인계 커밋)은
+  아직 push하지 않았다.** main에는 합치지 않았다.
+- **다음은 M2 여섯째 항목, viewer 레이어다**(`plan.md`의 첫 `- [ ]`).
 - 모듈은 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code). 무엇이 어디 있는지는
-  `AGENTS.md`의 "Three modules"에 있다. `:code`의 WebView 페이지는 아직 M0 스파이크다.
-- 테스트: `:core` 35개, `:app` 24개, `:code` 49개(`SkiffCodeUriTest` 27, `OpenRequestTest` 12,
-  `SkiffCodeStoreTest` 7, M0 ktoml 스파이크 3). 실패 없음.
-- lint 경고: `:core` 9개, `:app` 4개, `:code` 12개. "새 라이브러리 버전" 경고는 그때그때 달라지니
-  개수보다 종류를 비교한다. `:code`의 12개는 M0 스파이크 `MainActivity`와 `allowBackup`에서 10개,
-  BouncyCastle jar의 `TrustAllX509TrustManager` 1개, `MANAGE_EXTERNAL_STORAGE`의 `ScopedStorage` 1개다.
-  예전에 적혀 있던 `:core` 10개, `:app` 5개는 오래된 수치였다(변경 전 커밋을 다시 돌려 확인).
+  `AGENTS.md`의 "Three modules"에 있다. **`:code`의 WebView 페이지(`web/src/main.ts`, `diff.ts`,
+  `lsp.ts`, `zoom.ts`)는 아직 M0 스파이크다.** 브리지(`bridge.ts`, `bridge/WebBridge.kt`)만 정식이 됐다.
+- 테스트: `:core` 35개, `:app` 24개, `:code` 78개(`SkiffCodeUriTest` 27, `OpenRequestTest` 12,
+  `WebBridgeTest` 12, `TextLoaderTest` 11 + `TextLoaderTest$OverSftp` 6, `SkiffCodeStoreTest` 7,
+  M0 ktoml 스파이크 3). 실패 없음. 이번 세션은 `:code`만 돌렸다(`:core`, `:app`은 건드리지 않았다).
+- lint 경고: `:code` **10개**(12개에서 줄었다. 스파이크의 `WebViewCompat` 직접 호출이 빠져
+  `RequiresFeature`가 4→2). 나머지는 `MissingOnRenderProcessGone` 4, `RequiresFeature` 2,
+  `DataExtractionRules` 1, `SetJavaScriptEnabled` 1, `TrustAllX509TrustManager` 1(BouncyCastle jar),
+  `ScopedStorage` 1. `:core` 9개, `:app` 4개는 지난 세션 수치다. "새 라이브러리 버전" 경고는
+  그때그때 달라지니 개수보다 종류를 비교한다.
 
-### 이번 세션에서 내린 판단
+### 이번 세션에서 한 것과 내린 판단
+**순서 질문의 답:** 지난 세션에서 답을 못 받은 질문에 사용자가 **"계획 순서대로"**를 골랐다.
+`TextLoader` → 브리지 → viewer 다음에 Skiff 쪽(`onOpen`에서 `skiffcode://` 인텐트)을 연결한다.
+그래서 Skiff에서 원격 파일을 탭하면 아무 일도 없는 것은 그 항목까지 그대로다(`openExternally`가
+`SourceId.Local`이 아니면 돌아간다).
+
+**`doc/TextLoader` (`ef1e6d7`)**
+- `load(fs, path)`: `stat` → 상한(기본 2MB) 검사 → 상한+1바이트까지만 읽기 → `decode`. `FileSystem`
+  위라 로컬과 원격이 같은 길이다. `content://`는 바이트를 직접 읽어 `decode(bytes, size, mtime)`에 넘긴다.
+- **디코딩은 엄격하다.** UTF-8을 REPORT 모드로 시도하고, 실패하면 EUC-KR, 둘 다 실패하면
+  `UnknownEncoding`으로 열지 않는다. 대체 문자로 채운 텍스트를 저장하면 원래 바이트가 덮어써진다.
+  계획에는 없던 결과 값이라 `plan.md` 설계에 적었다.
+- UTF-8 BOM은 떼고 기억한다(`TextFormat.bom`). 줄바꿈은 **첫 줄의 것**으로 정하고 텍스트는 `\n`으로
+  바꿔 넘긴다. 섞인 파일은 저장하면 한 가지로 통일된다.
+- 결과의 `size`, `modifiedEpochSeconds`는 읽기 전 `stat` 값이다. M3의 `DocumentSaver`가 충돌 비교에 쓴다.
+- `:code` 테스트가 `:core`의 testFixtures(`SftpTestServer`)와 `slf4j-simple`을 쓰게 됐다(`:app`과 같은 방식).
+- **아직 `OpenFlow`에 연결하지 않았다.** 링크로 열면 여전히 토스트에서 끝난다. viewer 항목에서 잇는다.
+
+**`bridge/WebBridge` + `bridge.ts` (`dfb5434`)**
+- `method(name) { params -> result }`, `onNotify(name)`, `notify(method, params)`(아무 스레드에서나).
+  오류 코드: 없는 메서드 -32601, `JSONException`은 -32602, 그 밖의 예외는 -32000(메시지 그대로).
+  Web에서는 `RpcError(code, message)`로 받는다.
+- **`ready` 규칙:** Kotlin은 페이지가 먼저 말해야 답할 통로(reply proxy)를 얻는다. 그래서 `bridge.ts`가
+  로드되자마자 `ready` 알림을 보내고, 그 전에 Kotlin이 보낸 알림은 모아 뒀다가 순서대로 넘긴다.
+  페이지를 다시 불러오면 새 `ready`의 통로로 바뀐다. **주의:** `ready` 직후 넘어온 알림은 그때까지
+  `onNotify`로 구독하지 않은 Web 리스너에게는 전달되지 않는다. viewer에서 Kotlin이 파일을 먼저
+  밀어 넣는 구조로 가면 이 순서를 고려할 것(페이지가 `rpc`로 요청하는 쪽이 단순하다).
+- 메인 프레임에서 온 메시지만 받는다. `Log`는 JVM 테스트에서 스텁이라 로거를 생성자로 받는다.
+- 보안: 자산 로더는 `/assets/web/`만 내주고 나머지 요청은 모두 빈 403. CSP는 `index.html`에 있다
+  (`style-src`의 `'unsafe-inline'`은 그 파일의 `<style>` 때문). 링크는 http/https/mailto만 `ACTION_VIEW`로
+  넘기고 `intent:` 등은 버린다. 자세한 규칙은 `plan.md` "보안 규칙".
+- 스파이크의 `sampleText`와 스텁 LSP는 새 브리지 위로 옮겨 두었다(`MainActivity.registerSpikeMethods`).
+- 실기기 확인: LSP 스파이크가 M0과 같은 수치(initialize 4ms, 진단 250ms, 재동기화 589ms). DevTools로
+  외부 fetch·외부 이미지·인라인 스크립트·iframe이 CSP로 막히고, `web/` 밖 자산이 403이고,
+  `location.href = 'https://…'`는 Chrome을 열고 페이지는 남고, `intent:` 링크는 버려지는 것을 봤다.
+- **확인 못 한 것:** DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았다(로그도 없음).
+  원인은 모른다. viewer에서 마크다운 링크를 **실제로 탭해서** 외부로 나가는지 확인할 것.
+
+### 지난 세션(M2 첫~셋째 항목)에서 내린 판단
 **`SkiffCodeUri`**
 - 직접 파싱한다. `android.net.Uri`는 유닛 테스트 JVM에서 스텁이고, `java.net.URI`는 인코딩되지 않은
   한글 경로를 거부한다.
@@ -49,7 +90,7 @@
   링크에 user가 있으면 확인창에서 바꿀 수 없다.
 - 대화상자는 WebView가 아니라 네이티브 `AlertDialog`다. 비밀번호와 호스트키 결정이 원격 내용을
   렌더링하는 페이지를 지나가지 않게 하려는 것이다. 문구는 영어와 한국어 리소스로 뒀다.
-- 흐름은 `stat`과 최근 파일 기록에서 끝나고 토스트를 띄운다. `TextLoader`와 viewer가 이어받는다.
+- 흐름은 `stat`과 최근 파일 기록에서 끝나고 토스트를 띄운다. viewer가 이어받는다.
 - **파서의 거부 이유는 영어 그대로 대화상자에 나온다**(예: "a password in the link is not accepted").
   viewer에서 오류를 페이지에 보여 줄 때 현지화할 것.
 
@@ -95,20 +136,18 @@
 명령당 왕복을 줄이는 자리고, 프레이밍이 `LspProcess`와 같은 모양이다.
 
 ### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. 아래 "아직 답을 받지 못한 것"의 순서 질문을 먼저 한다. 계획 순서라면 `plan.md`의 첫 `- [ ]`인
-   **M2 넷째 항목(`TextLoader`)**부터 시작한다. `ui/OpenFlow`의 `Opened`가
-   읽을 파일을 넘겨준다. 원격은 `RemoteSessions.get(profile)`의 `SftpFileSystem`으로 읽는다.
-
-### 사용자가 물었고 아직 답을 받지 못한 것
-- **Skiff에서 원격(`mac-mini`) 파일을 탭하면 아무 일도 일어나지 않는다.** 버그가 아니라 원래 동작이다.
-  `app/.../ui/MainActivity.kt`의 `openExternally`가 `SourceId.Local`이 아니면 그냥 돌아간다(외부 앱은
-  SFTP 경로를 못 읽는다). 이것을 Skiff Code로 넘기는 것이 M2의 "Skiff 쪽: `onOpen`에서 …
-  `skiffcode://` 인텐트" 항목이다.
-- 사용자에게 두 안을 물었고 답을 받지 못한 채 세션이 끝났다. **다음 세션에서 먼저 물어본다.**
-  1. 계획 순서대로(권장): `TextLoader` → 브리지 → viewer 뒤에 Skiff 쪽을 연결한다. 탭하면 실제로 파일이 보인다.
-  2. Skiff 쪽 연결을 먼저: 탭하면 Skiff Code로 넘어가지만 "열 준비 완료" 토스트까지만 가고, `ProfileProvider`
-     전이라 처음 한 번은 "알 수 없는 서버" 창에서 비밀번호와 호스트키를 다시 받아야 한다.
+1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing(**커밋마다 사용자에게 먼저
+   묻는다**), 보고와 알림 규칙을 본다.
+2. push하지 않은 커밋이 있다. push할지 사용자에게 묻는다.
+3. `plan.md`의 첫 `- [ ]`인 **viewer 레이어**부터 시작한다(읽기 전용 CM6, 하이라이팅, 줄 번호, 핀치 줌,
+   마크다운 `html: false`).
+   - 스파이크의 줌(`zoom.ts`의 `anchorAt`/`zoomTo`, `scrollIntoView` 방식)은 M0에서 검증된 것이라 가져다 쓴다.
+   - `OpenFlow.Opened` → `TextLoader.load(...)` → 페이지로 텍스트 전달을 잇는다. 원격은
+     `container.sessions.get(profile)`, 로컬 경로는 `LocalFileSystem`, `content://`는 `decode`.
+   - `TooLarge`/`Binary`/`UnknownEncoding`과 파서 거부 이유(지금 영어 그대로)를 페이지에서 한국어로 보여 줄 것.
+   - `markdown-it`은 버전을 아직 고르지 않았다. 고르면 `AGENTS.md`의 버전 목록에 적는다.
+   - 스파이크 전용 코드(`sampleText`, `StubLsp`, 측정 코드, `MainActivity`의 스파이크 인자)를 지울지는
+     범위를 보고 정한다. `diff.ts`의 CM6 패치와 `lsp.ts`의 브리지 Transport는 M5·M6이 다시 쓴다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -126,6 +165,7 @@
 | exec | `:app`은 금지, `:code`는 허용. 근거는 "서버에 설치하지 않기 위해"가 아니라 **"셸 없는 `internal-sftp` 계정을 지원하기 위해"** 다 | 사용자가 금지의 출처를 물었고, 사용자가 정한 것이 아니라 AI가 잘못 유도한 것으로 드러났다. 규칙은 남기고 이유를 고쳤다 |
 | M0 스파이크 코드 | 확인이 끝나면 지운다. exec 하네스도 지웠다 | 사용자 지시. M0은 버리는 코드로 확인만 하는 단계다 |
 | 로컬 파일 경로 | `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 둘 다 받는다 | 2026-09-18 사용자가 가정대로 진행하라고 했다. `plan.md` "정한 것" 5번 |
+| M2 순서 | 계획 순서대로: `TextLoader` → 브리지 → viewer → Skiff 쪽 연결 | 2026-09-18 사용자 선택. Skiff 쪽을 먼저 붙이면 탭해도 토스트까지만 가고, `ProfileProvider` 전이라 비밀번호와 호스트키를 다시 받아야 한다 |
 | 보고 방식 | 작업마다 한국어로 보고하고 푸시 알림을 보낸다 | 사용자가 자리를 비울 때가 많다. `AGENTS.md`에 적었다 |
 
 ### 사용자 확인을 아직 받지 않은 가정
@@ -172,7 +212,6 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
 ### 주의할 점
 - **세션을 끝낼 때 `plan.md` 체크리스트를 갱신하고 이 파일을 덮어쓴다.**
 - **exec 규칙은 이미 고쳤다.** `:app`은 여전히 금지, `:code`는 허용이다. M5의 체크리스트에서 `AGENTS.md` 수정은 빠졌고 `RemoteExec` 구현만 남았다. 자세한 것은 위 "실제 LSP 서버 확인" 절과 `AGENTS.md`의 "The SFTP side, and what it must not do"에 있다.
-- `:code`에 kotlinx.serialization 플러그인이 붙어 있는데 main 소스에서는 아직 안 쓴다. ktoml이 요구한다. M2에서 `SkiffCodeStore`가 쓴다.
 - `npm install` 때 fsevents install 스크립트는 npm 11 기본 정책으로 실행되지 않는다. macOS용 선택 의존성이라 영향이 없다.
 - 기기:
   - 시리얼은 `adb devices`로 얻고 레포에 적지 않는다.
