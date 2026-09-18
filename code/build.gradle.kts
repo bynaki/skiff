@@ -26,13 +26,33 @@ android {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
+
+    // Same list as :app, for the same jars: sshj and BouncyCastle arrive through :core.
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE-notice.md",
+                "META-INF/NOTICE.md",
+            )
+        }
+    }
 }
 
 dependencies {
+    // Brings okio, sshj and kotlinx-serialization with it, as it does for :app.
+    implementation(project(":core"))
+
     implementation(libs.androidx.webkit)
+    implementation(libs.androidx.datastore)
     implementation(libs.ktoml.core)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 // The UI is a Vite + TypeScript bundle in web/, built into src/main/assets/web/ (gitignored)

@@ -59,6 +59,7 @@ settings.gradle.kts   include(":core", ":app", ":code")
 :app   Skiff. SkiffStore가 KnownHostStore를 구현. + ProfileProvider
 :code  Skiff Code (applicationId com.naki.skiff.code, logcat 태그 SkiffCode)
   src/main/java/com/naki/skiff/code/
+    data/      SkiffCodeStore(프로필, knownHosts, 최근 파일을 JSON 하나에)
     intent/    SkiffCodeUri 파서, OpenRequest 해석(로컬/원격/프로필/프로젝트)
     session/   RemoteSessions(프로필→SftpFileSystem), RemoteExec, ShellQuote
     doc/       TextLoader, DocumentSaver, FileWatcher
@@ -283,7 +284,9 @@ method로 구독한다(M0에서 확인).
 - [x] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)
   - 파서는 alias와 (user, host, port)를 둘 다 넘기기만 한다. alias 우선으로 프로필을 찾는 것은 프로필 저장소가 있어야 해서 OpenRequest 해석 항목에서 테스트한다.
   - `android.net.Uri`(유닛 테스트에서 스텁)와 `java.net.URI`(인코딩 안 된 한글 경로를 거부)를 쓰지 않고 직접 파싱한다. user 없이 alias만으로 서버를 가리키는 링크도 받는다.
-- [ ] `SkiffCodeStore`(DataStore JSON): 프로필(비밀번호 암호문), knownHosts, 최근 파일
+- [x] `SkiffCodeStore`(DataStore JSON): 프로필(비밀번호 암호문), knownHosts, 최근 파일
+  - `:core`의 `ServerProfile`, `KnownHost`를 그대로 쓰고 `KnownHostStore`를 구현한다. `Context` 대신 `DataStore`를 받아 JVM에서 테스트한다(`SkiffCodeStoreTest`).
+  - 최근 파일은 연 링크(`skiffcode://` 또는 `content://`) 문자열과 시각이다. 최신순, 같은 링크는 앞으로 옮기고, 50개를 넘으면 오래된 것부터 버린다.
 - [ ] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석(alias → (user, host, port) 순으로 프로필 찾기 + 테스트), 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
 - [ ] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)
 - [ ] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용

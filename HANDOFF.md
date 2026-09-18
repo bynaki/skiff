@@ -9,17 +9,20 @@
 
 ---
 
-## 마지막 세션 (2026-09-18): M1 완료, M2 첫 항목(`SkiffCodeUri`) 완료
+## 마지막 세션 (2026-09-18): M1 완료, M2 첫째·둘째 항목(`SkiffCodeUri`, `SkiffCodeStore`) 완료
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree). **아직 push하지 않았다.** main에는 합치지 않았다.
-- **M1이 끝났고 M2의 첫 항목 `SkiffCodeUri` 파서도 끝났다. 다음은 M2 둘째 항목 `SkiffCodeStore`다.** 실기기에서 실제 SSH 서버로 탐색과 전송까지
+- **M1이 끝났고 M2의 `SkiffCodeUri` 파서와 `SkiffCodeStore`도 끝났다. 다음은 M2 셋째 항목(인텐트 필터와 OpenRequest 해석)이다.** 실기기에서 실제 SSH 서버로 탐색과 전송까지
   확인했다(아래 "실서버 확인 결과").
 - 모듈은 이제 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code, 여전히 M0 스파이크 코드).
   무엇이 어디로 갔는지는 `AGENTS.md`의 "Three modules"에 적었다. 이 문서는 다시 적지 않는다.
 - 테스트는 이동 전 52개가 그대로 `:core` 28개 + `:app` 24개로 갈렸다. 실패 없음.
-  `:code`는 `SkiffCodeUriTest` 27개와 M0의 ktoml 스파이크 3개로 30개다.
-- `:code:lintDebug`는 경고 10개인데 전부 M0 스파이크의 `MainActivity`와 매니페스트에서 나온다.
+  `:code`는 `SkiffCodeUriTest` 27개, `SkiffCodeStoreTest` 8개, M0의 ktoml 스파이크 3개로 38개다.
+- `:code:lintDebug`는 경고 11개다. 10개는 M0 스파이크의 `MainActivity`와 매니페스트, 1개는 `:core`를
+  붙이면서 따라온 BouncyCastle jar 안의 `TrustAllX509TrustManager`(`:app`, `:core`에도 있는 것)다.
+- `:code`가 이제 `:core`에 의존한다. sshj와 BouncyCastle이 들어오면서 debug APK가 약 19.6MB가 됐고,
+  `:app`과 같은 META-INF 제외 목록을 `code/build.gradle.kts`에 넣었다.
 - `:app:lintDebug`는 경고 5개(기존과 같음), `:core:lintDebug`는 경고 10개로 통과한다. `:core`의 것은
   `:app`에 있던 경고가 모듈을 따라 옮겨간 것이다(라이브러리 새 버전 알림, BouncyCastle jar 안의
   `TrustAllX509TrustManager`, `LocalFileSystem`의 `UsableSpace`).
@@ -34,6 +37,20 @@
 - `+`는 공백으로 바꾸지 않는다(폼 본문이 아니다). 잘못된 퍼센트 인코딩, UTF-8이 아닌 바이트,
   NUL은 거부한다. 모르는 쿼리 키는 무시하고, 키가 반복되면 첫 값을 쓴다.
 - 로컬 형식에 붙은 `alias`는 조용히 무시한다.
+
+### `SkiffCodeStore`에서 내린 판단
+- **Skiff의 `SkiffStore`와 같은 모양이고 파일은 따로다**(`skiffcode.json`). Keystore 키가 앱마다
+  따로라 암호문을 공유할 수 없다. 프로필 공유는 M2의 `ProfileProvider` 항목에서 한다.
+- **`Context`가 아니라 `DataStore`를 받는다.** `Context.skiffCodeDataStore` 확장이 실제 인스턴스를
+  만들고, 테스트는 `DataStoreFactory`로 임시 파일 위에 만든다. 같은 파일에 DataStore 둘을 동시에
+  열면 안 되니 테스트는 스코프를 닫고 다시 연다.
+- **읽을 수 없는 파일은 빈 데이터로 읽는다.** Skiff와 같은 동작이고 테스트로 고정했다. 다만 그 뒤
+  첫 쓰기가 원래 파일을 덮어쓰므로 저장된 프로필을 잃는다. 문제가 되면 두 앱을 같이 고친다.
+- 프로필 찾기(alias → (user, host, port))는 넣지 않았다. OpenRequest 해석 항목에서 한다. 그때
+  URI 쪽 host는 소문자이고 프로필의 host는 사용자가 입력한 그대로라는 점을 맞춰야 한다.
+- `SecretStore`의 키 별칭은 `skiff.profile.secret` 그대로다. Keystore가 앱마다 따로라 충돌하지 않는다.
+  BouncyCastle provider 재등록(`SkiffApplication`이 하는 것)은 아직 `:code`에 없다. 처음 SSH 접속을
+  하는 항목에서 넣어야 한다.
 
 ### M1에서 내린 판단
 - **M1의 1번과 2번 항목은 같이 할 수밖에 없다.** `HostKeyGate`를 `:core`로 옮기려면 `SkiffStore` 의존을
@@ -71,8 +88,8 @@
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M2 둘째 항목(`SkiffCodeStore`)**부터 시작한다. `:code`는 아직
-   `:core`에 의존하지 않는다. `KnownHostStore`를 구현하려면 이 항목에서 의존을 붙여야 한다.
+2. `plan.md`의 첫 `- [ ]`인 **M2 셋째 항목(인텐트 필터와 OpenRequest 해석, 확인창들)**부터 시작한다.
+   alias 우선 프로필 찾기 테스트가 이 항목에 들어 있다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
