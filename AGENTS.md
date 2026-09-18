@@ -293,7 +293,11 @@ none of them fails a test when they are. A diff touching `fs/sftp/`, `data/crypt
 in the manifest, or anything that starts a remote command earns a second read for that reason
 alone.
 
-Commit once both reads come back clean.
+Once both reads come back clean, **ask the user before committing** — every commit, including
+documentation-only ones and the hand-off. Say what goes into it (the files and a one-line summary)
+and wait for a yes. A "go ahead" for the work itself is not a yes to commit it, and a yes to one
+commit does not carry over to the next. The user often steps away, so send the push notification
+with the question; do not commit while waiting.
 
 ## Not yet built
 
