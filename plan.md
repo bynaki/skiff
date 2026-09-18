@@ -284,7 +284,7 @@ method로 구독한다(M0에서 확인).
 - [ ] `GitScopeFinder` + `GitScopeFinderTest`(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일, 홈 밖 경로는 찾지 않음)
 - [ ] `ProjectStore`와 파일 여는 흐름 2~3단계(프로젝트 활성화, 묻는 창), 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
 - [ ] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
-- [ ] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지) + `AGENTS.md`의 exec 원칙을 "프로젝트 모드의 RemoteExec 한 곳만" 허용으로 수정
+- [ ] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지). `AGENTS.md`의 exec 원칙 수정은 M0에서 이미 했다
 - [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
 - [ ] git 거터(viewer, editor, diff 공통)
 - [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ⑤ 더보기에 비교 대상 선택 추가
