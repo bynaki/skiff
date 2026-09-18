@@ -2,18 +2,15 @@ package com.naki.skiff.code.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.core.Serializer
-import androidx.datastore.dataStore
+import androidx.datastore.dataStoreFile
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.KnownHostStore
 import com.naki.skiff.data.store.ServerProfile
+import com.naki.skiff.data.store.jsonDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import java.io.InputStream
-import java.io.OutputStream
 
 /** A file opened before, newest first in [SkiffCodeData.recentFiles]. */
 @Serializable
@@ -30,24 +27,9 @@ data class SkiffCodeData(
     val recentFiles: List<RecentFile> = emptyList(),
 )
 
-internal object SkiffCodeDataSerializer : Serializer<SkiffCodeData> {
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-
-    override val defaultValue = SkiffCodeData()
-
-    override suspend fun readFrom(input: InputStream): SkiffCodeData =
-        runCatching { json.decodeFromString<SkiffCodeData>(input.readBytes().decodeToString()) }
-            .getOrDefault(defaultValue)
-
-    override suspend fun writeTo(t: SkiffCodeData, output: OutputStream) {
-        output.write(json.encodeToString(t).encodeToByteArray())
-    }
-}
-
-val Context.skiffCodeDataStore: DataStore<SkiffCodeData> by dataStore(
-    fileName = "skiffcode.json",
-    serializer = SkiffCodeDataSerializer,
-)
+/** Opens Skiff Code's store. Call it once per process, from whatever holds the process's singletons. */
+fun openSkiffCodeDataStore(context: Context): DataStore<SkiffCodeData> =
+    jsonDataStore(context.dataStoreFile("skiffcode.json"), SkiffCodeData.serializer(), SkiffCodeData())
 
 /**
  * Skiff Code's own server profiles, accepted host keys and recent files, in one JSON blob the way

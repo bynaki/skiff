@@ -93,8 +93,8 @@ is Skiff, `:code` is Skiff Code. The packages stayed `com.naki.skiff.*` across t
 `:core` and `:app` share some of them — only the module a file sits in tells them apart.
 
 `:core` keeps itself free of either app's storage and UI. `HostKeyGate` is written against the
-`KnownHostStore` interface, which `:app`'s `SkiffStore` implements and Skiff Code will implement
-with its own store; `SshConnection` and `SshClientFactory` take a password rather than reaching
+`KnownHostStore` interface, which `:app`'s `SkiffStore` and `:code`'s `SkiffCodeStore` each
+implement over their own file; `SshConnection` and `SshClientFactory` take a password rather than reaching
 for the Keystore, which is also what lets them be tested on a plain JVM.
 
 What stayed in `:app`: `transfer/` (the queue and its foreground service are Skiff's), `data/`'s
@@ -173,6 +173,14 @@ unknown key with no screen on top, and the answer arrives when the UI returns.
 not a window-size decision: enabled, direction and ratio are all explicit and persisted. A
 single full-screen pane is the default. Server profiles, known hosts and layout settings all
 live in one JSON `SkiffData` blob behind `data/store/SkiffStore` — there is no Room and no KSP.
+
+Both apps open their blob through `:core`'s `jsonDataStore`, once per process. **A file that no
+longer decodes is copied to `<name>.corrupt-<millis>` before the store starts over empty.** Before
+that copy existed, the next write destroyed every profile and every accepted host key, so each
+server came back as *new* rather than *changed* and the host key prompt asked to trust a key it
+should have warned about. The realistic trigger is ours, not the disk's: the JSON names
+`AuthMethod`'s subclasses by their full class name, so renaming one, or changing a field's type,
+turns every stored file into one that does not decode. Adding a field is safe.
 
 Passwords are encrypted by `data/crypto/SecretStore` with an Android Keystore key and decrypted
 per connect. `SshConnection` takes host/port/user and a password *supplier*, deliberately

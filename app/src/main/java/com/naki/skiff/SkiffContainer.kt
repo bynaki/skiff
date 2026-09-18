@@ -3,6 +3,7 @@ package com.naki.skiff
 import android.content.Context
 import com.naki.skiff.data.SourceRegistry
 import com.naki.skiff.data.store.SkiffStore
+import com.naki.skiff.data.store.openSkiffDataStore
 import com.naki.skiff.fs.sftp.HostKeyGate
 import com.naki.skiff.fs.sftp.HostKeyPrompter
 import com.naki.skiff.transfer.TransferQueue
@@ -20,7 +21,7 @@ class SkiffContainer(private val context: Context) {
 
     val scope = CoroutineScope(SupervisorJob())
 
-    val store = SkiffStore(context)
+    val store = SkiffStore(openSkiffDataStore(context))
 
     val hostKeyPrompter = HostKeyPrompter()
 

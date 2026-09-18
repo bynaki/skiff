@@ -59,8 +59,8 @@ android {
 }
 
 dependencies {
-    // Brings okio, sshj and kotlinx-serialization with it: they are api there because they
-    // appear in FileSystem's, HostKeyGate's and SourceId's own signatures.
+    // Brings okio, sshj, kotlinx-serialization and DataStore with it: they are api there because
+    // they appear in FileSystem's, HostKeyGate's, SourceId's and jsonDataStore's own signatures.
     implementation(project(":core"))
 
     implementation(libs.androidx.core.ktx)
@@ -68,7 +68,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.datastore)
     implementation(libs.androidx.window)
 
     implementation(platform(libs.compose.bom))

@@ -48,9 +48,11 @@ dependencies {
     // api, not implementation: these types are in this module's own signatures. FileSystem
     // hands out okio Source/Sink, HostKeyGate is an sshj HostKeyVerifier, and SourceId is
     // @Serializable — a consumer cannot call any of it without them on its compile classpath.
+    // jsonDataStore returns a DataStore, so the same goes for it.
     api(libs.okio)
     api(libs.sshj)
     api(libs.kotlinx.serialization.json)
+    api(libs.androidx.datastore)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

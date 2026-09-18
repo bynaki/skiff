@@ -1,9 +1,9 @@
 package com.naki.skiff.code.data
 
-import androidx.datastore.core.DataStoreFactory
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.ServerProfile
+import com.naki.skiff.data.store.jsonDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -29,10 +29,11 @@ class SkiffCodeStoreTest {
     /** Runs [block] against a store on [file], then closes that DataStore so another may open it. */
     private suspend fun TestScope.withStore(block: suspend (SkiffCodeStore) -> Unit) {
         val job = Job()
-        val dataStore = DataStoreFactory.create(
-            serializer = SkiffCodeDataSerializer,
+        val dataStore = jsonDataStore(
+            file = file,
+            serializer = SkiffCodeData.serializer(),
+            defaultValue = SkiffCodeData(),
             scope = CoroutineScope(StandardTestDispatcher(testScheduler) + job),
-            produceFile = { file },
         )
         block(SkiffCodeStore(dataStore))
         job.cancelAndJoin()
@@ -132,14 +133,6 @@ class SkiffCodeStoreTest {
             assertEquals(limit, uris.size)
             assertEquals("skiffcode:///$limit", uris.first())
             assertEquals("skiffcode:///1", uris.last())
-        }
-    }
-
-    @Test
-    fun `an unreadable file reads as empty rather than failing`() = runTest {
-        file.writeText("{ not json")
-        withStore { store ->
-            assertEquals(emptyList<ServerProfile>(), store.profiles.first())
         }
     }
 }

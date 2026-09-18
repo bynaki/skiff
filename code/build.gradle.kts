@@ -44,11 +44,10 @@ android {
 }
 
 dependencies {
-    // Brings okio, sshj and kotlinx-serialization with it, as it does for :app.
+    // Brings okio, sshj, kotlinx-serialization and DataStore with it, as it does for :app.
     implementation(project(":core"))
 
     implementation(libs.androidx.webkit)
-    implementation(libs.androidx.datastore)
     implementation(libs.ktoml.core)
 
     testImplementation(libs.junit)

@@ -286,6 +286,7 @@ method로 구독한다(M0에서 확인).
   - `android.net.Uri`(유닛 테스트에서 스텁)와 `java.net.URI`(인코딩 안 된 한글 경로를 거부)를 쓰지 않고 직접 파싱한다. user 없이 alias만으로 서버를 가리키는 링크도 받는다.
 - [x] `SkiffCodeStore`(DataStore JSON): 프로필(비밀번호 암호문), knownHosts, 최근 파일
   - `:core`의 `ServerProfile`, `KnownHost`를 그대로 쓰고 `KnownHostStore`를 구현한다. `Context` 대신 `DataStore`를 받아 JVM에서 테스트한다(`SkiffCodeStoreTest`).
+  - DataStore는 `:core`의 `jsonDataStore`로 연다. 읽을 수 없는 파일은 `<이름>.corrupt-<밀리초>`로 복사해 둔 뒤 빈 데이터로 시작한다. Skiff의 `SkiffStore`도 같이 바꿨다(`JsonDataStoreTest`).
   - 최근 파일은 연 링크(`skiffcode://` 또는 `content://`) 문자열과 시각이다. 최신순, 같은 링크는 앞으로 옮기고, 50개를 넘으면 오래된 것부터 버린다.
 - [ ] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석(alias → (user, host, port) 순으로 프로필 찾기 + 테스트), 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
 - [ ] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)

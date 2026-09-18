@@ -17,10 +17,12 @@
   확인했다(아래 "실서버 확인 결과").
 - 모듈은 이제 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code, 여전히 M0 스파이크 코드).
   무엇이 어디로 갔는지는 `AGENTS.md`의 "Three modules"에 적었다. 이 문서는 다시 적지 않는다.
-- 테스트는 이동 전 52개가 그대로 `:core` 28개 + `:app` 24개로 갈렸다. 실패 없음.
-  `:code`는 `SkiffCodeUriTest` 27개, `SkiffCodeStoreTest` 8개, M0의 ktoml 스파이크 3개로 38개다.
-- `:code:lintDebug`는 경고 11개다. 10개는 M0 스파이크의 `MainActivity`와 매니페스트, 1개는 `:core`를
-  붙이면서 따라온 BouncyCastle jar 안의 `TrustAllX509TrustManager`(`:app`, `:core`에도 있는 것)다.
+- 테스트: `:core` 33개(`JsonDataStoreTest` 5개 포함), `:app` 24개, `:code` 37개
+  (`SkiffCodeUriTest` 27, `SkiffCodeStoreTest` 7, M0의 ktoml 스파이크 3). 실패 없음.
+- lint 경고: `:core` 9개, `:app` 4개, `:code` 11개. **예전에 적힌 10개와 5개는 오래된 수치다.**
+  변경 전 커밋을 임시 worktree에서 다시 돌려도 9개와 4개였다. "새 라이브러리 버전" 경고는 그때그때
+  달라지니 개수보다 종류를 비교한다. `:code`의 11개는 M0 스파이크의 `MainActivity`와 매니페스트에서
+  10개, `:core`를 붙이면서 따라온 BouncyCastle jar의 `TrustAllX509TrustManager` 1개다.
 - `:code`가 이제 `:core`에 의존한다. sshj와 BouncyCastle이 들어오면서 debug APK가 약 19.6MB가 됐고,
   `:app`과 같은 META-INF 제외 목록을 `code/build.gradle.kts`에 넣었다.
 - `:app:lintDebug`는 경고 5개(기존과 같음), `:core:lintDebug`는 경고 10개로 통과한다. `:core`의 것은
@@ -44,8 +46,20 @@
 - **`Context`가 아니라 `DataStore`를 받는다.** `Context.skiffCodeDataStore` 확장이 실제 인스턴스를
   만들고, 테스트는 `DataStoreFactory`로 임시 파일 위에 만든다. 같은 파일에 DataStore 둘을 동시에
   열면 안 되니 테스트는 스코프를 닫고 다시 연다.
-- **읽을 수 없는 파일은 빈 데이터로 읽는다.** Skiff와 같은 동작이고 테스트로 고정했다. 다만 그 뒤
-  첫 쓰기가 원래 파일을 덮어쓰므로 저장된 프로필을 잃는다. 문제가 되면 두 앱을 같이 고친다.
+- **읽을 수 없는 파일은 백업해 두고 빈 데이터로 시작한다. 두 앱을 같이 고쳤다**(사용자 지시).
+  전에는 빈 데이터로 읽은 뒤 첫 쓰기가 원래 파일을 덮어써서 프로필과 **호스트키를 모두 잃었다.**
+  그러면 모든 서버가 "바뀐 서버"가 아니라 "처음 보는 서버"로 보여 TOFU 경고가 사라진다.
+  - `:core`의 `jsonDataStore`가 한다. `CorruptionException`을 던지고, `ReplaceFileCorruptionHandler`가
+    원래 파일을 `<이름>.corrupt-<밀리초>`로 복사한 뒤 기본값을 돌려준다.
+  - 가장 현실적인 원인은 디스크가 아니라 **우리 코드**다. `AuthMethod` 하위 클래스가 JSON에 전체
+    클래스 이름으로 들어가 있어서, 이름을 바꾸면 저장된 파일 전부가 깨진다. 필드 추가는 괜찮다.
+  - 두 저장소 모두 `by dataStore` 위임 대신 `open…DataStore(context)`로 만든 DataStore를 받는다.
+    경로는 위임과 같은 `files/datastore/<이름>`이다. **실기기의 Skiff에 설치해서 기존
+    `skiff.json`(프로필 2개, 호스트키 2개)이 그대로 읽히고 파일이 바뀌지 않는 것을 확인했다.**
+  - 복사가 실패하면(디스크 가득 참) 읽기가 실패한 채로 남는다. 데이터를 지우는 것보다 낫다고 봤다.
+  - 사용자에게 "손상돼서 초기화했다"고 알리는 것은 아직 없다. 화면이 생기는 항목에서 넣는다.
+- **`SkiffCodeStore`를 만드는 곳은 아직 없다.** 프로세스에 하나만 있어야 하니, 셋째 항목에서
+  Application 범위 컨테이너를 만들고 거기서 `SkiffCodeStore(openSkiffCodeDataStore(context))`를 한 번 부른다.
 - 프로필 찾기(alias → (user, host, port))는 넣지 않았다. OpenRequest 해석 항목에서 한다. 그때
   URI 쪽 host는 소문자이고 프로필의 host는 사용자가 입력한 그대로라는 점을 맞춰야 한다.
 - `SecretStore`의 키 별칭은 `skiff.profile.secret` 그대로다. Keystore가 앱마다 따로라 충돌하지 않는다.
