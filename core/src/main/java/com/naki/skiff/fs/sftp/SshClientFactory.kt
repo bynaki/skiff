@@ -4,6 +4,11 @@ import com.naki.skiff.fs.FsError
 import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import net.schmizz.sshj.userauth.UserAuthException
+import net.schmizz.sshj.userauth.method.AuthKeyboardInteractive
+import net.schmizz.sshj.userauth.method.AuthPassword
+import net.schmizz.sshj.userauth.method.PasswordResponseProvider
+import net.schmizz.sshj.userauth.password.PasswordUtils
 
 /**
  * Connects and authenticates one [SSHClient], and knows nothing about what is then run over
@@ -29,13 +34,31 @@ class SshClientFactory(
         client.timeout = READ_TIMEOUT_MS
         try {
             client.connect(host, port)
-            client.authPassword(username, password ?: throw FsError.AuthFailed())
+            authenticate(client, password ?: throw FsError.AuthFailed())
             // Keeps NAT tables and idle-timeout servers from silently dropping us.
             client.connection.keepAlive.keepAliveInterval = KEEPALIVE_SECONDS
             return client
         } catch (e: Throwable) {
             runCatching { client.close() }
             throw e
+        }
+    }
+
+    /**
+     * The password method, and keyboard-interactive only for a server that does not offer it.
+     *
+     * Not sshj's `authPassword`, which follows a refused password with keyboard-interactive on
+     * the same connection. macOS's sshd never answers that second attempt, so a mistyped password
+     * sat out the whole read timeout before failing; OpenSSH's own client hangs the same way.
+     */
+    private fun authenticate(client: SSHClient, password: String) {
+        try {
+            client.auth(username, AuthPassword(PasswordUtils.createOneOff(password.toCharArray())))
+        } catch (e: UserAuthException) {
+            val allowed = client.userAuth.allowedMethods
+            if ("password" in allowed || "keyboard-interactive" !in allowed) throw e
+            val answers = PasswordResponseProvider(PasswordUtils.createOneOff(password.toCharArray()))
+            client.auth(username, AuthKeyboardInteractive(answers))
         }
     }
 

@@ -217,6 +217,10 @@ These are non-obvious and each one has already broken the build or the app:
   actually being local.
 - BouncyCastle is re-registered in `SkiffApplication` because Android ships a cut-down provider
   under the same `"BC"` name.
+- **Do not authenticate with sshj's `authPassword`.** After a refused password it tries
+  keyboard-interactive on the same connection, which macOS's sshd never answers, so a mistyped
+  password waited out the 30 second read timeout. `SshClientFactory` uses keyboard-interactive only
+  when the server does not offer the password method at all.
 
 These apply to `:code` only:
 

@@ -207,6 +207,61 @@ class SftpFileSystemTest {
     }
 
     @Test
+    fun `a refused password is not tried again over keyboard-interactive`() = runTest {
+        // macOS's sshd stops answering when keyboard-interactive follows a failed password
+        // attempt on the same connection, which left a wrong password waiting out the 30 second
+        // read timeout. sshj's authPassword makes exactly that second attempt.
+        val checksBefore = server.passwordChecks.get()
+        val bad = SftpFileSystem(
+            id = SourceId.Remote("bad"),
+            displayName = "bad",
+            browseConnection = SshConnection(
+                host = "127.0.0.1",
+                port = server.port,
+                username = server.username,
+                password = { "wrong" },
+                startPathRequest = ".",
+                hostKeyVerifier = acceptAnyKey,
+                label = "browse",
+            ),
+            transferConnection = connection("transfer"),
+        )
+        try {
+            val failure = runCatching { bad.list("/") }.exceptionOrNull()
+            assertTrue("expected AuthFailed, got $failure", failure is FsError.AuthFailed)
+            assertEquals(1, server.passwordChecks.get() - checksBefore)
+        } finally {
+            bad.close()
+        }
+    }
+
+    @Test
+    fun `a server that only offers keyboard-interactive still takes the password`() = runTest {
+        val kbd = SftpTestServer(keyboardInteractiveOnly = true).apply { start() }
+        val fs = SftpFileSystem(
+            id = SourceId.Remote("kbd"),
+            displayName = "kbd",
+            browseConnection = SshConnection(
+                host = "127.0.0.1",
+                port = kbd.port,
+                username = kbd.username,
+                password = { kbd.password },
+                startPathRequest = ".",
+                hostKeyVerifier = acceptAnyKey,
+                label = "browse",
+            ),
+            transferConnection = connection("transfer"),
+        )
+        try {
+            kbd.writeFile("a.txt", "hi".toByteArray())
+            assertEquals(listOf("a.txt"), fs.list("/").map { it.name })
+        } finally {
+            fs.close()
+            kbd.stop()
+        }
+    }
+
+    @Test
     fun `a rejected host key stops the connection`() = runTest {
         val rejecting = object : HostKeyVerifier {
             override fun verify(hostname: String, port: Int, key: PublicKey) = false
