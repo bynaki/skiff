@@ -6,7 +6,6 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.sftp.SFTPClient
 import net.schmizz.sshj.sftp.SFTPException
@@ -38,6 +37,8 @@ class SshConnection(
     private val hostKeyVerifier: HostKeyVerifier,
     private val label: String,
 ) {
+
+    private val clients = SshClientFactory(host, port, username, hostKeyVerifier)
 
     private val executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "skiff-ssh-$host-$label").apply { isDaemon = true }
@@ -84,15 +85,8 @@ class SshConnection(
         }
         disconnectQuietly()
 
-        val fresh = SSHClient(DefaultConfig())
-        fresh.addHostKeyVerifier(hostKeyVerifier)
-        fresh.connectTimeout = CONNECT_TIMEOUT_MS
-        fresh.timeout = READ_TIMEOUT_MS
+        val fresh = clients.connect(secret)
         try {
-            fresh.connect(host, port)
-            fresh.authPassword(username, secret ?: throw FsError.AuthFailed())
-            // Keeps NAT tables and idle-timeout servers from silently dropping us.
-            fresh.connection.keepAlive.keepAliveInterval = KEEPALIVE_SECONDS
             val session = fresh.newSFTPClient()
             client = fresh
             sftp = session
@@ -133,11 +127,5 @@ class SshConnection(
         message?.contains("host key", ignoreCase = true) == true ->
             FsError.HostKeyRejected(message ?: "")
         else -> FsError.NetworkLost(this)
-    }
-
-    private companion object {
-        const val CONNECT_TIMEOUT_MS = 15_000
-        const val READ_TIMEOUT_MS = 30_000
-        const val KEEPALIVE_SECONDS = 30
     }
 }

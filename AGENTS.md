@@ -17,6 +17,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug          # pushes to the connected device
+./gradlew :core:testDebugUnitTest    # the filesystem and SFTP tests live here
 ./gradlew :app:testDebugUnitTest
 ./gradlew :app:lintDebug             # report: app/build/reports/lint-results-debug.xml
 ```
@@ -24,12 +25,12 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 Single test class, or one method (backticked names are passed with their spaces):
 
 ```bash
-./gradlew :app:testDebugUnitTest --tests "com.naki.skiff.FsPathTest"
+./gradlew :core:testDebugUnitTest --tests "com.naki.skiff.FsPathTest"
 ./gradlew :app:testDebugUnitTest --tests "com.naki.skiff.CopyEngineTest.a symlink cycle terminates instead of recursing forever"
 ```
 
 Gradle prints only a pass/fail summary. For per-test results, parse
-`app/build/test-results/testDebugUnitTest/*.xml`.
+`<module>/build/test-results/testDebugUnitTest/*.xml`.
 
 `local.properties` is gitignored and must point at the SDK:
 `sdk.dir=/opt/homebrew/share/android-commandlinetools`. The build needs `platforms;android-37.1`
@@ -79,11 +80,31 @@ adb -s <serial> forward tcp:9333 localabstract:webview_devtools_remote_$PID
 
 ## Architecture
 
+### Three modules
+
+`:core` is a `com.android.library` holding everything both apps need: `fs/` and its two
+implementations, `data/crypto/SecretStore`, and the `ServerProfile`/`KnownHost` models. `:app`
+is Skiff, `:code` is Skiff Code. The packages stayed `com.naki.skiff.*` across the split, so
+`:core` and `:app` share some of them — only the module a file sits in tells them apart.
+
+`:core` keeps itself free of either app's storage and UI. `HostKeyGate` is written against the
+`KnownHostStore` interface, which `:app`'s `SkiffStore` implements and Skiff Code will implement
+with its own store; `SshConnection` and `SshClientFactory` take a password rather than reaching
+for the Keystore, which is also what lets them be tested on a plain JVM.
+
+What stayed in `:app`: `transfer/` (the queue and its foreground service are Skiff's), `data/`'s
+`SourceRegistry` and `SkiffStore`, and all of `ui/`.
+
+`:core` publishes okio, sshj and kotlinx-serialization as `api` because they are in its own
+signatures, so `:app` does not redeclare them. It also publishes `SftpTestServer` as a test
+fixture, which is how `:app`'s `SftpTransferTest` drives `CopyEngine` across a real server
+without a second copy of the server.
+
 ### `FileSystem` is the spine
 
-`fs/FileSystem.kt` is the one abstraction everything else is written against. Panes render it,
-`transfer/CopyEngine` copies between two of them, and the planned preview viewer will read
-through it. Nothing above `fs/` knows whether it is looking at the phone or an SSH server —
+`:core`'s `fs/FileSystem.kt` is the one abstraction everything else is written against. Panes
+render it, `transfer/CopyEngine` copies between two of them, and the planned preview viewer will
+read through it. Nothing above `fs/` knows whether it is looking at the phone or an SSH server —
 which is what makes device↔server, server↔device and server↔server a single code path.
 
 Two implementations: `fs/local/LocalFileSystem` (`java.io.File`) and `fs/sftp/SftpFileSystem`.
@@ -211,10 +232,11 @@ These apply to `:code` only:
 
 ## Testing
 
-`SftpFileSystemTest` runs the production SFTP code against a **real Apache MINA SSH server** on
-a random port over a real socket (`SftpTestServer`). This is the highest-value test in the repo
-— it has already caught a protocol assumption a mock would have agreed with. Prefer extending it
-over mocking sshj.
+`:core`'s `SftpFileSystemTest` runs the production SFTP code against a **real Apache MINA SSH
+server** on a random port over a real socket (`SftpTestServer`, a test fixture so `:app` can
+reach it too). This is the highest-value test in the repo — it has already caught a protocol
+assumption a mock would have agreed with. Prefer extending it over mocking sshj. `:app`'s
+`SftpTransferTest` is the same server with `CopyEngine` on top.
 
 `SourceRegistryTest` covers that registry contract on a plain JVM: what the picker offers,
 `get` resolves.

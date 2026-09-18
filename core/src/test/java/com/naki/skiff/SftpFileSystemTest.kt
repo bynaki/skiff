@@ -4,8 +4,6 @@ import com.naki.skiff.fs.FsError
 import com.naki.skiff.fs.SourceId
 import com.naki.skiff.fs.sftp.SftpFileSystem
 import com.naki.skiff.fs.sftp.SshConnection
-import com.naki.skiff.transfer.ConflictPolicy
-import com.naki.skiff.transfer.CopyEngine
 import kotlinx.coroutines.test.runTest
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import okio.buffer
@@ -182,58 +180,6 @@ class SftpFileSystemTest {
 
         val content = fs.openRead(entry.path).buffer().use { it.readByteArray() }
         assertArrayEquals("한글".toByteArray(), content)
-    }
-
-    @Test
-    fun `copies a tree from the device to the server`() = runTest {
-        val local = FakeFileSystem(SourceId.Local, "device")
-        local.putFile("/src/notes.md", "notes".toByteArray())
-        local.putFile("/src/deep/inner/leaf.bin", ByteArray(100_000) { it.toByte() })
-        server.makeDirectory("upload")
-
-        val engine = CopyEngine()
-        val plan = engine.plan(local, listOf("/src"), fs, "/upload", ConflictPolicy.KEEP_BOTH)
-        engine.execute(plan, local, fs, ConflictPolicy.KEEP_BOTH) { _, _, _ -> }
-
-        assertArrayEquals("notes".toByteArray(), server.readFile("upload/src/notes.md"))
-        assertEquals(100_000, server.readFile("upload/src/deep/inner/leaf.bin").size)
-        assertEquals(100_005L, plan.totalBytes)
-    }
-
-    @Test
-    fun `downloads a tree from the server to the device`() = runTest {
-        val local = FakeFileSystem(SourceId.Local, "device")
-        local.putDirectory("/downloads")
-        server.writeFile("remote/readme.txt", "from server".toByteArray())
-        server.writeFile("remote/nested/leaf.txt", "leaf".toByteArray())
-
-        val engine = CopyEngine()
-        val plan = engine.plan(fs, listOf("/remote"), local, "/downloads", ConflictPolicy.KEEP_BOTH)
-        engine.execute(plan, fs, local, ConflictPolicy.KEEP_BOTH) { _, _, _ -> }
-
-        assertArrayEquals(
-            "from server".toByteArray(),
-            local.fileContent("/downloads/remote/readme.txt"),
-        )
-        assertArrayEquals(
-            "leaf".toByteArray(),
-            local.fileContent("/downloads/remote/nested/leaf.txt"),
-        )
-    }
-
-    @Test
-    fun `progress reaches the planned total on a real upload`() = runTest {
-        val local = FakeFileSystem(SourceId.Local, "device")
-        local.putFile("/a/one.bin", ByteArray(50_000))
-        local.putFile("/a/two.bin", ByteArray(70_000))
-
-        val engine = CopyEngine()
-        val plan = engine.plan(local, listOf("/a"), fs, "/", ConflictPolicy.KEEP_BOTH)
-        var seen = 0L
-        engine.execute(plan, local, fs, ConflictPolicy.KEEP_BOTH) { bytes, _, _ -> seen = bytes }
-
-        assertEquals(120_000L, plan.totalBytes)
-        assertEquals(plan.totalBytes, seen)
     }
 
     @Test

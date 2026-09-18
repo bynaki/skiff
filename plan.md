@@ -245,11 +245,17 @@ method로 구독한다(M0에서 확인).
     LSP 위치 인코딩과 동기화 방식이고 모두 위 본문에 반영했다.
 
 ### M1. `:core` 추출 (Skiff 동작 변화 없음)
-- [ ] `:core` 라이브러리 모듈 추가, 공통 코드와 해당 테스트 이동(패키지명 유지, slf4j 런타임 규칙 동일하게 적용)
-- [ ] `KnownHostStore` 인터페이스 도입. `HostKeyGate`가 이것에 의존하고 `SkiffStore`가 구현한다(`data.first()`로만 읽는다는 규칙을 KDoc에 옮기기)
-- [ ] `SshConnection.ensureConnected`의 접속, 인증, 호스트키 부분을 `SshClientFactory`로 분리
-- [ ] `AGENTS.md`의 명령, 구조, 테스트 경로를 멀티모듈 기준으로 갱신
+- [x] `:core` 라이브러리 모듈 추가, 공통 코드와 해당 테스트 이동(패키지명 유지, slf4j 런타임 규칙 동일하게 적용)
+  - `SftpTestServer`는 `:core`의 testFixtures로 내보냈다. `CopyEngine`은 `:app`에 남아서, 실서버 위에서
+    `CopyEngine`을 돌리던 테스트 3개를 `:app`의 `SftpTransferTest`로 옮겼기 때문이다.
+- [x] `KnownHostStore` 인터페이스 도입. `HostKeyGate`가 이것에 의존하고 `SkiffStore`가 구현한다(`data.first()`로만 읽는다는 규칙을 KDoc에 옮기기)
+- [x] `SshConnection.ensureConnected`의 접속, 인증, 호스트키 부분을 `SshClientFactory`로 분리
+- [x] `AGENTS.md`의 명령, 구조, 테스트 경로를 멀티모듈 기준으로 갱신
 - [ ] **확인:** `./gradlew :core:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug` 통과. 실기기에서 Skiff의 SFTP 탐색과 전송이 이전과 같다
+  - 테스트와 린트는 통과한다. 이동 전 52개가 `:core` 28개 + `:app` 24개로 갈렸고 실패는 없다.
+  - 실기기에서 로컬 탐색과 연결 실패 경로(`FsError.Unreachable`)는 확인했다. **원격 SFTP 탐색과 전송은
+    아직이다** — 탭에 남아 있는 프로필이 문서용 주소(`192.0.2.0/24`)를 가리켜 응답하지 않는다.
+    사용자가 실제 서버 프로필로 직접 확인해 주어야 한다.
 
 ### M2. 골격 + URI 인텐트 + 단일 파일 viewer
 - [ ] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)

@@ -1,7 +1,7 @@
 package com.naki.skiff.fs.sftp
 
 import com.naki.skiff.data.store.KnownHost
-import com.naki.skiff.data.store.SkiffStore
+import com.naki.skiff.data.store.KnownHostStore
 import kotlinx.coroutines.runBlocking
 import net.schmizz.sshj.common.KeyType
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
@@ -30,7 +30,7 @@ data class HostKeyPrompt(
  * PromiscuousVerifier: without it there is nothing stopping a man in the middle.
  */
 class HostKeyGate(
-    private val store: SkiffStore,
+    private val store: KnownHostStore,
     private val askUser: suspend (HostKeyPrompt) -> HostKeyDecision,
 ) : HostKeyVerifier {
 

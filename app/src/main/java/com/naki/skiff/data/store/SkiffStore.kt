@@ -34,7 +34,7 @@ private val Context.skiffDataStore: DataStore<SkiffData> by dataStore(
  * Server profiles and accepted host keys. Passwords inside profiles are already
  * ciphertext from [com.naki.skiff.data.crypto.SecretStore]; this layer never sees plaintext.
  */
-class SkiffStore(private val context: Context) {
+class SkiffStore(private val context: Context) : KnownHostStore {
 
     val profiles: Flow<List<ServerProfile>> =
         context.skiffDataStore.data.map { it.profiles }
@@ -71,16 +71,12 @@ class SkiffStore(private val context: Context) {
         }
     }
 
-    /**
-     * Read-only. This is reached from the SSH transport thread through runBlocking, so it
-     * must not take DataStore's write lock — updateData would serialize the whole file just
-     * to answer a lookup, and can block behind an unrelated write.
-     */
-    suspend fun knownHost(host: String, port: Int): KnownHost? =
+    /** `data.first()` and not `updateData`, for the reason in [KnownHostStore]. */
+    override suspend fun knownHost(host: String, port: Int): KnownHost? =
         context.skiffDataStore.data.first()
             .knownHosts.firstOrNull { it.host == host && it.port == port }
 
-    suspend fun rememberHost(knownHost: KnownHost) {
+    override suspend fun rememberHost(knownHost: KnownHost) {
         context.skiffDataStore.updateData { data ->
             val others = data.knownHosts.filterNot {
                 it.host == knownHost.host && it.port == knownHost.port
