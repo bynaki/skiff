@@ -7,6 +7,11 @@ move, delete), file transfer between phone and server, and a split screen with o
 so moving things between them is direct. A code/markdown preview viewer comes later. The
 constraint that shapes every decision below is **nothing may be installed on the server**.
 
+That constraint is what keeps a remote daemon out of Skiff Code too, and the reasoning is in
+`plan.md`: these apps are distributed to other people, so auto-installing a resident process on
+their servers is the thing the constraint forbids — while running a `git` the server already has
+installs nothing. A daemon would not even replace `exec`, since SFTP cannot start one.
+
 ## Commands
 
 `java` is not on PATH. Every Gradle invocation needs `JAVA_HOME`, or it fails with
