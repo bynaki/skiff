@@ -1,7 +1,10 @@
 package com.naki.skiff.code.ui
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -11,12 +14,21 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.naki.skiff.code.R
+import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.lsp.StubLsp
+import com.naki.skiff.code.skiffCode
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.concurrent.Executors
 import kotlin.concurrent.thread
@@ -33,8 +45,18 @@ private const val ORIGIN = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}"
  * `--ez nopatch true` to leave out the CodeMirror viewport workaround. `--es layer lsp` connects the page's
  * `@codemirror/lsp-client` to the stub server in `lsp/StubLsp` over this same bridge, where
  * `--ez fullsync true` makes that server ask for whole-document syncing instead of incremental.
+ *
+ * Started with a link (`skiffcode://…`, or `content://…` from another app), it runs [OpenFlow] on
+ * it. The spike page stays until the viewer replaces it; for now a file that opens is announced
+ * in a toast and logged.
  */
 class MainActivity : Activity() {
+
+    private val container by lazy { application.skiffCode }
+    private val scope = MainScope()
+    private var hostKeyDialog: AlertDialog? = null
+    private var permissionAnswer: CompletableDeferred<Boolean>? = null
+    private var returned: CompletableDeferred<Unit>? = null
 
     /** The stub server answers off the UI thread, in order, the way a real process's stdout would. */
     private val lspThread = Executors.newSingleThreadExecutor()
@@ -80,10 +102,65 @@ class MainActivity : Activity() {
             if (intent.getBooleanExtra("nopatch", false)) add("nopatch=1")
         }.joinToString("&")
         webView.loadUrl("$ORIGIN/assets/web/index.html" + if (query.isEmpty()) "" else "?$query")
+
+        // The prompter outlives this activity, so a question asked while none was in front is
+        // shown by whichever instance comes up next.
+        scope.launch {
+            container.hostKeyPrompter.pending.collect { prompt ->
+                hostKeyDialog?.dismiss()
+                hostKeyDialog = prompt?.let { hostKeyDialog(it, container.hostKeyPrompter::respond).apply { show() } }
+            }
+        }
+        handleLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLink(intent)
+    }
+
+    private fun handleLink(intent: Intent) {
+        val link = intent.dataString ?: return
+        scope.launch {
+            val request = OpenRequest.of(intent.action, link, container.store.profiles.first())
+            Log.i(TAG, "open ${request.javaClass.simpleName}")
+            val opened = OpenFlow(this@MainActivity, container).open(link, request) ?: return@launch
+            Log.i(TAG, "opened ${opened.name}")
+            Toast.makeText(this@MainActivity, getString(R.string.opened, opened.name), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** For settings screens that grant something: resumes when this activity is back in front. */
+    suspend fun startActivityAndWaitForReturn(intent: Intent) {
+        val back = CompletableDeferred<Unit>().also { returned = it }
+        startActivity(intent)
+        back.await()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        returned?.complete(Unit)
+        returned = null
+    }
+
+    suspend fun requestPermissionAndWait(permission: String): Boolean {
+        val answer = CompletableDeferred<Boolean>().also { permissionAnswer = it }
+        requestPermissions(arrayOf(permission), REQUEST_PERMISSION)
+        return answer.await()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_PERMISSION) return
+        permissionAnswer?.complete(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+        permissionAnswer = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        hostKeyDialog?.dismiss()
+        scope.cancel()
         lspThread.shutdownNow()
     }
 
@@ -152,6 +229,8 @@ class MainActivity : Activity() {
         return out.toString()
     }
 }
+
+private const val REQUEST_PERMISSION = 1
 
 private val TEMPLATE = """
     |// 블록 #N: 원격 파일을 읽어 줄 단위로 나눈다

@@ -1,18 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17 drops, rather than refuses, connections to private-range addresses without it. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- skiffcode:///path from Skiff names a local file by its path; plan.md, decision 5. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
     <application
+        android:name=".SkiffCodeApplication"
         android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="Skiff Code"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
+        <!--
+          singleTask: a second link goes to the running instance's onNewIntent, where the open
+          files live, instead of stacking another editor into the calling app's task.
+          configChanges: a rotation or fold must not recreate the activity and cancel an open
+          that is waiting on a dialog.
+        -->
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="skiffcode" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/*" />
             </intent-filter>
         </activity>
     </application>

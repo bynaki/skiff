@@ -9,62 +9,56 @@
 
 ---
 
-## 마지막 세션 (2026-09-18): M1 완료, M2 첫째·둘째 항목(`SkiffCodeUri`, `SkiffCodeStore`) 완료
+## 마지막 세션 (2026-09-18): M1 완료, M2 셋째 항목까지 완료
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree). **아직 push하지 않았다.** main에는 합치지 않았다.
-- **M1이 끝났고 M2의 `SkiffCodeUri` 파서와 `SkiffCodeStore`도 끝났다. 다음은 M2 셋째 항목(인텐트 필터와 OpenRequest 해석)이다.** 실기기에서 실제 SSH 서버로 탐색과 전송까지
-  확인했다(아래 "실서버 확인 결과").
-- 모듈은 이제 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code, 여전히 M0 스파이크 코드).
-  무엇이 어디로 갔는지는 `AGENTS.md`의 "Three modules"에 적었다. 이 문서는 다시 적지 않는다.
-- 테스트: `:core` 33개(`JsonDataStoreTest` 5개 포함), `:app` 24개, `:code` 37개
-  (`SkiffCodeUriTest` 27, `SkiffCodeStoreTest` 7, M0의 ktoml 스파이크 3). 실패 없음.
-- lint 경고: `:core` 9개, `:app` 4개, `:code` 11개. **예전에 적힌 10개와 5개는 오래된 수치다.**
-  변경 전 커밋을 임시 worktree에서 다시 돌려도 9개와 4개였다. "새 라이브러리 버전" 경고는 그때그때
-  달라지니 개수보다 종류를 비교한다. `:code`의 11개는 M0 스파이크의 `MainActivity`와 매니페스트에서
-  10개, `:core`를 붙이면서 따라온 BouncyCastle jar의 `TrustAllX509TrustManager` 1개다.
-- `:code`가 이제 `:core`에 의존한다. sshj와 BouncyCastle이 들어오면서 debug APK가 약 19.6MB가 됐고,
-  `:app`과 같은 META-INF 제외 목록을 `code/build.gradle.kts`에 넣었다.
-- `:app:lintDebug`는 경고 5개(기존과 같음), `:core:lintDebug`는 경고 10개로 통과한다. `:core`의 것은
-  `:app`에 있던 경고가 모듈을 따라 옮겨간 것이다(라이브러리 새 버전 알림, BouncyCastle jar 안의
-  `TrustAllX509TrustManager`, `LocalFileSystem`의 `UsableSpace`).
+- **M2의 `SkiffCodeUri`, `SkiffCodeStore`, 인텐트와 여는 흐름까지 끝났다. 다음은 M2 넷째 항목
+  `TextLoader`다.** M1은 실기기에서 실제 SSH 서버로 탐색과 전송까지 확인했다(아래 "실서버 확인 결과").
+- 모듈은 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code). 무엇이 어디 있는지는
+  `AGENTS.md`의 "Three modules"에 있다. `:code`의 WebView 페이지는 아직 M0 스파이크다.
+- 테스트: `:core` 35개, `:app` 24개, `:code` 49개(`SkiffCodeUriTest` 27, `OpenRequestTest` 12,
+  `SkiffCodeStoreTest` 7, M0 ktoml 스파이크 3). 실패 없음.
+- lint 경고: `:core` 9개, `:app` 4개, `:code` 12개. "새 라이브러리 버전" 경고는 그때그때 달라지니
+  개수보다 종류를 비교한다. `:code`의 12개는 M0 스파이크 `MainActivity`와 `allowBackup`에서 10개,
+  BouncyCastle jar의 `TrustAllX509TrustManager` 1개, `MANAGE_EXTERNAL_STORAGE`의 `ScopedStorage` 1개다.
+  예전에 적혀 있던 `:core` 10개, `:app` 5개는 오래된 수치였다(변경 전 커밋을 다시 돌려 확인).
 
-### `SkiffCodeUri`에서 내린 판단
-- **직접 파싱한다.** `android.net.Uri`는 유닛 테스트 JVM에서 스텁이고, `java.net.URI`는 인코딩하지
-  않은 한글 경로를 거부한다. 노트 앱에 붙여 넣은 링크는 인코딩되지 않은 채로 올 수 있다.
-- **user는 없어도 된다.** `skiffcode://192.0.2.10/a?alias=x`처럼 alias만으로 서버를 가리킬 수 있다.
-  포트가 없으면 22, host는 소문자로 바꾸고, IPv6는 괄호를 뗀다.
-- **파서는 alias와 (user, host, port)를 둘 다 넘기기만 한다.** alias 우선으로 프로필을 찾는 것은
-  저장소가 필요해서 OpenRequest 해석 항목(M2 셋째)으로 넘겼고, `plan.md`의 그 항목에 적었다.
-- `+`는 공백으로 바꾸지 않는다(폼 본문이 아니다). 잘못된 퍼센트 인코딩, UTF-8이 아닌 바이트,
-  NUL은 거부한다. 모르는 쿼리 키는 무시하고, 키가 반복되면 첫 값을 쓴다.
-- 로컬 형식에 붙은 `alias`는 조용히 무시한다.
+### 이번 세션에서 내린 판단
+**`SkiffCodeUri`**
+- 직접 파싱한다. `android.net.Uri`는 유닛 테스트 JVM에서 스텁이고, `java.net.URI`는 인코딩되지 않은
+  한글 경로를 거부한다.
+- user는 없어도 된다(alias만으로 서버를 가리킬 수 있다). 포트 기본 22, host 소문자, IPv6 괄호 제거.
+  `+`는 공백으로 바꾸지 않는다. 깨진 퍼센트 인코딩, UTF-8이 아닌 바이트, NUL은 거부한다.
 
-### `SkiffCodeStore`에서 내린 판단
-- **Skiff의 `SkiffStore`와 같은 모양이고 파일은 따로다**(`skiffcode.json`). Keystore 키가 앱마다
-  따로라 암호문을 공유할 수 없다. 프로필 공유는 M2의 `ProfileProvider` 항목에서 한다.
-- **`Context`가 아니라 `DataStore`를 받는다.** `Context.skiffCodeDataStore` 확장이 실제 인스턴스를
-  만들고, 테스트는 `DataStoreFactory`로 임시 파일 위에 만든다. 같은 파일에 DataStore 둘을 동시에
-  열면 안 되니 테스트는 스코프를 닫고 다시 연다.
-- **읽을 수 없는 파일은 백업해 두고 빈 데이터로 시작한다. 두 앱을 같이 고쳤다**(사용자 지시).
-  전에는 빈 데이터로 읽은 뒤 첫 쓰기가 원래 파일을 덮어써서 프로필과 **호스트키를 모두 잃었다.**
-  그러면 모든 서버가 "바뀐 서버"가 아니라 "처음 보는 서버"로 보여 TOFU 경고가 사라진다.
-  - `:core`의 `jsonDataStore`가 한다. `CorruptionException`을 던지고, `ReplaceFileCorruptionHandler`가
-    원래 파일을 `<이름>.corrupt-<밀리초>`로 복사한 뒤 기본값을 돌려준다.
-  - 가장 현실적인 원인은 디스크가 아니라 **우리 코드**다. `AuthMethod` 하위 클래스가 JSON에 전체
-    클래스 이름으로 들어가 있어서, 이름을 바꾸면 저장된 파일 전부가 깨진다. 필드 추가는 괜찮다.
-  - 두 저장소 모두 `by dataStore` 위임 대신 `open…DataStore(context)`로 만든 DataStore를 받는다.
-    경로는 위임과 같은 `files/datastore/<이름>`이다. **실기기의 Skiff에 설치해서 기존
-    `skiff.json`(프로필 2개, 호스트키 2개)이 그대로 읽히고 파일이 바뀌지 않는 것을 확인했다.**
-  - 복사가 실패하면(디스크 가득 참) 읽기가 실패한 채로 남는다. 데이터를 지우는 것보다 낫다고 봤다.
-  - 사용자에게 "손상돼서 초기화했다"고 알리는 것은 아직 없다. 화면이 생기는 항목에서 넣는다.
-- **`SkiffCodeStore`를 만드는 곳은 아직 없다.** 프로세스에 하나만 있어야 하니, 셋째 항목에서
-  Application 범위 컨테이너를 만들고 거기서 `SkiffCodeStore(openSkiffCodeDataStore(context))`를 한 번 부른다.
-- 프로필 찾기(alias → (user, host, port))는 넣지 않았다. OpenRequest 해석 항목에서 한다. 그때
-  URI 쪽 host는 소문자이고 프로필의 host는 사용자가 입력한 그대로라는 점을 맞춰야 한다.
-- `SecretStore`의 키 별칭은 `skiff.profile.secret` 그대로다. Keystore가 앱마다 따로라 충돌하지 않는다.
-  BouncyCastle provider 재등록(`SkiffApplication`이 하는 것)은 아직 `:code`에 없다. 처음 SSH 접속을
-  하는 항목에서 넣어야 한다.
+**`SkiffCodeStore`와 `jsonDataStore`**
+- Skiff와 같은 모양이고 파일은 따로다(`skiffcode.json`). Keystore 키가 앱마다 따로라 암호문을 공유할 수 없다.
+- **읽을 수 없는 저장 파일은 `<이름>.corrupt-<밀리초>`로 복사해 두고 빈 데이터로 시작한다. 두 앱을
+  같이 고쳤다**(사용자 지시, `:core`의 `jsonDataStore`). 전에는 첫 쓰기가 원래 파일을 덮어써서
+  프로필과 호스트키를 모두 잃었고, 모든 서버가 "바뀐 서버"가 아니라 "처음 보는 서버"로 보였다.
+  현실적인 원인은 `AuthMethod` 하위 클래스 이름 변경이다. 실기기의 Skiff에서 기존 `skiff.json`이
+  그대로 읽히는 것을 확인했다. "초기화했다"는 알림은 아직 없다.
+
+**인텐트와 여는 흐름**
+- **alias가 맞으면 그 프로필의 host를 쓴다.** 링크가 아는 alias를 다른 기계로 돌릴 수 없다. 대신
+  경로는 링크의 것이라, 링크를 받은 사람이 자기 서버의 임의 경로를 열게 된다. 읽기만 하는 동안은
+  문제가 아니지만 editor가 생기면 다시 볼 것.
+- user 없는 링크는 (host, port)가 프로필 하나에만 맞을 때만 쓴다. host 비교는 대소문자를 무시한다.
+- 알 수 없는 서버의 확인창은 주소와 경로를 보여 주고 비밀번호를 받는다. "서버로 저장"은 **기본 켬**
+  이다(링크로 여는 서버는 다시 열 가능성이 높다고 봤다). 끄면 프로세스가 끝날 때까지 메모리에만 둔다.
+  링크에 user가 있으면 확인창에서 바꿀 수 없다.
+- 대화상자는 WebView가 아니라 네이티브 `AlertDialog`다. 비밀번호와 호스트키 결정이 원격 내용을
+  렌더링하는 페이지를 지나가지 않게 하려는 것이다. 문구는 영어와 한국어 리소스로 뒀다.
+- 흐름은 `stat`과 최근 파일 기록에서 끝나고 토스트를 띄운다. `TextLoader`와 viewer가 이어받는다.
+- **파서의 거부 이유는 영어 그대로 대화상자에 나온다**(예: "a password in the link is not accepted").
+  viewer에서 오류를 페이지에 보여 줄 때 현지화할 것.
+
+**`SshClientFactory` 인증 (별도 커밋 `18347b5`)**
+- 실기기 확인 중에 **틀린 비밀번호가 33초 뒤에야 실패하는 것**을 찾았다. sshj의 `authPassword`는
+  `password`가 거부되면 같은 연결에서 `keyboard-interactive`를 다시 시도하는데, macOS sshd는 그
+  두 번째 시도에 답하지 않는다. OpenSSH 클라이언트도 같은 순서면 멈추는 것을 `expect`로 확인했다.
+  이제 `password`만 시도하고, 서버가 `password`를 아예 안 받을 때만 `keyboard-interactive`를 쓴다.
+  Skiff도 같이 고쳐진다. 실기기에서 3초로 줄었다.
 
 ### M1에서 내린 판단
 - **M1의 1번과 2번 항목은 같이 할 수밖에 없다.** `HostKeyGate`를 `:core`로 옮기려면 `SkiffStore` 의존을
@@ -102,8 +96,8 @@
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M2 셋째 항목(인텐트 필터와 OpenRequest 해석, 확인창들)**부터 시작한다.
-   alias 우선 프로필 찾기 테스트가 이 항목에 들어 있다.
+2. `plan.md`의 첫 `- [ ]`인 **M2 넷째 항목(`TextLoader`)**부터 시작한다. `ui/OpenFlow`의 `Opened`가
+   읽을 파일을 넘겨준다. 원격은 `RemoteSessions.get(profile)`의 `SftpFileSystem`으로 읽는다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -151,6 +145,13 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
 
 ### 아직 확인하지 않은 것
 안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
+- **여는 흐름에서 실기기로 확인한 것:** 비밀번호가 든 링크 거부, 알 수 없는 서버 확인창, 첫 연결
+  호스트키 창(지문을 맥의 `ssh-keygen -lf`와 대조), 틀린 비밀번호 재시도 창, 저장된 프로필을 alias로
+  찾기, `onNewIntent`, 로컬 링크의 파일 접근 안내와 설정에서 돌아온 뒤 이어지기, 최근 파일 기록.
+- **확인하지 못한 것:** 맞는 비밀번호로 원격 파일까지 여는 성공 경로(사용자 비밀번호가 필요하다),
+  **바뀐 호스트키 경고 창**, `content://`(M2 마지막 확인 항목에서 파일 매니저로), Android 17의
+  로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다). 탭의 Skiff Code에는 `dev-mac`
+  프로필이 틀린 비밀번호로 저장돼 있다. 성공 경로를 볼 때 비밀번호 창에 맞는 것을 넣으면 갱신된다.
 - **탭에서 실제 SSH 서버로 LSP를 띄워 본 적은 아직 없다.** M1에서 SFTP 탐색과 전송은 실서버로 확인했지만, 위 LSP 확인은 이 맥 안의 MINA 루프백이라 네트워크 지연, 재접속, 끊김이 빠져 있다. exec로 원격 LSP를 띄우는 것은 M6이 처음이다.
 - 진단이 수백~수천 개일 때의 비용. 스텁은 50개, pyright는 1개였다.
 - 마크다운 렌더링(`markdown-it`), lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다.

@@ -288,7 +288,12 @@ method로 구독한다(M0에서 확인).
   - `:core`의 `ServerProfile`, `KnownHost`를 그대로 쓰고 `KnownHostStore`를 구현한다. `Context` 대신 `DataStore`를 받아 JVM에서 테스트한다(`SkiffCodeStoreTest`).
   - DataStore는 `:core`의 `jsonDataStore`로 연다. 읽을 수 없는 파일은 `<이름>.corrupt-<밀리초>`로 복사해 둔 뒤 빈 데이터로 시작한다. Skiff의 `SkiffStore`도 같이 바꿨다(`JsonDataStoreTest`).
   - 최근 파일은 연 링크(`skiffcode://` 또는 `content://`) 문자열과 시각이다. 최신순, 같은 링크는 앞으로 옮기고, 50개를 넘으면 오래된 것부터 버린다.
-- [ ] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석(alias → (user, host, port) 순으로 프로필 찾기 + 테스트), 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
+- [x] 인텐트 필터(`skiffcode` VIEW, `text/*` VIEW/EDIT)와 OpenRequest 해석(alias → (user, host, port) 순으로 프로필 찾기 + 테스트), 알 수 없는 서버 확인창, 비밀번호 입력, 호스트키 다이얼로그
+  - `intent/OpenRequest`(`OpenRequestTest`), `ui/OpenFlow`, `ui/Dialogs`, `session/RemoteSessions`, `SkiffCodeApplication`(프로세스 범위 컨테이너).
+  - alias가 맞으면 그 프로필의 host를 쓴다. 링크가 아는 alias를 다른 기계로 돌릴 수 없다. user가 없는 링크는 (host, port)가 프로필 하나에만 맞을 때만 그 프로필을 쓴다. host는 대소문자를 무시한다.
+  - 알 수 없는 서버는 확인창에서 비밀번호를 받아 프로필로 만든다. "서버로 저장"(기본 켬)을 끄면 프로세스가 끝날 때까지 메모리에만 둔다.
+  - 흐름은 파일이 있는지 `stat`하고 최근 파일에 넣는 데서 끝나고, 토스트로 알린다. 읽고 보여 주는 것은 `TextLoader`와 viewer 항목이다.
+  - `singleTask`라 두 번째 링크는 `onNewIntent`로 온다. `configChanges`로 회전이나 접기에서 다시 만들어지지 않게 해서 대화상자를 기다리는 흐름이 끊기지 않는다.
 - [ ] `TextLoader` + `TextLoaderTest`(크기 상한, NUL 판별, EUC-KR 폴백, CRLF와 끝 줄바꿈 기억). MINA로 원격 읽기(한글 파일 포함)
 - [ ] `WebBridge`(Kotlin)와 `bridge.ts` RPC 정식 구현, 보안 규칙(origin, CSP, 링크 가로채기) 적용
 - [ ] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)

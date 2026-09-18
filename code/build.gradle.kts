@@ -49,6 +49,9 @@ dependencies {
 
     implementation(libs.androidx.webkit)
     implementation(libs.ktoml.core)
+    implementation(libs.kotlinx.coroutines.android)
+    // Registered by hand in SkiffCodeApplication, for the reason SkiffApplication gives.
+    implementation(libs.bouncycastle.prov)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

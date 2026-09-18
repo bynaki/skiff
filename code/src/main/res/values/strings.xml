@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="opened">Ready to show %1$s</string>
+
+    <string name="action_connect">Connect</string>
+    <string name="action_trust">Trust</string>
+    <string name="action_open_settings">Open settings</string>
+
+    <string name="field_user">User</string>
+    <string name="field_password">Password</string>
+
+    <string name="unknown_server_title">Open a file on an unknown server?</string>
+    <string name="unknown_server_body">The link points at %1$s, which is not one of your servers.\n\n%2$s</string>
+    <string name="save_as_profile">Save as a server</string>
+
+    <string name="password_title">Password</string>
+    <string name="password_body">Enter the password for %1$s.</string>
+    <string name="password_wrong_body">The password for %1$s was refused. Try again.</string>
+
+    <string name="hostkey_title_new">Trust this server?</string>
+    <string name="hostkey_title_changed">Host key has changed</string>
+    <string name="hostkey_body_new">Skiff Code has not connected to %1$s before. Check that this fingerprint matches the server.</string>
+    <string name="hostkey_body_changed">The key for %1$s is different from the one you accepted before. This can mean the server was reinstalled — or that someone is intercepting the connection.</string>
+    <string name="hostkey_previous">Previously</string>
+
+    <string name="storage_title">Allow access to files</string>
+    <string name="storage_body">Opening a file on this device by its path needs access to all files. Allow it in settings, then come back.</string>
+    <string name="storage_denied">Access to files was not allowed.</string>
+
+    <string name="error_bad_link">Cannot open this link</string>
+    <string name="error_open">Cannot open the file</string>
+    <string name="error_not_found">%1$s does not exist.</string>
+    <string name="error_permission">Permission denied: %1$s</string>
+    <string name="error_is_directory">%1$s is a folder.</string>
+    <string name="error_unreachable">Cannot reach %1$s.</string>
+    <string name="error_host_key">The server\'s host key was not trusted.</string>
+    <string name="error_network_lost">The connection was lost.</string>
+    <string name="error_local_network">Local network access was not allowed.</string>
+    <string name="error_no_user">A user name is needed to connect.</string>
+</resources>

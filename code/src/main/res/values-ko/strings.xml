@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="opened">%1$s 열 준비 완료</string>
+
+    <string name="action_connect">연결</string>
+    <string name="action_trust">신뢰</string>
+    <string name="action_open_settings">설정 열기</string>
+
+    <string name="field_user">사용자</string>
+    <string name="field_password">비밀번호</string>
+
+    <string name="unknown_server_title">등록되지 않은 서버의 파일을 열까요?</string>
+    <string name="unknown_server_body">링크가 가리키는 %1$s 은(는) 등록된 서버가 아닙니다.\n\n%2$s</string>
+    <string name="save_as_profile">서버로 저장</string>
+
+    <string name="password_title">비밀번호</string>
+    <string name="password_body">%1$s 의 비밀번호를 입력하세요.</string>
+    <string name="password_wrong_body">%1$s 의 비밀번호가 거부됐습니다. 다시 입력하세요.</string>
+
+    <string name="hostkey_title_new">이 서버를 신뢰할까요?</string>
+    <string name="hostkey_title_changed">호스트키가 바뀌었습니다</string>
+    <string name="hostkey_body_new">Skiff Code가 %1$s 에 처음 연결합니다. 이 지문이 서버의 것과 같은지 확인하세요.</string>
+    <string name="hostkey_body_changed">%1$s 의 키가 전에 수락한 것과 다릅니다. 서버를 다시 설치했을 수도 있고, 누군가 연결을 가로채고 있을 수도 있습니다.</string>
+    <string name="hostkey_previous">이전 지문</string>
+
+    <string name="storage_title">파일 접근 허용</string>
+    <string name="storage_body">이 기기의 파일을 경로로 열려면 모든 파일에 대한 접근 권한이 필요합니다. 설정에서 허용한 뒤 돌아오세요.</string>
+    <string name="storage_denied">파일 접근이 허용되지 않았습니다.</string>
+
+    <string name="error_bad_link">이 링크를 열 수 없습니다</string>
+    <string name="error_open">파일을 열 수 없습니다</string>
+    <string name="error_not_found">%1$s 이(가) 없습니다.</string>
+    <string name="error_permission">권한이 없습니다: %1$s</string>
+    <string name="error_is_directory">%1$s 은(는) 폴더입니다.</string>
+    <string name="error_unreachable">%1$s 에 연결할 수 없습니다.</string>
+    <string name="error_host_key">서버의 호스트키를 신뢰하지 않았습니다.</string>
+    <string name="error_network_lost">연결이 끊어졌습니다.</string>
+    <string name="error_local_network">로컬 네트워크 접근이 허용되지 않았습니다.</string>
+    <string name="error_no_user">연결하려면 사용자 이름이 필요합니다.</string>
+</resources>

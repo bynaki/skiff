@@ -74,8 +74,17 @@ adb -s <serial> shell am start -n com.naki.skiff.code/.ui.MainActivity
 adb -s <serial> logcat -s SkiffCode:V        # bridge traffic and the page's console.log
 ```
 
-The module is still M0 spike code and its launch arguments are documented in `MainActivity`'s
-KDoc. To inspect the page itself, forward Chrome DevTools to the WebView:
+The page is still M0 spike code and its launch arguments are documented in `MainActivity`'s
+KDoc. A link opens through `ui/OpenFlow` (dialogs, connection, `stat`) and ends in a toast until
+the viewer lands:
+
+```bash
+adb -s <serial> shell am start -a android.intent.action.VIEW -d "'skiffcode://user@host/path?line=3'"
+```
+
+The inner single quotes keep the device shell from splitting the link at `&`.
+
+To inspect the page itself, forward Chrome DevTools to the WebView:
 
 ```bash
 PID=$(adb -s <serial> shell pidof com.naki.skiff.code)
@@ -215,8 +224,8 @@ These are non-obvious and each one has already broken the build or the app:
   Without it the connection is dropped rather than refused: a 15 second stall and a timeout
   with nothing pointing at a permission. `fs/LocalNetworkAccess` gates the request on the host
   actually being local.
-- BouncyCastle is re-registered in `SkiffApplication` because Android ships a cut-down provider
-  under the same `"BC"` name.
+- BouncyCastle is re-registered in `SkiffApplication` (and `SkiffCodeApplication`) because Android
+  ships a cut-down provider under the same `"BC"` name.
 - **Do not authenticate with sshj's `authPassword`.** After a refused password it tries
   keyboard-interactive on the same connection, which macOS's sshd never answers, so a mistyped
   password waited out the 30 second read timeout. `SshClientFactory` uses keyboard-interactive only
