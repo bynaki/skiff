@@ -9,40 +9,44 @@
 
 ---
 
-## 마지막 세션 (2026-09-18): M0 완료
+## 마지막 세션 (2026-09-18): M1 코드 작업 완료, 실서버 확인만 남음
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). `origin/plan/skiffcode`에 push했고(원격 저장소는 공개), **main에는 합치지 않았다.** 작업 트리는 깨끗하다.
-- **M0이 끝났다. 다음은 M1(`:core` 추출)이다.** 확정한 버전과 결론은 `AGENTS.md`에 옮겨 적었고, 설계에 반영한 것은 `plan.md` 본문에 있다. 이 문서는 그것을 다시 적지 않는다.
-- 탭에는 `com.naki.skiff.code`(debug)가 설치돼 있다.
-- `:code` 모듈은 전부 **스파이크 코드**다. M2에서 정식으로 다시 만든다. 지금 들어 있는 것:
-  - `ui/MainActivity.kt`: WebView 하나, `WebViewAssetLoader`, `addWebMessageListener("skiffBridge")`. RPC는 `sampleText` 하나, 알림은 `lspSend`/`lspMessage`다. 실행 인자는 KDoc에 적혀 있다.
-  - `lsp/StubLsp.kt`: 가짜 LSP 서버. exec 금지 원칙 때문에 실제 원격 서버를 띄울 수 없어서 쓴다.
-  - `code/web/src/`: `bridge.ts`(RPC + 알림), `zoom.ts`, `diff.ts`, `lsp.ts`, `main.ts`
-  - `code/src/test/.../KtomlSpikeTest.kt`: ktoml 확인용. M4가 진짜 `SettingsTomlTest`를 쓴다.
-- `:code:lintDebug`는 경고 10개로 통과한다: `RequiresFeature` 4, `MissingOnRenderProcessGone` 4, `SetJavaScriptEnabled` 1, `DataExtractionRules` 1. 앞의 둘은 M2에서 `WebBridge`를 정식으로 만들 때 처리한다(렌더러 프로세스가 죽으면 WebView를 다시 만들고, 기능 확인은 `if`로 분기).
+- 브랜치 `plan/skiffcode`(git worktree). 커밋 `869876e`까지 했고 **아직 push하지 않았다.** main에는 합치지 않았다.
+- **M1의 코드 항목 네 개가 끝났다.** 남은 것은 마지막 `- [ ] 확인` 하나이고, 그 중 테스트와 린트는 통과했다.
+  **실기기에서 실제 SFTP 서버로 탐색과 전송을 확인하는 것만 남았다**(아래 "사용자가 해 주어야 하는 것").
+- 모듈은 이제 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code, 여전히 M0 스파이크 코드).
+  무엇이 어디로 갔는지는 `AGENTS.md`의 "Three modules"에 적었다. 이 문서는 다시 적지 않는다.
+- 테스트는 이동 전 52개가 그대로 `:core` 28개 + `:app` 24개로 갈렸다. 실패 없음.
+- `:app:lintDebug`는 경고 5개(기존과 같음), `:core:lintDebug`는 경고 10개로 통과한다. `:core`의 것은
+  `:app`에 있던 경고가 모듈을 따라 옮겨간 것이다(라이브러리 새 버전 알림, BouncyCastle jar 안의
+  `TrustAllX509TrustManager`, `LocalFileSystem`의 `UsableSpace`).
 
-### 스파이크 앱 띄우기와 측정
-`am start -n com.naki.skiff.code/.ui.MainActivity`에 붙이는 인자:
-- `--ez selftest true`: 스크롤 180프레임, 중간 점프, 줌 36단계를 자동으로 돌린다. `selftest done`이 찍히면 끝이다.
-- `--ei bytes N`: 파일 크기. 기본 2MB다.
-- `--es layer diff`: unified diff. `--es alpha 0.3`은 배경 투명도, `--es diff char|line`은 알고리즘(기본 line), `--ez nopatch true`는 CM6 버그 우회를 끈다.
-- `--es layer lsp`: 스텁 LSP 서버에 붙어 핸드셰이크, 진단, hover, 완성, 편집 후 재동기화를 스스로 확인한다. `--ez fullsync true`면 서버가 incremental 대신 전체 동기화를 요구한다.
+### 이번에 내린 판단
+- **M1의 1번과 2번 항목은 같이 할 수밖에 없다.** `HostKeyGate`를 `:core`로 옮기려면 `SkiffStore` 의존을
+  먼저 `KnownHostStore`로 끊어야 컴파일이 된다. 그래서 한 커밋에 넣었다.
+- **`SftpTestServer`는 `:core`의 testFixtures로 내보냈다.** `SftpFileSystemTest` 19개 중 3개가
+  `CopyEngine`(`:app`에 남는다)을 쓰고 있었다. 그 3개를 `:app`의 `SftpTransferTest`로 옮기고, 서버는
+  fixture로 공유한다. 서버를 복사하면 두 사본이 달라진다.
+- **`:core`는 okio, sshj, kotlinx-serialization을 `api`로 내보낸다.** 셋 다 `:core`의 시그니처에
+  들어가 있어서, `:app`이 다시 선언하지 않아도 되게 했다. `:app`에 남긴 직접 의존은 BouncyCastle
+  하나인데, `SkiffApplication`이 직접 provider를 등록하기 때문이다.
+- **`SshClientFactory`는 접속·인증·keepalive만 갖는다.** 오류를 `FsError`로 옮기는 것은 `SshConnection`에
+  남겼다. 재시도 판단이 거기 있기 때문이다.
 
-결과는 HUD와 logcat(`SkiffCode`)에 찍힌다. 페이지는 `window.view`(EditorView)와 `window.zoomTest()`를 내놓는다. CDP 붙이는 방법은 `AGENTS.md`에 있다. 번들이 압축돼 있어서 프로파일의 함수 이름은 번들 파일에서 `function 이름(`으로 찾는다.
+### 사용자가 해 주어야 하는 것 (M1을 닫으려면)
+탭의 Skiff에 남아 있는 프로필 `testnas`는 `192.0.2.10:2222`, 즉 문서용 예약 주소를 가리켜서 응답하지
+않는다(15초 뒤 `FsError.Unreachable`로 끝나는 것까지는 확인했다. 오류 경로는 정상이다).
+비밀번호가 필요해서 AI가 대신 할 수 없다. 실제 서버 프로필을 하나 등록하고 다음을 확인해 달라:
+1. 서버에 붙어 디렉터리 목록이 이전과 같이 보이는지 (호스트키 다이얼로그 포함)
+2. 파일을 올리고 내려받는 전송이 이전과 같은지
+이것이 되면 `plan.md`의 M1 마지막 `- [ ]`를 `- [x]`로 바꾸고 M2로 넘어가면 된다.
 
-측정 보조 스크립트(`selftest.sh`, `profile.mjs`, `eval.mjs`)는 세션 스크래치패드에만 있었고 **레포에는 없다.** `eval.mjs`는 `Runtime.evaluate` 한 번 보내는 20줄이라 다시 쓰면 된다.
-
-### 측정 결과 (갤럭시탭 S10 FE, 2MB 35,473줄, 90Hz)
-- **불러오기:** 브리지 수신 670~940ms. 대부분 스파이크 생성기 비용(약 550~800ms)이고, `org.json` 인코딩 73ms, 전송은 약 60ms다. EditorView 생성 56~68ms, 첫 페인트 12~41ms.
-- **스크롤:** 스크립트 스크롤 85~91fps(p95 11.2ms). adb 스와이프 플링 86fps, `gfxinfo` jank 0.5%. 중간으로 점프 25~30ms.
-- **줌:** 한 단계 dispatch p50 3ms + measure p50 8ms. 기준 줄 어긋남 최대 0.8px. 파일 크기에 거의 비례하지 않는다. 사용자가 탭에서 직접 스크롤과 핀치 줌을 해 보고 좋다고 확인했다.
-- **diff:** 청크 333개(40블록마다 1줄 수정, 2줄 삭제, 3줄 추가).
-  - 줄 단위 diff는 약 240ms에 모든 청크가 정확하다.
-  - 패키지 기본값은 파일 전체를 청크 1개로 처리하고, 글자 단위로 제한을 풀면 6.7초에 전부 부정확하다.
-  - CM6 버그 우회를 넣으면 스크롤 87fps, 줌 3+10ms로 viewer와 같다. 우회가 없으면 줌 한 단계가 57+86ms이고 줌 중 14fps다.
-  - +/- 기호, 지운 줄마다 `-` 하나, 바뀐 글자 강조, 지운 줄 구문 하이라이팅, 투명도 변경을 탭 스크린샷으로 확인했다.
-- **LSP:** initialize 4ms. didOpen(199만자, Kotlin 파싱 56ms) 후 진단 252ms. hover 4ms, 완성 3ms. 진단 50개의 범위가 모두 의도한 글자 위에 있었고 한글 주석도 맞았다(`cm-lintRange-info`가 정확히 `원격 파일을 읽어`를 덮는다). 편집 후 재동기화는 incremental 591ms 대 full 744ms(둘 다 `autoSync`의 500ms 디바운스 포함), didChange 크기는 246자 대 199만자다.
+### 다음 세션이 할 일
+1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
+2. 위 실서버 확인이 아직이면 사용자에게 먼저 물어본다.
+3. 그 다음은 `plan.md`의 **M2 첫째 항목(`SkiffCodeUri` 파서)**이다.
+4. M2에 들어가기 전에 "사용자 확인을 아직 받지 않은 가정"의 2번(로컬 파일을 받는 두 경로)을 물어본다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -78,7 +82,7 @@ exec를 쓸 수 있다고 명시했다. `:app`은 여전히 금지다.
 사용자가 스파이크에서 exec를 허용해서 실제 서버로 확인했다. **하네스는 사용자 지시로 지웠다.**
 M6에서 다시 만들 때 필요한 것은 이것뿐이다:
 - 서버 쪽: MINA `SshServer`에 `commandFactory = ProcessShellCommandFactory.INSTANCE`.
-  `SftpTestServer`(`:app`)와 같은 구성이고 subsystem 대신 commandFactory를 둔다.
+  `SftpTestServer`(이제 `:core`의 testFixtures)와 같은 구성이고 subsystem 대신 commandFactory를 둔다.
 - 클라이언트 쪽: sshj `session.exec("/bin/sh -lc 'cd <root> && exec <command>'")`.
 - 프레이밍: 헤더는 `\r\n\r\n`까지 한 바이트씩, 본문은 `Content-Length`만큼 채워 읽는다.
 - 언어 서버: `npm i pyright` → `node_modules/.bin/pyright-langserver --stdio`. 레포에 넣지 않았다.
@@ -96,13 +100,8 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
 - 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 알고, 실제 서버가 어디서 버거워하는지는 모른다.
 - pyright 말고 다른 서버(typescript-language-server, marksman)는 확인하지 않았다. TypeScript 7은 네이티브 재작성이라 `tsserver.js`가 없고, `typescript-language-server`가 그 위에서 도는지 모른다.
 
-### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing, 보고와 알림 규칙을 본다.
-2. `plan.md`의 첫 `- [ ]`인 **M1 첫째 항목(`:core` 라이브러리 모듈 추가)**부터 시작한다.
-3. 세션을 끝낼 때 체크리스트를 갱신하고 이 파일을 덮어쓴다.
-
 ### 주의할 점
-- **M1은 Skiff를 건드리는 리팩터링이다.** 옮기기 전과 후에 `:app` 테스트가 모두 통과해야 하고(지금 52개), 실기기에서 SFTP 탐색과 전송이 이전과 같은지 확인한다. 패키지명은 유지한다.
+- **세션을 끝낼 때 `plan.md` 체크리스트를 갱신하고 이 파일을 덮어쓴다.**
 - **exec 규칙은 이미 고쳤다.** `:app`은 여전히 금지, `:code`는 허용이다. M5의 체크리스트에서 `AGENTS.md` 수정은 빠졌고 `RemoteExec` 구현만 남았다. 자세한 것은 위 "실제 LSP 서버 확인" 절과 `AGENTS.md`의 "The SFTP side, and what it must not do"에 있다.
 - `:code`에 kotlinx.serialization 플러그인이 붙어 있는데 main 소스에서는 아직 안 쓴다. ktoml이 요구한다. M2에서 `SkiffCodeStore`가 쓴다.
 - `npm install` 때 fsevents install 스크립트는 npm 11 기본 정책으로 실행되지 않는다. macOS용 선택 의존성이라 영향이 없다.
