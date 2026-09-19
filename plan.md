@@ -109,7 +109,7 @@ method로 구독한다(M0에서 확인).
 - **읽기 (`TextLoader`):**
   - 먼저 `stat`한다. 크기 상한은 설정값이고 기본 2MB다.
   - 바이너리 여부는 **앞 8KB에 NUL 바이트가 있는지**로 판별한다. 확장자는 믿지 않는다.
-  - UTF-8로 **엄격하게** 디코딩하고(깨진 바이트를 U+FFFD로 바꾸지 않는다), 실패하면 **EUC-KR로 폴백**한다. 둘 다 실패하면 열지 않는다(`UnknownEncoding`). 대체 문자로 채운 텍스트를 저장하면 원래 바이트를 덮어쓰기 때문이다. 파일에 원래 들어 있던 U+FFFD는 정상 UTF-8이라 폴백하지 않는다.
+  - UTF-8로 **엄격하게** 디코딩하고(깨진 바이트를 U+FFFD로 바꾸지 않는다), 실패하면 **EUC-KR로 폴백**한다. EUC-KR은 디코더에 맡기기 전에 바이트 모양(ASCII, 또는 두 바이트 모두 A1..FE이고 사용자 정의 행 C9·FE가 아닌 것)을 직접 확인한다. Android의 `EUC-KR` 디코더는 UHC 확장 한글, `80`, `FF`, 사용자 정의 행까지 받아서 JVM과 결과가 다르다(M2 viewer에서 실기기로 확인). 둘 다 실패하면 열지 않는다(`UnknownEncoding`). 대체 문자로 채운 텍스트를 저장하면 원래 바이트를 덮어쓰기 때문이다. 파일에 원래 들어 있던 U+FFFD는 정상 UTF-8이라 폴백하지 않는다.
   - 원래 인코딩, UTF-8 BOM, CRLF, 끝 줄바꿈을 기억해 두고 저장할 때 되돌린다. 텍스트의 줄바꿈은 `\n`으로 바꿔 넘긴다(CM6가 갖는 형태). 줄바꿈은 첫 줄의 것으로 정하므로, 섞인 파일은 저장하면 한 가지로 통일된다.
   - 읽기 전에 한 `stat`의 크기와 mtime을 결과에 담아 `DocumentSaver`가 비교에 쓴다.
 - **저장 (`DocumentSaver`):**
@@ -305,7 +305,16 @@ method로 구독한다(M0에서 확인).
   - `bridge/WebBridge`와 `WebBridgeTest` 12개(응답과 id, 오류 코드 -32601/-32602/-32000, 알림, `ready` 전 알림 보관, 다시 불러온 페이지, `/`가 든 LSP 문자열 왕복). 스파이크 페이지의 `sampleText`와 스텁 LSP를 새 브리지로 옮겨 실기기에서 M0과 같은 수치를 확인했다(initialize 4ms, didOpen 후 진단 250ms).
   - 실기기에서 DevTools로 확인: 외부 fetch, 외부 이미지, 인라인 스크립트, iframe이 CSP로 막히고, `web/` 밖의 자산은 403이다. `location.href`로 https에 가면 페이지는 그대로이고 Chrome이 열린다. `intent:` 링크는 버려진다.
   - DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았다. 원인은 확인하지 않았다. viewer에서 마크다운 링크를 실제로 탭해 다시 볼 것.
-- [ ] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
+- [x] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
+  - `web/src/layers/viewer.ts`, `markdown.ts`, `zoom.ts`, `main.ts`. 하이라이팅은 `@codemirror/language-data` 6.5.2로 파일 이름에서 언어를 찾고, 파서는 언어마다 따로 된 청크를 처음 필요할 때 불러온다. 마크다운은 `markdown-it` 15.0.2이고, 이름이 마크다운이면 렌더링해서 보여 준다(원문은 M3의 editor에서).
+  - 흐름: `OpenFlow`가 여는 데서 그치지 않고 `TextLoader`로 읽는다(원격은 세션의 `SftpFileSystem`, 로컬은 `LocalFileSystem`, `content://`는 새 `TextLoader.load(Source)`). `MainActivity`가 결과를 들고 있고, 페이지는 `document` RPC로 가져간다. 새 문서가 열리면 `documentChanged` 알림을 받고 다시 묻는다. 페이지를 다시 불러와도 같은 길이다.
+  - 읽기 중의 실패(연결, 권한)는 지금처럼 네이티브 대화상자다. 읽었지만 보여 줄 수 없는 것(`TooLarge`, `Binary`, `UnknownEncoding`)은 페이지에 문서 대신 안내로 나온다. 페이지의 글은 전부 Kotlin의 문자열 리소스(영어, 한국어)에서 온다.
+  - `?line=`은 코드에서는 그 줄을 맨 위로, 마크다운에서는 그 줄 이전에서 시작하는 마지막 블록을 맨 위로 둔다(`markdown-it`의 `map`으로 블록마다 `data-line`).
+  - 핀치 줌은 코드와 마크다운이 글자 크기 하나를 같이 쓰고, 문서를 바꿔도 유지된다. 마크다운은 손가락 아래 블록을 같은 비율 위치에 둔다.
+  - 마크다운 링크: 상대 링크와 `#조각`은 페이지에서 막는다(갈 곳이 없고, 브라우저로 넘기면 `appassets` 주소가 열린다). 나머지는 WebView의 `shouldOverrideUrlLoading`이 기존 규칙대로 처리한다.
+  - Android 15의 edge-to-edge 때문에 페이지가 상태 표시줄 밑에 그려져서, WebView를 감싼 프레임에 시스템 바 여백을 준다.
+  - M0 스파이크의 Kotlin 쪽(`StubLsp`, `sampleText`, 실행 인자)과 페이지의 측정 코드는 지웠다. `diff.ts`와 `lsp.ts`는 M5·M6을 위해 남겼고 페이지가 불러오지 않는다.
+  - 실기기 확인(탭, 로컬 파일과 `content://`): Python·TS·Makefile 하이라이팅, 2MB TS 파일을 30000번째 줄에서 열기(읽고 여는 데 약 50ms), 마크다운의 raw HTML이 글자로 나오고 `javascript:` 링크가 링크가 되지 않고 외부 이미지가 CSP로 막히는 것, `?line=`, 3MB 파일·바이너리·깨진 인코딩의 안내, EUC-KR 파일. **링크를 adb로 실제로 탭해서** https는 Chrome으로, mailto는 메일 앱으로 가고 페이지는 남는 것, `intent:`는 버려지고 상대·조각 링크는 아무 일도 없는 것을 봤다. 핀치 줌은 DevTools 프로토콜로 두 손가락 터치를 만들어 코드(줄 30016)와 마크다운(문단 61) 모두 손가락 아래가 그대로인 것을 봤다. **손으로 하는 핀치와 원격 파일 성공 경로는 아직이다.**
 - [ ] 상단 메뉴 ①~⑤ 자리와 스크롤에 따른 숨김/표시(①④⑤는 이후 단계에서 채운다)
 - [ ] Skiff 쪽: `onOpen`에서 CODE/TEXT/MARKDOWN이면 `skiffcode://` 인텐트를 보내고, Skiff Code가 없으면 기존 외부 앱으로 열기
 - [ ] Skiff 쪽: 서명 권한 `ProfileProvider` + Skiff Code가 읽어 프로필과 호스트키에 반영(지문이 다르면 경고 흐름)

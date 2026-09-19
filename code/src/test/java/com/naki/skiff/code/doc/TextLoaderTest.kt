@@ -7,6 +7,7 @@ import com.naki.skiff.fs.sftp.SftpFileSystem
 import com.naki.skiff.fs.sftp.SshConnection
 import kotlinx.coroutines.test.runTest
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import okio.Buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,6 +43,16 @@ class TextLoaderTest {
     fun `bytes neither encoding decodes are refused rather than replaced`() {
         // 0xFF is never valid in UTF-8 and is not a lead byte in EUC-KR.
         assertEquals(LoadResult.UnknownEncoding, decode(byteArrayOf('a'.code.toByte(), 0xFF.toByte(), 'b'.code.toByte())))
+    }
+
+    @Test
+    fun `bytes outside euc-kr's shape are refused, as android's wider decoder would take them`() {
+        // UHC's extra hangul, a C1 byte, and the two user-defined rows after a 가 (B0 A1), which keeps
+        // C9 A1 from reading as UTF-8: the device decodes all four.
+        val cases = listOf(byteArrayOf(0xA1, 0x41), byteArrayOf(0x80), byteArrayOf(0xB0, 0xA1, 0xC9, 0xA1), byteArrayOf(0xFE, 0xA1))
+        for (bytes in cases) {
+            assertEquals(LoadResult.UnknownEncoding, decode(byteArrayOf(0x61) + bytes + byteArrayOf(0x62)))
+        }
     }
 
     @Test
@@ -103,6 +114,23 @@ class TextLoaderTest {
 
         assertTrue(TextLoader(sizeLimit = Long.MAX_VALUE).decode(bytes, bytes.size.toLong(), 0) is LoadResult.Text)
     }
+
+    @Test
+    fun `a stream is decoded by the same rules and sized by what was read`() = runTest {
+        val result = loader.load(Buffer().write("한글\r\n".toByteArray(charset("EUC-KR")))) as LoadResult.Text
+
+        assertEquals("한글\n", result.text)
+        assertEquals(TextEncoding.EUC_KR, result.format.encoding)
+        assertEquals(6, result.size)
+    }
+
+    @Test
+    fun `a stream past the limit is refused, and one at it is read`() = runTest {
+        assertEquals(LoadResult.TooLarge(1025, 1024), loader.load(Buffer().write(ByteArray(4096) { 'a'.code.toByte() })))
+        assertTrue(loader.load(Buffer().write(ByteArray(1024) { 'a'.code.toByte() })) is LoadResult.Text)
+    }
+
+    private fun byteArrayOf(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
     /** The same rules, read through the production SFTP code from a real server. */
     class OverSftp {

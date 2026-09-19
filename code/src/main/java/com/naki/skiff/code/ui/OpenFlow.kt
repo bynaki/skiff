@@ -8,28 +8,36 @@ import android.provider.Settings
 import android.util.Log
 import com.naki.skiff.code.R
 import com.naki.skiff.code.SkiffCodeContainer
+import com.naki.skiff.code.doc.LoadResult
+import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.fs.FsError
 import com.naki.skiff.fs.LocalNetworkAccess
+import com.naki.skiff.fs.local.LocalFileSystem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import okio.source
 import java.io.File
 
 /**
- * Takes an [OpenRequest] from intent to a file that can be read: asks about unknown servers,
- * passwords and permissions, connects, and checks the file is there.
+ * Takes an [OpenRequest] from intent to the file's text: asks about unknown servers, passwords and
+ * permissions, connects, checks the file is there and reads it.
  *
- * It stops at [Opened]. Reading and showing the text is the viewer's, which M2 builds next.
+ * Anything that goes wrong on the way is told in a dialog. A file that was read but is not text
+ * the viewer can show — too large, binary, an unknown encoding — is not a failure here: it comes
+ * back as [Opened.result], for the page to say so where the document would have been.
  */
 class OpenFlow(private val activity: MainActivity, private val container: SkiffCodeContainer) {
 
-    /** A file that exists and can be read, and how to name it. */
-    data class Opened(val link: String, val name: String, val request: OpenRequest)
+    private val loader = TextLoader()
+
+    /** A file that was read, how to name it, and the line the link asked for. */
+    data class Opened(val link: String, val name: String, val request: OpenRequest, val result: LoadResult, val line: Int?)
 
     /** Null when the user backed out or the file could not be opened; either way they have been told. */
     suspend fun open(link: String, request: OpenRequest): Opened? = try {
@@ -71,7 +79,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
             }
         }
         if (problem != null) return fail(R.string.error_open, describe(problem))
-        return Opened(link, file.name, request)
+        return Opened(link, file.name, request, loader.load(LocalFileSystem(file.name), request.path), request.at.line)
     }
 
     private suspend fun openContent(link: String, request: OpenRequest.Content): Opened {
@@ -81,7 +89,9 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
                 if (it.moveToFirst()) it.getString(0) else null
             }
         }
-        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request)
+        val stream = withContext(Dispatchers.IO) { activity.contentResolver.openInputStream(uri) } ?: throw FsError.NotFound(request.uri)
+        val result = stream.use { loader.load(it.source()) }
+        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, line = null)
     }
 
     /**
@@ -110,8 +120,9 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
             profile = withNewPassword(profile, retry = false) ?: return null
         }
         while (true) {
+            val fs = container.sessions.get(profile)
             val node = try {
-                container.sessions.get(profile).stat(request.path)
+                fs.stat(request.path)
             } catch (e: FsError.AuthFailed) {
                 profile = withNewPassword(profile, retry = true) ?: return null
                 continue
@@ -119,7 +130,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
             return when {
                 node == null -> fail(R.string.error_open, describe(FsError.NotFound(request.path)))
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
-                else -> Opened(link, node.name, request.copy(profile = profile))
+                else -> Opened(link, node.name, request.copy(profile = profile), loader.load(fs, request.path), request.at.line)
             }
         }
     }

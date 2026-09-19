@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="opened">Ready to show %1$s</string>
-
     <string name="action_connect">Connect</string>
     <string name="action_trust">Trust</string>
     <string name="action_open_settings">Open settings</string>
@@ -37,4 +35,9 @@
     <string name="error_network_lost">The connection was lost.</string>
     <string name="error_local_network">Local network access was not allowed.</string>
     <string name="error_no_user">A user name is needed to connect.</string>
+
+    <string name="viewer_empty">No file is open.</string>
+    <string name="refused_too_large">Files larger than %1$s are not opened.</string>
+    <string name="refused_binary">This is not a text file.</string>
+    <string name="refused_encoding">The file is neither UTF-8 nor EUC-KR, so it was not opened rather than shown with broken characters.</string>
 </resources>

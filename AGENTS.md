@@ -74,15 +74,18 @@ adb -s <serial> shell am start -n com.naki.skiff.code/.ui.MainActivity
 adb -s <serial> logcat -s SkiffCode:V        # bridge traffic and the page's console.log
 ```
 
-The page is still M0 spike code and its launch arguments are documented in `MainActivity`'s
-KDoc. A link opens through `ui/OpenFlow` (dialogs, connection, `stat`) and ends in a toast until
-the viewer lands:
+The page is the viewer: it shows whatever document `MainActivity` holds, and is empty until a
+link opens one. A link goes through `ui/OpenFlow` (dialogs, connection, `stat`, `TextLoader`), and
+the page picks the result up over the bridge:
 
 ```bash
 adb -s <serial> shell am start -a android.intent.action.VIEW -d "'skiffcode://user@host/path?line=3'"
 ```
 
-The inner single quotes keep the device shell from splitting the link at `&`.
+The inner single quotes keep the device shell from splitting the link at `&`. A local file
+needs the all-files grant (`appops set com.naki.skiff.code MANAGE_EXTERNAL_STORAGE allow`) and
+takes `skiffcode:///storage/emulated/0/…`; a `content://` link needs `-t text/plain` and
+`-n com.naki.skiff.code/.ui.MainActivity`.
 
 To inspect the page itself, forward Chrome DevTools to the WebView:
 
@@ -253,6 +256,10 @@ These apply to `:code` only:
   `initialize` reply rather than trusting it.
 - **`org.json` is part of the Android framework, so the unit test JVM gets a stub** whose every
   method throws "not mocked". A test that touches it needs `org.json:json` as a test dependency.
+- **Android's `EUC-KR` decoder is wider than the JVM's.** It takes UHC's extra hangul, `80` as
+  U+0080, and `FF` and the user-defined rows as private-use characters, all of which the JVM
+  refuses. `TextLoader` checks EUC-KR's byte shape itself before decoding; a unit test passing on
+  the JVM says nothing about what the device's charsets accept.
 - **`org.json` writes `/` escaped as `\/`.** Valid JSON, but it means a message carrying an LSP
   method name cannot be matched as a substring — parse it.
 
@@ -315,11 +322,14 @@ and never `:app`'s.
 holds 86–91 fps, a pinch-zoom step costs 3 ms to dispatch and 8 ms to measure, a line-level
 unified diff takes about 240 ms, and `@codemirror/lsp-client` runs over the Kotlin bridge with
 diagnostics 252 ms after `didOpen`. The measurements and what they changed in the design are in
-`plan.md`. Everything under `:code/` is spike code that M2 rewrites; the versions it pinned are
-not:
+`plan.md`. What is left of the spike under `:code/` is `web/src/diff.ts` and `web/src/lsp.ts`,
+kept for M5 and M6 and no longer loaded by the page. The versions it pinned stand, with what M2
+added:
 
 - Kotlin: `androidx.webkit` 1.17.0, `com.akuleshov7:ktoml-core` 0.7.1
 - Build: `vite` 8.3.0, `typescript` 7.0.2
+- Page: `markdown-it` 15.0.2 (ships its own types), `@codemirror/language-data` 6.5.2 (every
+  language's parser as its own chunk, loaded by file name when first needed)
 - `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,
   `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7
 

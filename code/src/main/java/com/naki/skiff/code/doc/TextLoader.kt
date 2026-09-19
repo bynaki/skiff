@@ -71,6 +71,17 @@ class TextLoader(
         return decode(bytes, node.size, node.modifiedEpochSeconds)
     }
 
+    /**
+     * A stream with no `stat` behind it, such as a `content://` document. The size is what was
+     * read, the modification time is unknown (0), and a [LoadResult.TooLarge] only knows that the
+     * stream went past the limit.
+     */
+    suspend fun load(source: Source): LoadResult {
+        val bytes = withContext(dispatcher) { source.readAtMost(sizeLimit + 1) }
+        if (bytes.size > sizeLimit) return LoadResult.TooLarge(bytes.size.toLong(), sizeLimit)
+        return decode(bytes, bytes.size.toLong(), 0)
+    }
+
     fun decode(bytes: ByteArray, size: Long, modifiedEpochSeconds: Long): LoadResult {
         val probe = minOf(bytes.size, BINARY_PROBE)
         for (i in 0 until probe) if (bytes[i] == 0.toByte()) return LoadResult.Binary
@@ -93,6 +104,7 @@ class TextLoader(
     }
 
     private fun strictDecode(bytes: ByteArray, offset: Int, encoding: TextEncoding): String? = try {
+        if (encoding == TextEncoding.EUC_KR && !isEucKrShaped(bytes, offset)) return null
         encoding.charset.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
@@ -100,6 +112,27 @@ class TextLoader(
             .toString()
     } catch (_: CharacterCodingException) {
         null
+    }
+
+    /**
+     * EUC-KR's byte shape, checked here rather than left to the decoder: ASCII, or two bytes both
+     * in A1..FE, leaving out the user-defined rows C9 and FE. Android's decoder under this name
+     * takes far more — UHC's extra hangul (`A1 41`), `80` as U+0080, `FF` and the user-defined rows
+     * as private-use characters — so a file the JVM refuses would open on the device.
+     */
+    private fun isEucKrShaped(bytes: ByteArray, offset: Int): Boolean {
+        var i = offset
+        while (i < bytes.size) {
+            val lead = bytes[i].toInt() and 0xFF
+            if (lead < 0x80) {
+                i++
+                continue
+            }
+            if (lead !in 0xA1..0xFE || lead == 0xC9 || lead == 0xFE || i + 1 >= bytes.size) return false
+            if ((bytes[i + 1].toInt() and 0xFF) !in 0xA1..0xFE) return false
+            i += 2
+        }
+        return true
     }
 
     companion object {

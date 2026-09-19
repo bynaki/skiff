@@ -1,5 +1,5 @@
-// Pinch zoom by font size: the CSS variable --code-font-size changes, and the line under the
-// fingers stays where it was on screen.
+// Pinch zoom by font size: the CSS variable --code-font-size changes, and what is under the fingers
+// stays where it was on screen.
 import { EditorView } from '@codemirror/view'
 
 export const MIN_FONT_SIZE = 8
@@ -19,10 +19,22 @@ export interface Anchor {
   size: number
 }
 
+/**
+ * What a pinch holds on to: given the finger midpoint when the gesture starts, it returns the
+ * function that applies a new size and puts the same spot back under the midpoint.
+ */
+export type Hold = (clientY: number) => (size: number, clientY: number) => void
+
+// One size for every document, so opening another file keeps the zoom.
 let fontSize = 14
 
 export function currentFontSize(): number {
   return fontSize
+}
+
+export function setFontSize(size: number): void {
+  fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
+  document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
 }
 
 export function anchorAt(view: EditorView, clientY: number): Anchor {
@@ -44,8 +56,7 @@ export function anchorAt(view: EditorView, clientY: number): Anchor {
  * measure request instead fights the editor's top-of-viewport scroll anchoring and never settles.
  */
 export function zoomTo(view: EditorView, size: number, anchor: Anchor, clientY: number): void {
-  fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
-  document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
+  setFontSize(size)
   const lineHeight = anchor.lineHeight * (fontSize / anchor.size)
   const scrollerTop = view.scrollDOM.getBoundingClientRect().top
   view.dispatch({
@@ -56,9 +67,34 @@ export function zoomTo(view: EditorView, size: number, anchor: Anchor, clientY: 
   })
 }
 
-export function installPinchZoom(view: EditorView, onZoom: (size: number) => void): void {
-  const scroller = view.scrollDOM
-  let gesture: { distance: number; size: number; anchor: Anchor } | null = null
+export function holdLine(view: EditorView): Hold {
+  return (startY) => {
+    const anchor = anchorAt(view, startY)
+    return (size, clientY) => zoomTo(view, size, anchor, clientY)
+  }
+}
+
+/**
+ * For plain scrolling content such as rendered markdown: holds the child block under the fingers
+ * at the same share of its height. Blocks reflow as the font changes, so a share of the block is
+ * as close as it gets.
+ */
+export function holdBlock(scroller: HTMLElement, content: HTMLElement): Hold {
+  return (startY) => {
+    const block = [...content.children].find((child) => child.getBoundingClientRect().bottom >= startY) ?? content
+    const start = block.getBoundingClientRect()
+    const fraction = start.height > 0 ? (startY - start.top) / start.height : 0
+    return (size, clientY) => {
+      setFontSize(size)
+      const now = block.getBoundingClientRect()
+      scroller.scrollTop += now.top + fraction * now.height - clientY
+    }
+  }
+}
+
+export function installPinchZoom(scroller: HTMLElement, hold: Hold): void {
+  let apply: ((size: number, clientY: number) => void) | null = null
+  let gesture: { distance: number; size: number } | null = null
   let frame = 0
 
   const distance = (touches: TouchList) =>
@@ -67,20 +103,18 @@ export function installPinchZoom(view: EditorView, onZoom: (size: number) => voi
 
   scroller.addEventListener('touchstart', (event) => {
     if (event.touches.length !== 2) return
-    gesture = { distance: distance(event.touches), size: fontSize, anchor: anchorAt(view, midY(event.touches)) }
+    gesture = { distance: distance(event.touches), size: fontSize }
+    apply = hold(midY(event.touches))
   }, { passive: true })
 
   scroller.addEventListener('touchmove', (event) => {
-    if (!gesture || event.touches.length !== 2) return
+    if (!gesture || !apply || event.touches.length !== 2) return
     event.preventDefault()
     const size = gesture.size * (distance(event.touches) / gesture.distance)
     const y = midY(event.touches)
-    const anchor = gesture.anchor
+    const zoom = apply
     cancelAnimationFrame(frame)
-    frame = requestAnimationFrame(() => {
-      zoomTo(view, size, anchor, y)
-      onZoom(fontSize)
-    })
+    frame = requestAnimationFrame(() => zoom(size, y))
   }, { passive: false })
 
   const end = (event: TouchEvent) => {

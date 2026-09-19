@@ -1,195 +1,47 @@
-// M0 spike: a read-only CodeMirror 6 viewer over a 2 MB file from Kotlin, pinch zoom, and frame
-// statistics printed to the HUD and to logcat (through console.log).
-import { EditorState } from '@codemirror/state'
-import { EditorView, lineNumbers } from '@codemirror/view'
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { javascript } from '@codemirror/lang-javascript'
-import { getChunks } from '@codemirror/merge'
-import { rpc } from './bridge'
-import { anchorAt, currentFontSize, installPinchZoom, zoomTo } from './zoom'
-import { type DiffMode, patchViewportLineBlocks, sampleEdits, unifiedDiff } from './diff'
-import { bridgeTransport, lspClient, lspEditorExtension, runLspSpike, watchPublishes } from './lsp'
+// The page: shows whichever document Kotlin has open. Kotlin says `documentChanged` when that
+// changes and the page asks for it, so a reloaded page and a new link take the same path.
+import { onNotify, rpc } from './bridge'
+import { showDocument } from './layers/viewer'
+import { currentFontSize, setFontSize } from './zoom'
 
-const hud = document.getElementById('hud')!
-const hudLines = new Map<string, string>()
-function report(key: string, value: string) {
-  hudLines.set(key, value)
-  hud.textContent = [...hudLines].map(([k, v]) => `${k}: ${v}`).join('\n')
-  console.log(`${key}: ${value}`)
-}
+/** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
+type DocumentState =
+  | { state: 'empty'; message: string }
+  | { state: 'text'; name: string; text: string; line?: number }
+  | { state: 'refused'; name: string; title: string; message: string }
 
-const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve))
+const root = document.getElementById('viewer')!
+let takeDown: (() => void) | null = null
 
-/** Frame intervals while something moves; a session ends after 300 ms without scroll or zoom. */
-class FrameMonitor {
-  private intervals: number[] = []
-  private last = 0
-  private idleTimer = 0
-  private running = false
-
-  constructor(private readonly onSession: (summary: string) => void) {}
-
-  poke() {
-    clearTimeout(this.idleTimer)
-    this.idleTimer = window.setTimeout(() => this.finish(), 300)
-    if (this.running) return
-    this.running = true
-    this.intervals = []
-    this.last = 0
-    const loop = (now: number) => {
-      if (!this.running) return
-      if (this.last) this.intervals.push(now - this.last)
-      this.last = now
-      requestAnimationFrame(loop)
-    }
-    requestAnimationFrame(loop)
-  }
-
-  private finish() {
-    this.running = false
-    const sorted = [...this.intervals].sort((a, b) => a - b)
-    if (sorted.length < 5) return
-    const total = sorted.reduce((a, b) => a + b, 0)
-    const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))].toFixed(1)
-    this.onSession(
-      `${sorted.length} frames, ${(1000 * sorted.length / total).toFixed(0)} fps, ` +
-      `p50 ${at(0.5)} p95 ${at(0.95)} max ${sorted[sorted.length - 1].toFixed(1)} ms, ` +
-      `>20ms ${sorted.filter((t) => t > 20).length}, >33ms ${sorted.filter((t) => t > 33).length}`,
-    )
+function show(doc: DocumentState) {
+  takeDown?.()
+  takeDown = null
+  root.replaceChildren()
+  document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
+  switch (doc.state) {
+    case 'text':
+      takeDown = showDocument(root, doc)
+      break
+    case 'refused':
+      root.append(notice(doc.title, doc.message))
+      break
+    case 'empty':
+      root.append(notice(null, doc.message))
+      break
   }
 }
 
-async function main() {
-  const t0 = performance.now()
-  const params = new URLSearchParams(location.search)
-  const bytes = Number(params.get('bytes')) || 2 * 1024 * 1024
-  const { text } = await rpc<{ text: string }>('sampleText', { bytes })
-  const t1 = performance.now()
-
-  // ?layer=diff shows the sample against an edited copy of itself as a unified diff.
-  const diff = params.get('layer') === 'diff'
-  // ?layer=lsp talks to the Kotlin stub server over the bridge, and needs a writable editor.
-  const client = params.get('layer') === 'lsp' ? lspClient() : null
-  let initialize = 0
-  let publishes: number[] = []
-  if (client) {
-    const started = performance.now()
-    publishes = watchPublishes()
-    client.connect(bridgeTransport())
-    await client.initializing
-    initialize = performance.now() - started
-  }
-  document.documentElement.style.setProperty('--code-font-size', `${currentFontSize()}px`)
-  document.documentElement.style.setProperty('--diff-alpha', params.get('alpha') ?? '0.15')
-  const edited = diff ? sampleEdits(text) : text
-  const t1edits = performance.now()
-  const mode = (params.get('diff') ?? 'line') as DiffMode
-  const view = new EditorView({
-    parent: document.getElementById('editor')!,
-    state: EditorState.create({
-      doc: edited,
-      extensions: [
-        diff ? unifiedDiff(text, mode) : [],
-        client ? lspEditorExtension(client) : [],
-        lineNumbers(),
-        EditorState.readOnly.of(client === null),
-        EditorView.editable.of(client !== null),
-        javascript({ typescript: true }),
-        syntaxHighlighting(defaultHighlightStyle),
-        EditorView.theme({
-          '&': { height: '100%', fontSize: 'var(--code-font-size)' },
-          '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
-        }),
-      ],
-    }),
-  })
-  // ?nopatch leaves CodeMirror's viewport line bug in place, to measure what it costs.
-  if (diff && !params.has('nopatch')) patchViewportLineBlocks(view)
-  const t2 = performance.now()
-  await nextFrame()
-  await nextFrame()
-  const t3 = performance.now()
-  report('file', `${(text.length / 1024 / 1024).toFixed(2)} M chars, ${view.state.doc.lines} lines`)
-  report('load', `bridge ${(t1 - t0).toFixed(0)} ms, view ${(t2 - t1).toFixed(0)} ms, first paint ${(t3 - t2).toFixed(0)} ms`)
-  if (client) {
-    report('lsp handshake', `initialize ${initialize.toFixed(0)} ms, didOpen with the view in ${(t2 - t1).toFixed(0)} ms`)
-    await runLspSpike(client, view, publishes, t2, report)
-  }
-  if (diff) {
-    const chunks = getChunks(view.state)?.chunks ?? []
-    report('diff', `${mode}: ${chunks.length} chunks, ${chunks.filter((c) => !c.precise).length} imprecise, view with diff ${(t2 - t1edits).toFixed(0)} ms (edits ${(t1edits - t1).toFixed(0)} ms)`)
-  }
-
-  const monitor = new FrameMonitor((summary) => report('last motion', summary))
-  view.scrollDOM.addEventListener('scroll', () => monitor.poke(), { passive: true })
-  report('font', `${currentFontSize()} px`)
-  installPinchZoom(view, (size) => {
-    monitor.poke()
-    report('font', `${size.toFixed(1)} px`)
-  })
-
-  Object.assign(window, { zoomTest: () => zoomTest(view), view })
-  if (params.has('selftest')) await selftest(view)
+function notice(title: string | null, message: string): HTMLElement {
+  const box = document.createElement('div')
+  box.className = 'notice'
+  if (title) box.append(Object.assign(document.createElement('h1'), { textContent: title }))
+  box.append(Object.assign(document.createElement('p'), { textContent: message }))
+  return box
 }
 
-function spread(times: number[]): string {
-  const sorted = [...times].sort((a, b) => a - b)
-  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))].toFixed(0)
-  return `p50 ${at(0.5)} p90 ${at(0.9)} max ${at(1)} ms`
-}
+// Replies come back in the order they were asked, so the last one asked is the current document.
+const refresh = () => rpc<DocumentState>('document').then(show).catch((error) => console.log(`document: ${error}`))
 
-async function selftest(view: EditorView) {
-  const scroller = view.scrollDOM
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-
-  // Scripted scroll: 150 px per frame for 180 frames, driven from the main thread.
-  const start = performance.now()
-  for (let i = 0; i < 180; i++) {
-    scroller.scrollTop += 150
-    await nextFrame()
-  }
-  report('selftest scroll', `180 frames in ${(performance.now() - start).toFixed(0)} ms`)
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // Jump to the middle of the file.
-  const jump = performance.now()
-  scroller.scrollTop = scroller.scrollHeight / 2
-  await nextFrame()
-  await nextFrame()
-  report('selftest jump', `${(performance.now() - jump).toFixed(0)} ms to middle, line ${view.state.doc.lineAt(view.lineBlockAtHeight(scroller.scrollTop).from).number}`)
-
-  await zoomTest(view)
-  report('font', `${currentFontSize()} px`)
-  console.log('selftest done')
-}
-
-/** Zoom around the vertical centre: up to 40 px, down to 8 px, back to 14 px. */
-async function zoomTest(view: EditorView) {
-  const scroller = view.scrollDOM
-  const rect = scroller.getBoundingClientRect()
-  const clientY = rect.top + rect.height / 2
-  const anchor = anchorAt(view, clientY)
-  const sizes: number[] = []
-  for (let s = 14; s < 40; s *= 1.1) sizes.push(s)
-  for (let s = 40; s > 8; s /= 1.1) sizes.push(s)
-  for (let s = 8; s < 14; s *= 1.1) sizes.push(s)
-  sizes.push(14)
-  let maxDrift = 0
-  const dispatchTimes: number[] = []
-  const measureTimes: number[] = []
-  for (const size of sizes) {
-    const before = performance.now()
-    zoomTo(view, size, anchor, clientY)
-    dispatchTimes.push(performance.now() - before)
-    // CodeMirror's measure is queued before this callback, so the time since the frame started is its cost.
-    const frameStart = await nextFrame()
-    measureTimes.push(performance.now() - frameStart)
-    await nextFrame()
-    const block = view.lineBlockAt(anchor.pos)
-    const actual = view.documentTop + block.top + anchor.fraction * block.height
-    maxDrift = Math.max(maxDrift, Math.abs(actual - clientY))
-  }
-  report('selftest zoom', `${sizes.length} steps, max drift ${maxDrift.toFixed(1)} px, dispatch ${spread(dispatchTimes)}, measure ${spread(measureTimes)}`)
-}
-
-main().catch((error) => report('error', String(error)))
+setFontSize(currentFontSize())
+onNotify('documentChanged', refresh)
+refresh()

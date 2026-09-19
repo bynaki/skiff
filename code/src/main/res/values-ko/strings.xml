@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="opened">%1$s 열 준비 완료</string>
-
     <string name="action_connect">연결</string>
     <string name="action_trust">신뢰</string>
     <string name="action_open_settings">설정 열기</string>
@@ -37,4 +35,9 @@
     <string name="error_network_lost">연결이 끊어졌습니다.</string>
     <string name="error_local_network">로컬 네트워크 접근이 허용되지 않았습니다.</string>
     <string name="error_no_user">연결하려면 사용자 이름이 필요합니다.</string>
+
+    <string name="viewer_empty">열린 파일이 없습니다.</string>
+    <string name="refused_too_large">%1$s보다 큰 파일은 열지 않습니다.</string>
+    <string name="refused_binary">텍스트 파일이 아닙니다.</string>
+    <string name="refused_encoding">UTF-8도 EUC-KR도 아닌 파일이라, 글자가 깨진 채로 보여 주지 않고 열지 않았습니다.</string>
 </resources>
