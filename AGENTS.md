@@ -306,6 +306,10 @@ and wait for a yes. A "go ahead" for the work itself is not a yes to commit it, 
 commit does not carry over to the next. The user often steps away, so send the push notification
 with the question; do not commit while waiting.
 
+**Ask again before pushing.** A yes to a commit is not a yes to push it. Once commits are made,
+say how many the branch is ahead and ask; push only on an explicit yes, and a yes to one push
+does not carry over to the next.
+
 ## Not yet built
 
 The preview viewer (code/markdown) is deliberately absent from Skiff. It is being built as a
@@ -361,4 +365,7 @@ often steps away while work runs, so the notification is not optional.
 **Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries what the
 checklist cannot: what the last session did, why the decisions went the way they did, which
 assumptions the user has not confirmed yet, and what is still unverified. It is a snapshot of
-the current state, not a log — the history lives in git.
+the current state, not a log — the history lives in git. **When the user says they are starting a new
+session, do this before anything else:** overwrite `HANDOFF.md` (and check `plan.md`'s
+checklist) so both describe the state as it is, down to what is and is not pushed; ask before
+committing it; then ask whether to push.
