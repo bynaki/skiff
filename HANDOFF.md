@@ -9,227 +9,66 @@
 
 ---
 
-## 마지막 세션 (2026-09-19 저녁): M2 일곱째·여덟째 항목 완료
+## 마지막 세션 (2026-09-19 밤): release 빌드 수정, `ProfileProvider`, **M2 완료**
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **push하지 않은 커밋이 있다**: `2a8329d`(상단 메뉴), `1f51fcd`(Skiff →
-  Skiff Code 연결), `c2f6a36`(체크박스 색), 대화상자 결정 반영 커밋, 그리고 이 인수인계 커밋. push할지 사용자에게 아직 답을 못 받았다.
-  main에는 합치지 않았다.
-- **다음은 M2 아홉째 항목, Skiff 쪽 서명 권한 `ProfileProvider`다**(`plan.md`의 첫 `- [ ]`).
-- 테스트: `:core` 35개, `:app` 24개, `:code` 85개(이번에 `SkiffCodeLinkTest` 4개 추가). 실패 없음.
-- lint 경고: `:code` 11개(지난 세션과 같다), `:app` 4개(이번 변경으로 생긴 `UseKtx` 하나는 고쳤다).
-- **release 빌드가 실패한다**(아래 "이번에 발견한 문제" 1번). debug만 빌드해 왔다.
+- 브랜치 `plan/skiffcode`(git worktree). **push하지 않은 커밋이 3개다**: `8d9338f`(release 빌드),
+  `21b6d88`(`ProfileProvider`), `c681dfc`(M2 확인 체크). push할지 아직 답을 못 받았다. main에는 합치지 않았다.
+- **M2가 끝났다. 다음은 M3 첫 항목, editor 레이어다**(`plan.md`의 첫 `- [ ]`).
+- 테스트: `:core` 35개, `:app` 24개, `:code` 92개(이번에 `importFromSkiff` 7개 추가). 실패 없음.
+- lint 경고: `:app` 4개, `:code` 11개. 지난 세션과 같다.
+- **release 빌드가 된다**(`:app` 11MB, 서명 전). debug가 74MB인 것은 R8이 없어 `material-icons-extended`와
+  BouncyCastle을 통째로 담기 때문이다. **배포용 서명 설정은 아직 없다.**
+- 탭에는 두 앱의 **debug 빌드**가 깔려 있다. 확인 중에 Skiff Code 저장소에 Skiff에서 가져온 `testnas`
+  프로필(비밀번호 없음)과 `127.0.0.1:2222` 호스트키가 들어갔다. 이번 확인이 남긴 것이고 정상이다.
 
 ### 이번 세션에서 한 것과 내린 판단
-**상단 메뉴 (`2a8329d`, `web/src/chrome/topbar.ts`)**
-- 막대 없이 버튼만 떠 있다: 왼쪽 ① 사이드바, 오른쪽 묶음 ② 원래 크기(아이콘 "1:1"), ③ 레이어(눈), ④ 더보기.
-  ①③④는 `disabled`라 흐리게 보인다. ②는 `zoom.ts`의 `DEFAULT_FONT_SIZE`(14)로 가며 화면 가운데를 붙잡는다
-  (`showDocument`가 이제 `{ close, hold }`를 돌려주고 `main.ts`가 `hold(가운데)(14, 가운데)`를 부른다).
-- 스크롤 방향은 `document`의 capture `scroll` 리스너 하나가 모든 스크롤러에서 본다. 처음 본 스크롤러는
-  위치만 기록한다(링크의 줄로 뛰는 것을 아래 스크롤로 치지 않게). `setFontSize`가 시각을 남기고(`lastZoomTime`),
-  줌 뒤 250ms의 스크롤은 무시한다(핀치와 ②가 만드는 스크롤). 4px 미만 움직임도 무시한다. 새 문서면 다시 보인다.
-- 레이어는 맨 위에 `--topbar-space`(56px)만큼 비운다: CodeMirror는 `.cm-content`의 `paddingTop`(거터가 따라온다),
-  마크다운은 `.markdown`의 위 패딩, 안내는 `.notice`. `?line=`은 코드에서 `yMargin: TOPBAR_SPACE`, 마크다운에서
-  `offsetTop - TOPBAR_SPACE`로 메뉴 바로 아래에 온다.
-- 버튼 이름은 새 `labels` RPC로 Kotlin 문자열 리소스에서 온다(`menu_sidebar` 등, 영어·한국어).
-- 상태 표시줄 아이콘을 어둡게 했다(`APPEARANCE_LIGHT_STATUS_BARS`/`NAVIGATION_BARS`). 테마가 DeviceDefault(다크)라
-  흰 아이콘이 흰 페이지에서 사라졌었다. M4 테마 때 다크면 되돌려야 한다.
-- **실기기 확인(CDP 핀치 + adb 탭):** 마크다운 24px→② 14px에서 가운데 블록 비율 0.636→0.635, 코드 9.4px→②에서
-  가운데 30010번째 줄 0.47 그대로, `big.ts?line=30000`이 메뉴 바로 아래, 스와이프로 숨김/표시(핀치 중엔 안 숨음),
-  안내 화면 제목이 ① 아래에서 시작.
-- 알려둔 흠: 코드를 스크롤한 채 메뉴가 떠 있으면 ① 버튼이 맨 위 줄 번호 한두 개를 가린다. 불투명 막대로 바꿀지
-  사용자 답을 아직 못 받았다.
 
-**Skiff → Skiff Code 연결 (`1f51fcd`)**
-- `:app`의 `MainActivity.openExternally`: `FileKind`가 CODE/TEXT/MARKDOWN이면 `:core`의 새 `link/SkiffCodeLink`로
-  링크를 만들어 `setPackage("com.naki.skiff.code")`로 보낸다. `ActivityNotFoundException`이면 전처럼 외부 앱 선택
-  (로컬만). 원격 링크는 `user@host:port/경로?alias=<프로필 이름>`이고 비밀번호는 넘기지 않는다.
-- 링크 빌더를 `:core`에 둔 것은 `:code`의 `SkiffCodeLinkTest`가 `SkiffCodeUri.parse`로 되읽어 두 쪽이 어긋나지
-  않게 하려는 것이다. unreserved 문자와 `/` 말고는 전부 UTF-8 퍼센트 인코딩, IPv6는 괄호.
-- 실기기: 로컬 `Download/hello.md`가 viewer로 열렸고, Skiff에 호스트 이름으로 저장된 개발 맥 프로필의 `plan.md`는 경로가 정확히 넘어가
-  Skiff Code의 "등록되지 않은 서버" 창이 떴다(설계대로 — `ProfileProvider` 전이라). 사용자가 비밀번호를 넣고 열었다.
-- 보안 메모: 받는 앱을 패키지 이름으로만 정한다. 같은 이름의 가짜 앱이 있으면 서버 주소와 경로가 그리로 간다
-  (비밀번호는 아니다). `ProfileProvider` 때 받는 쪽 서명 확인을 같이 볼 수 있다.
+**release 빌드 (`8d9338f`, `app/proguard-rules.pro`)**
+- R8이 `sun.security.x509.X509Key`를 못 찾아 멈췄다. sshj가 쓰는 `net.i2p.crypto.eddsa.EdDSAEngine`이
+  참조하는데 Android에는 없는 클래스다. **바이트코드를 보니 공개키가 `EdDSAPublicKey`가 아닐 때만 가는
+  분기**여서(sshj는 항상 `EdDSAPublicKey`를 넘긴다) `-dontwarn` 한 줄로 끝냈다.
+- debug 키로 서명해 탭에 넣고 ed25519 호스트키를 쓰는 개발 맥에 실제로 접속되는 것까지 봤다.
+  debug 키로 서명하면 기존 debug 앱 위에 덮어 설치돼 프로필과 호스트키가 남는다.
+- `:code`는 release에 축소(minify)가 꺼져 있어 같은 문제가 없다. 켜면 같은 규칙이 필요하다.
 
-**체크박스 색 (`c2f6a36`)** — 다크 대화상자에서 체크박스가 어두운 회색 강조색이라 켜짐/꺼짐이 구분되지 않았다.
-사용자 요청으로 색을 직접 쓰지 않고 `buttonTintList = textColors`(글자의 대비색)로 했다.
+**`ProfileProvider` (`21b6d88`) — M2 아홉째 항목**
+- 계약은 `:core`의 `link/SharedProfiles`에 있다(권한 이름, authority, 열 이름). 권한
+  `com.naki.skiff.permission.READ_PROFILES`(signature)는 **두 앱이 모두 선언한다.** 어느 쪽을 먼저
+  설치해도 권한이 주어지게 하려는 것이다.
+- Skiff의 `data/ProfileProvider`가 `profiles`와 `known_hosts`를 읽기 전용으로 내준다. 비밀번호는 없다.
+- Skiff Code는 원격 링크(`Remote`, `UnknownServer`)마다 provider를 읽어 `SkiffCodeStore.importFromSkiff`로
+  합치고 링크를 다시 해석한다. 합치는 규칙은 아래 결정 표에 있다.
+- **읽기 전에 authority의 주인이 `com.naki.skiff`이고 같은 키로 서명됐는지 본다.** 처음 구현에는 이게
+  없었는데, Skiff가 없는 기기에서 다른 앱이 authority를 차지하면 그 앱이 우리가 믿을 호스트키를 정할 수
+  있다. 권한은 읽는 쪽이 가진 것이라 이것을 막지 못한다. 호스트키 확인을 통째로 우회하는 구멍이었다.
+- Skiff도 링크를 보내기 전에 `checkSignatures`로 받는 쪽을 확인한다(인수인계에 적어 뒀던 보안 메모).
+  그래서 `<queries>`가 두 앱 모두에 있다.
+- 실기기: 권한 `granted=true`, 권한 없는 adb shell의 `content query`는 `SecurityException`. Skiff에서
+  개발 맥의 README.md를 탭하니 대화상자 없이 열렸고, Skiff에만 있던 프로필이 비밀번호 없이, 없던
+  호스트키가 들어왔다. 가져온 두 항목을 지우고 소유자 확인이 든 빌드로 다시 해도 같았다.
 
-**원격 성공 경로를 드디어 봤다.** `dev-mac`(비밀번호를 사용자가 탭에서 다시 넣음)으로 이 레포의 README.md가 열렸다.
+**M2 마지막 확인 (`c681dfc`)** — 탭에서 세 경로를 모두 봤다.
+- adb로 원격 링크(`?alias=`, `line=300`이 그 줄 근처를 맨 위로)와 로컬 링크(`hello.py`, 하이라이팅).
+- Skiff에서 원격 파일 탭(서명 확인 → 프로필 가져오기 → 대화상자 없이 열림).
+- 삼성 "내 파일"의 "다른 앱에서 열기" → 연결 앱 목록에 Skiff Code → **"한 번만"**으로 `content://`
+  마크다운이 열렸다. "항상"은 기기의 기본 앱 설정을 바꾸므로 고르지 않았다.
 
-### 이번에 발견한 문제 (아직 손대지 않음)
-1. **release 빌드 실패.** `:app:assembleRelease`에서 R8이 `sun.security.x509.X509Key`(sshj의 EdDSA 라이브러리
-   `net.i2p.crypto.eddsa.EdDSAEngine`이 참조)를 못 찾아 멈춘다. `proguard-rules.pro`에 `-dontwarn` 규칙이 필요하고,
-   그 뒤 release APK에서 ed25519 호스트키 접속을 실제로 확인해야 한다. `:code`도 같은 라이브러리라 같을 것이다.
-   (사용자가 `app-debug.apk`가 74MB인 이유를 물어서 봤다: debug는 R8이 없어 `material-icons-extended`(원본 36MB,
-   쓰는 아이콘은 34개)와 BouncyCastle(10MB)을 통째로 담는다.)
-2. ~~여는 흐름이 겹친다~~, ~~빈 비밀번호~~, ~~"서버로 저장" 기본값~~ — 사용자가 정해서 이번 세션에 처리했다(아래 표).
-3. 프로필의 `lastUsedEpochSeconds`가 파일을 열어도 0이다. 쓰는 화면이 없어 당장 문제는 아니다.
-
-
-### M2 여섯째 항목(viewer)에서 내린 판단
-**흐름.** `OpenFlow`가 여는 데서 멈추지 않고 `TextLoader`로 읽는다. `Opened`에 `result: LoadResult`와
-`line`이 붙었다. 원격은 세션의 `SftpFileSystem`, 로컬은 `LocalFileSystem`, `content://`는 새
-`TextLoader.load(Source)`(크기는 읽은 만큼, mtime은 0 — M3 `FileWatcher`가 `content://` 폴링 방법을 정할 때 볼 것).
-`MainActivity`가 문서 상태(JSON)를 들고, 페이지는 `document` RPC로 가져가며 `documentChanged` 알림을
-받으면 다시 묻는다. 핸들러가 멈추지 않아 응답이 요청 순서대로 나가므로 마지막 응답이 늘 현재 문서다.
-- 읽는 중의 실패(연결, 권한)는 지금처럼 **네이티브 대화상자**다. 읽었지만 못 보여 주는 것(`TooLarge`,
-  `Binary`, `UnknownEncoding`)만 페이지에 안내로 나온다. **페이지의 글은 전부 Kotlin 문자열 리소스**
-  (영어, 한국어)에서 온다. 웹 쪽에 번역 테이블을 따로 두지 않으려는 것이다.
-- 링크 파서의 거부 이유(영어 그대로)는 페이지가 아니라 대화상자에 나오는 것이라 이번에 손대지 않았다.
-- "불러오는 중" 상태는 없다. 원격에서 읽는 동안 이전 화면이 남는다.
-
-**viewer.** 언어는 `@codemirror/language-data` 6.5.2로 **파일 이름**에서 찾고, 파서는 언어마다 청크로
-나뉘어 처음 필요할 때 불러온다(번들 1.8MB). 이름이 마크다운이면 `markdown-it` 15.0.2(`html: false`,
-타입 내장)로 렌더링한다. 원문 보기는 M3 editor의 몫이다. 문서를 바꿀 때마다 `EditorView`를 새로
-만든다 — 하나의 뷰에 파일별 `EditorState`를 두는 것은 M3 항목이다.
-- `?line=`: 코드는 그 줄을 맨 위로, 마크다운은 그 줄 이전에서 시작하는 마지막 최상위 블록을 맨 위로
-  (`markdown-it`의 `map`으로 `data-line`을 붙였다).
-- 줌: `zoom.ts`를 `Hold`(제스처 시작 때 붙잡고, 크기를 바꾸며 되돌려 놓는 함수)로 일반화했다. 코드는
-  M0의 `scrollIntoView` 방식 그대로, 마크다운은 손가락 아래 블록을 같은 비율 위치에 둔다. 글자 크기는
-  하나를 같이 쓰고 문서를 바꿔도 유지된다. 마크다운 본문도 `--code-font-size`를 쓴다(테마는 M4).
-- 마크다운 링크: 상대 링크와 `#조각`은 페이지에서 `preventDefault`한다. 브라우저로 넘기면
-  `appassets…` 주소가 열리기 때문이다. 다른 파일로 가는 상대 링크는 아직 아무 일도 하지 않는다.
-- 스타일은 밝은 색 하나다. 다크와 테마는 M4.
-- Android 15의 edge-to-edge로 페이지가 상태 표시줄 밑에 그려져서, WebView를 `FrameLayout`에 넣고
-  시스템 바 여백을 줬다(WebView 자신의 padding은 내용에 먹지 않는다). **상단 메뉴 항목은 이 여백
-  안쪽에서 시작한다.**
-- M0 스파이크의 Kotlin 쪽(`StubLsp`, `sampleText`, 실행 인자)과 페이지의 측정 코드는 지웠다.
-- 상한 문구는 "2 MB"로 쓴다. `Formatter`는 1000 단위라 2MiB를 "2.1MB"로 보여 준다.
-
-**실기기에서 찾아 고친 버그 — EUC-KR.** Android의 `EUC-KR` 디코더는 JVM보다 넓다. `A1 41`(UHC 확장
-한글)을 U+C8A5로, `80`을 U+0080으로, `FF`와 사용자 정의 행 `FE xx`를 PUA 문자로 받는다. JVM은 전부
-거부해서 **단위 테스트는 통과하는데 기기에서는 깨진 파일이 열렸다.** 이제 `TextLoader`가 디코딩 전에
-EUC-KR 바이트 모양(ASCII, 또는 두 바이트 모두 A1..FE이고 C9·FE 행이 아닌 것)을 직접 본다. 기기에서
-네 경우 모두 `UnknownEncoding`이 되고 정상 EUC-KR 파일은 그대로 열리는 것을 확인했다. `AGENTS.md`
-툴체인 제약과 `plan.md` 설계에 적었다. (DevTools로 본 `C9 A1`→U+0261은 버그가 아니라 올바른 UTF-8이었다.)
-
-**실기기 확인(탭, 로컬 파일과 `content://`):** 테스트 파일은 탭의 `Download/skiffcode-test/`에 있다.
-Python·TS·Makefile 하이라이팅, 2MB TS를 30000번째 줄로 열기(읽고 여는 데 약 50ms), 마크다운의 raw HTML이
-글자로 나오고 `javascript:` 링크가 링크가 되지 않고 외부 이미지가 CSP로 막힘, 3MB·바이너리·깨진 인코딩
-안내, `content://media/external/file/<id>`로 EUC-KR 파일 열기. **adb로 링크를 실제로 탭해** https는 Chrome,
-mailto는 Gmail로 가고 페이지는 남고, `intent:`는 버려지고 상대·조각 링크는 아무 일도 없었다.
-핀치 줌은 DevTools 프로토콜 `Input.dispatchTouchEvent`로 두 손가락을 만들어 코드(줄 30016)와
-마크다운(문단 61) 모두 손가락 아래가 그대로인 것을 봤다. **adb는 멀티터치를 못 만들지만 CDP는 된다.**
-mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다. Gmail 임시보관함에 빈 메일이 남았을 수 있다.
-
-### M2 넷째·다섯째 항목(`TextLoader`, 브리지)에서 내린 판단
-**순서 질문의 답:** 지난 세션에서 답을 못 받은 질문에 사용자가 **"계획 순서대로"**를 골랐다.
-`TextLoader` → 브리지 → viewer 다음에 Skiff 쪽(`onOpen`에서 `skiffcode://` 인텐트)을 연결한다.
-그래서 Skiff에서 원격 파일을 탭하면 아무 일도 없는 것은 그 항목까지 그대로다(`openExternally`가
-`SourceId.Local`이 아니면 돌아간다).
-
-**`doc/TextLoader` (`ef1e6d7`)**
-- `load(fs, path)`: `stat` → 상한(기본 2MB) 검사 → 상한+1바이트까지만 읽기 → `decode`. `FileSystem`
-  위라 로컬과 원격이 같은 길이다. `content://`는 바이트를 직접 읽어 `decode(bytes, size, mtime)`에 넘긴다.
-- **디코딩은 엄격하다.** UTF-8을 REPORT 모드로 시도하고, 실패하면 EUC-KR, 둘 다 실패하면
-  `UnknownEncoding`으로 열지 않는다. 대체 문자로 채운 텍스트를 저장하면 원래 바이트가 덮어써진다.
-  계획에는 없던 결과 값이라 `plan.md` 설계에 적었다.
-- UTF-8 BOM은 떼고 기억한다(`TextFormat.bom`). 줄바꿈은 **첫 줄의 것**으로 정하고 텍스트는 `\n`으로
-  바꿔 넘긴다. 섞인 파일은 저장하면 한 가지로 통일된다.
-- 결과의 `size`, `modifiedEpochSeconds`는 읽기 전 `stat` 값이다. M3의 `DocumentSaver`가 충돌 비교에 쓴다.
-- `:code` 테스트가 `:core`의 testFixtures(`SftpTestServer`)와 `slf4j-simple`을 쓰게 됐다(`:app`과 같은 방식).
-- viewer 항목에서 `OpenFlow`에 연결했다. `content://`용으로 `load(Source)`가 생겼다.
-
-**`bridge/WebBridge` + `bridge.ts` (`dfb5434`)**
-- `method(name) { params -> result }`, `onNotify(name)`, `notify(method, params)`(아무 스레드에서나).
-  오류 코드: 없는 메서드 -32601, `JSONException`은 -32602, 그 밖의 예외는 -32000(메시지 그대로).
-  Web에서는 `RpcError(code, message)`로 받는다.
-- **`ready` 규칙:** Kotlin은 페이지가 먼저 말해야 답할 통로(reply proxy)를 얻는다. 그래서 `bridge.ts`가
-  로드되자마자 `ready` 알림을 보내고, 그 전에 Kotlin이 보낸 알림은 모아 뒀다가 순서대로 넘긴다.
-  페이지를 다시 불러오면 새 `ready`의 통로로 바뀐다. **주의:** `ready` 직후 넘어온 알림은 그때까지
-  `onNotify`로 구독하지 않은 Web 리스너에게는 전달되지 않는다. viewer는 그래서 페이지가 `rpc`로
-  묻는 구조로 갔다.
-- 메인 프레임에서 온 메시지만 받는다. `Log`는 JVM 테스트에서 스텁이라 로거를 생성자로 받는다.
-- 보안: 자산 로더는 `/assets/web/`만 내주고 나머지 요청은 모두 빈 403. CSP는 `index.html`에 있다
-  (`style-src`의 `'unsafe-inline'`은 그 파일의 `<style>` 때문). 링크는 http/https/mailto만 `ACTION_VIEW`로
-  넘기고 `intent:` 등은 버린다. 자세한 규칙은 `plan.md` "보안 규칙".
-- 스파이크의 `sampleText`와 스텁 LSP는 viewer 항목에서 지웠다.
-- 실기기 확인: LSP 스파이크가 M0과 같은 수치(initialize 4ms, 진단 250ms, 재동기화 589ms). DevTools로
-  외부 fetch·외부 이미지·인라인 스크립트·iframe이 CSP로 막히고, `web/` 밖 자산이 403이고,
-  `location.href = 'https://…'`는 Chrome을 열고 페이지는 남고, `intent:` 링크는 버려지는 것을 봤다.
-- DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았지만(원인 모름), viewer에서
-  **실제로 탭하면** Chrome으로 나간다. 확인 끝.
-
-### 지난 세션(M2 첫~셋째 항목)에서 내린 판단
-**`SkiffCodeUri`**
-- 직접 파싱한다. `android.net.Uri`는 유닛 테스트 JVM에서 스텁이고, `java.net.URI`는 인코딩되지 않은
-  한글 경로를 거부한다.
-- user는 없어도 된다(alias만으로 서버를 가리킬 수 있다). 포트 기본 22, host 소문자, IPv6 괄호 제거.
-  `+`는 공백으로 바꾸지 않는다. 깨진 퍼센트 인코딩, UTF-8이 아닌 바이트, NUL은 거부한다.
-
-**`SkiffCodeStore`와 `jsonDataStore`**
-- Skiff와 같은 모양이고 파일은 따로다(`skiffcode.json`). Keystore 키가 앱마다 따로라 암호문을 공유할 수 없다.
-- **읽을 수 없는 저장 파일은 `<이름>.corrupt-<밀리초>`로 복사해 두고 빈 데이터로 시작한다. 두 앱을
-  같이 고쳤다**(사용자 지시, `:core`의 `jsonDataStore`). 전에는 첫 쓰기가 원래 파일을 덮어써서
-  프로필과 호스트키를 모두 잃었고, 모든 서버가 "바뀐 서버"가 아니라 "처음 보는 서버"로 보였다.
-  현실적인 원인은 `AuthMethod` 하위 클래스 이름 변경이다. 실기기의 Skiff에서 기존 `skiff.json`이
-  그대로 읽히는 것을 확인했다. "초기화했다"는 알림은 아직 없다.
-
-**인텐트와 여는 흐름**
-- **alias가 맞으면 그 프로필의 host를 쓴다.** 링크가 아는 alias를 다른 기계로 돌릴 수 없다. 대신
-  경로는 링크의 것이라, 링크를 받은 사람이 자기 서버의 임의 경로를 열게 된다. 읽기만 하는 동안은
-  문제가 아니지만 editor가 생기면 다시 볼 것.
-- user 없는 링크는 (host, port)가 프로필 하나에만 맞을 때만 쓴다. host 비교는 대소문자를 무시한다.
-- 알 수 없는 서버의 확인창은 주소와 경로를 보여 주고 비밀번호를 받는다. "서버로 저장"은 **기본 켬**
-  이다(링크로 여는 서버는 다시 열 가능성이 높다고 봤다). 끄면 프로세스가 끝날 때까지 메모리에만 둔다.
-  링크에 user가 있으면 확인창에서 바꿀 수 없다.
-- 대화상자는 WebView가 아니라 네이티브 `AlertDialog`다. 비밀번호와 호스트키 결정이 원격 내용을
-  렌더링하는 페이지를 지나가지 않게 하려는 것이다. 문구는 영어와 한국어 리소스로 뒀다.
-- 흐름은 `stat`과 최근 파일 기록에서 끝나고 토스트를 띄운다. viewer가 이어받는다.
-- **파서의 거부 이유는 영어 그대로 대화상자에 나온다**(예: "a password in the link is not accepted").
-  viewer에서 오류를 페이지에 보여 줄 때 현지화할 것.
-
-**`SshClientFactory` 인증 (별도 커밋 `18347b5`)**
-- 실기기 확인 중에 **틀린 비밀번호가 33초 뒤에야 실패하는 것**을 찾았다. sshj의 `authPassword`는
-  `password`가 거부되면 같은 연결에서 `keyboard-interactive`를 다시 시도하는데, macOS sshd는 그
-  두 번째 시도에 답하지 않는다. OpenSSH 클라이언트도 같은 순서면 멈추는 것을 `expect`로 확인했다.
-  이제 `password`만 시도하고, 서버가 `password`를 아예 안 받을 때만 `keyboard-interactive`를 쓴다.
-  Skiff도 같이 고쳐진다. 실기기에서 3초로 줄었다.
-
-### M1에서 내린 판단
-- **M1의 1번과 2번 항목은 같이 할 수밖에 없다.** `HostKeyGate`를 `:core`로 옮기려면 `SkiffStore` 의존을
-  먼저 `KnownHostStore`로 끊어야 컴파일이 된다. 그래서 한 커밋에 넣었다.
-- **`SftpTestServer`는 `:core`의 testFixtures로 내보냈다.** `SftpFileSystemTest` 19개 중 3개가
-  `CopyEngine`(`:app`에 남는다)을 쓰고 있었다. 그 3개를 `:app`의 `SftpTransferTest`로 옮기고, 서버는
-  fixture로 공유한다. 서버를 복사하면 두 사본이 달라진다.
-- **`:core`는 okio, sshj, kotlinx-serialization을 `api`로 내보낸다.** 셋 다 `:core`의 시그니처에
-  들어가 있어서, `:app`이 다시 선언하지 않아도 되게 했다. `:app`에 남긴 직접 의존은 BouncyCastle
-  하나인데, `SkiffApplication`이 직접 provider를 등록하기 때문이다.
-- **`SshClientFactory`는 접속·인증·keepalive만 갖는다.** 오류를 `FsError`로 옮기는 것은 `SshConnection`에
-  남겼다. 재시도 판단이 거기 있기 때문이다.
-
-### 실서버 확인 결과
-사용자가 서버 프로필을 등록해 줘서 탭에서 직접 확인했다. **서버는 개발 맥 자신이라 양쪽을 셸에서
-대조할 수 있었다.** 접속, 홈 목록, 하위 디렉터리 이동, 새로고침, 분할 화면, 양방향 전송이 모두
-동작하고 MD5가 원본과 같았다. 자세한 것은 `plan.md`의 M1 마지막 항목에 적었다.
-
-**전송 속도의 비대칭을 오해하지 말 것.** 29.3MB에서 내려받기 7.8 MB/s, 올리기 0.9 MB/s다.
-`SftpFileSystem.openRead`에만 read-ahead가 있고(`READ_AHEAD_MAX = 16`) 쓰기 쪽은 파이프라이닝이
-없어서 그렇다. **버그가 아니고 M1이 만든 것도 아니다.** 올리기가 느린 게 문제가 되면 쓰기 쪽
-파이프라이닝은 별개 작업으로 잡는다.
-
-기기에 남아 있던 프로필 `testnas`는 문서용 예약 주소(`192.0.2.0/24`)를 가리켜 응답하지 않는다.
-15초 뒤 `FsError.Unreachable`로 끝나는 것까지 확인했다 — 오류 경로도 정상이다.
-
-### 원격 실행 방식을 다시 따져봤다 (코드 변경 없음)
-사용자가 "SSH exec가 나은지 데몬이 나은지" 다시 보자고 해서 분석했다. **결론은 exec 유지로 그대로**
-이지만 **적혀 있던 근거가 약해서 고쳤다.** "아키텍처별 빌드 부담"은 컴파일된 바이너리 데몬만
-반박하고, `sh`나 `python3`로 도는 스크립트 에이전트는 그 비용이 없다. 실제로 성립하는 근거 세 개와
-데몬을 다시 꺼내는 조건(M6에서 무엇을 잴지 포함)은 `plan.md`의 "정한 것" 2번과 "범위 밖"에 있다.
-
-덤으로 `GitService` 설계에 `git cat-file --batch`를 길게 연 채널로 두는 안을 넣었다. exec의 약점인
-명령당 왕복을 줄이는 자리고, 프레이밍이 `LspProcess`와 같은 모양이다.
+### 사용자에게 답을 못 받은 것
+1. **push 여부.** 커밋 3개가 원격보다 앞서 있다.
+2. **상단 메뉴를 불투명 막대로 바꿀지.** 코드를 스크롤한 채 메뉴가 떠 있으면 ① 버튼이 맨 위 줄 번호를
+   한두 개 가린다.
 
 ### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing(**커밋마다, push마다 사용자에게 먼저
-   묻는다**), 보고와 알림 규칙을 본다.
-2. push하지 않은 커밋이 있다. push할지 사용자에게 묻는다.
-3. 상단 메뉴를 불투명 막대로 바꿀지, release 빌드(위 1번)를 언제 고칠지 사용자에게 묻는다.
-4. `plan.md`의 첫 `- [ ]`인 **`ProfileProvider`** 를 한다: Skiff가 서명 권한(`protectionLevel="signature"`)
-   Provider로 프로필(비밀번호 제외)과 호스트키를 내주고, Skiff Code가 읽어 자기 저장소에 반영한다. 지문이 다르면
-   경고 흐름. 끝나면 Skiff의 서버를 누를 때 "등록되지 않은 서버" 창 없이 비밀번호만 묻게 된다.
-   - Skiff Code의 `alias` 조회는 프로필 **이름**으로 한다. Skiff의 이름과 맞춰 넣으면 링크의 `alias`가 바로 맞는다.
-
+1. `AGENTS.md`를 읽는다. 특히 툴체인 제약, Before committing(**커밋마다, push마다 사용자에게 먼저 묻는다**),
+   보고와 알림 규칙.
+2. 위 두 질문을 사용자에게 묻는다.
+3. `plan.md`의 첫 `- [ ]`인 **M3 editor 레이어**를 한다: `Compartment`로 viewer↔editor 전환, 레이어별
+   스크롤 보존, ③ 토글 순환과 아이콘 연결. 지금 ③은 `disabled`다.
+   - 문서를 바꿀 때마다 `EditorView`를 새로 만드는 지금 방식은 M3의 "열린 파일 `EditorState` LRU" 항목에서
+     하나의 뷰 + 파일별 `EditorState`로 바뀐다. editor 레이어를 만들 때 그 모양을 미리 생각해 둔다.
+   - editor가 생기면 **링크가 아는 alias의 임의 경로를 열게 되는 문제**를 다시 본다(읽기만 할 때는
+     문제가 아니었다). 아래 "아직 확인하지 않은 것" 참고.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -237,19 +76,20 @@ mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다
 | 결정 | 고른 것 | 이유 |
 |---|---|---|
 | 레포 구조 | 같은 레포, `:core` / `:app` / `:code` 멀티모듈 | 별도 레포는 SFTP 계층을 복사하게 되고, 두 사본이 따로 바뀌면서 달라진다 |
-| 원격 실행 | 데몬 없이 SSH exec (프로젝트 모드에서만) | 2026-09-18에 다시 따져보고 근거를 고쳤다. 데몬은 exec 없이 뜨지도 못하고(SFTP는 실행을 못 한다), 남에게 배포하는 앱이 남의 서버에 상주 프로세스를 심는 것은 "서버에 아무것도 설치하지 않는다"는 근본 제약과 충돌한다. 셋째로 임의의 서버가 대상이라 단일 산출물이 없다. 자세한 것과 데몬을 다시 꺼내는 조건은 `plan.md`의 "정한 것" 2번과 "범위 밖"에 있다 |
+| 원격 실행 | 데몬 없이 SSH exec (프로젝트 모드에서만) | 데몬은 exec 없이 뜨지도 못하고(SFTP는 실행을 못 한다), 남에게 배포하는 앱이 남의 서버에 상주 프로세스를 심는 것은 "서버에 아무것도 설치하지 않는다"는 제약과 충돌한다. 임의의 서버가 대상이라 단일 산출물도 없다. 자세한 것과 데몬을 다시 꺼내는 조건은 `plan.md`의 "정한 것" 2번과 "범위 밖" |
 | UI | 전부 WebView 하나 (TS + CodeMirror 6) | Compose와 WebView를 섞으면 테마를 두 곳에 적용해야 하고, 스크롤에 따른 메뉴 숨김도 브리지를 거친다 |
 | 서버 정보 공유 | Skiff가 서명 보호 Provider로 프로필만 공유, 비밀번호는 각자 저장 | Keystore 키는 앱마다 따로라 암호문을 공유할 수 없고, 비밀번호를 넘기면 평문이 IPC를 지나간다 |
+| 프로필 합치기 (2026-09-19) | Skiff id → 이름 순으로 찾아 Skiff의 주소·시작 경로를 받고 자기 id와 비밀번호는 유지. host(대소문자 무시)·port·user가 바뀌면 비밀번호를 지운다. 없으면 비밀번호 없이 추가. **지우지는 않는다** | 사용자 결정. 비밀번호가 다른 기계로 따라가지 않게 하려는 것이다. Skiff Code에만 있는 프로필을 Skiff가 지웠다고 없애면 사용자가 잃는다 |
+| 호스트키 합치기 (2026-09-19) | 그 host:port에 **없을 때만** 받는다. 있는 것은 Skiff와 달라도 덮어쓰지 않는다 | 사용자 결정. 어느 쪽이 맞는지는 서버가 키를 내밀 때 `HostKeyGate`의 경고 창이 판단할 일이지, 동기화가 조용히 정할 일이 아니다 |
+| 받는 쪽 서명 확인 (2026-09-19) | Skiff는 링크를 보내기 전에, Skiff Code는 provider를 읽기 전에 서로 같은 키로 서명됐는지 본다 | 사용자 결정. 패키지 이름만 흉내 낸 앱에 서버 주소와 경로가 가거나, 그 앱이 우리에게 호스트키를 심는 것을 막는다 |
 | 실기기 | 갤럭시탭 S10 FE(SM-X526N, Android 16/API 36, WebView 152) | 연결된 기기가 이것이다. **폴더블 폰도 지원 대상**이라 폴더블 관련 문서와 코드는 지우지 않는다 |
-| 예전 시도 | 로컬 브랜치 `claude/next-steps-2afbda`와 기기의 `com.naki.skiffcode`를 삭제 | 사용자 지시. 없었던 것으로 친다. 참고하거나 되살리지 않는다 |
-| CM6 버그 처리 | **upstream에 올리지 않는다.** M5 diff 레이어에서 `patch-package`로 두 줄을 패치한다 | CodeMirror는 AI가 쓴 코드를 받지 않고 이슈는 자체 트래커에서만 받는다. 사용자는 리포트를 올리지 않기로 했다 |
-| TOML | ktoml을 쓴다. `smol-toml`로 옮기지 않는다 | M0에서 확인했다. 컴파일러 플러그인만 필요하고 KSP를 안 써서 Room과 다르다 |
-| exec | `:app`은 금지, `:code`는 허용. 근거는 "서버에 설치하지 않기 위해"가 아니라 **"셸 없는 `internal-sftp` 계정을 지원하기 위해"** 다 | 사용자가 금지의 출처를 물었고, 사용자가 정한 것이 아니라 AI가 잘못 유도한 것으로 드러났다. 규칙은 남기고 이유를 고쳤다 |
-| M0 스파이크 코드 | 확인이 끝나면 지운다. exec 하네스도 지웠다 | 사용자 지시. M0은 버리는 코드로 확인만 하는 단계다 |
-| 로컬 파일 경로 | `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 둘 다 받는다 | 2026-09-18 사용자가 가정대로 진행하라고 했다. `plan.md` "정한 것" 5번 |
-| M2 순서 | 계획 순서대로: `TextLoader` → 브리지 → viewer → Skiff 쪽 연결 | 2026-09-18 사용자 선택. Skiff 쪽을 먼저 붙이면 탭해도 토스트까지만 가고, `ProfileProvider` 전이라 비밀번호와 호스트키를 다시 받아야 한다 |
-| 상단 메뉴 | ② 확대·③ 축소를 빼고 **② 원래 크기**(설정의 기본 글자 크기)를 넣고 번호를 당겼다: ① 사이드바, ② 원래 크기, ③ 레이어 토글, ④ 더보기. editor 하단 ±도 뺐다. 팔레트의 확대/축소 명령은 남긴다 | 2026-09-19 사용자 결정. 확대/축소는 핀치로 한다. `menu.layout.jpg`와 번호가 다르다 |
-| 링크로 여는 대화상자 | "서버로 저장"은 **기본 켬** 유지. 비어 있는 필수 칸(사용자, 비밀번호)이 있으면 **연결 버튼을 끈다**. 여는 중에 **새 링크가 오면 이전 흐름을 취소**한다(창이 닫히고 결과는 버린다) | 2026-09-19 사용자 결정. 전에는 빈 비밀번호가 저장·시도돼 "거부됐습니다"가 한 번 더 떴고, 창이 떠 있을 때 온 링크가 창을 하나 더 쌓았다. `Dialogs.await`의 `required`, `MainActivity.opening` |
+| 예전 시도 | 로컬 브랜치 `claude/next-steps-2afbda`와 기기의 `com.naki.skiffcode`를 삭제 | 사용자 지시. 없었던 것으로 친다 |
+| CM6 버그 처리 | **upstream에 올리지 않는다.** M5 diff 레이어에서 `patch-package`로 두 줄을 패치한다 | CodeMirror는 AI가 쓴 코드를 받지 않고 이슈는 자체 트래커에서만 받는다 |
+| TOML | ktoml을 쓴다. `smol-toml`로 옮기지 않는다 | M0에서 확인했다 |
+| exec | `:app`은 금지, `:code`는 허용. 근거는 **"셸 없는 `internal-sftp` 계정을 지원하기 위해"** 다 | 금지의 출처가 사용자가 아니라 AI의 잘못된 유도였던 것이 드러났다. 규칙은 남기고 이유를 고쳤다 |
+| 로컬 파일 경로 | `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 둘 다 | `plan.md` "정한 것" 5번 |
+| 상단 메뉴 | ① 사이드바, ② 원래 크기, ③ 레이어 토글, ④ 더보기. editor 하단 ±는 없다 | 확대/축소는 핀치로 한다. `menu.layout.jpg`와 번호가 다르다 |
+| 링크로 여는 대화상자 | "서버로 저장"은 기본 켬. 빈 필수 칸이 있으면 연결 버튼을 끈다. 여는 중에 새 링크가 오면 이전 흐름을 취소한다 | 전에는 빈 비밀번호가 저장·시도됐고, 창이 하나 더 쌓였다 |
 | 보고 방식 | 작업마다 한국어로 보고하고 푸시 알림을 보낸다 | 사용자가 자리를 비울 때가 많다. `AGENTS.md`에 적었다 |
 
 ### 사용자 확인을 아직 받지 않은 가정
@@ -257,61 +97,63 @@ mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다
 1. diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "직전 커밋과 HEAD"는 두 번째 옵션이다. (M5 전)
 2. 원격 LSP 서버는 자동 설치하지 않고 PATH에서 찾는다. (M6 전)
 
-### 실제 LSP 서버 확인 (exec 규칙을 고치고 추가로 한 것)
-
-**사용자가 exec 금지의 근거를 물었고, 문서가 틀렸다는 것이 드러났다.** "서버에 아무것도 설치하지
-않는다"는 사용자가 정한 제약이지만, "그러므로 exec를 두지 않는다"는 AI가 유도한 것이고 논리가
-맞지 않는다(서버에 이미 있는 `git`을 exec로 돌리는 것은 아무것도 설치하지 않는다). 실제로 그 규칙이
-지키는 것은 **셸 없는 `internal-sftp` 계정 지원**이다. `AGENTS.md`를 그렇게 고쳤고, `:code`는
-exec를 쓸 수 있다고 명시했다. `:app`은 여전히 금지다.
-
-사용자가 스파이크에서 exec를 허용해서 실제 서버로 확인했다. **하네스는 사용자 지시로 지웠다.**
-M6에서 다시 만들 때 필요한 것은 이것뿐이다:
+### 실제 LSP 서버 확인 (M0에서 한 것, M6에서 다시 필요하다)
+스파이크 하네스는 사용자 지시로 지웠다. 다시 만들 때 필요한 것은 이것뿐이다.
 - 서버 쪽: MINA `SshServer`에 `commandFactory = ProcessShellCommandFactory.INSTANCE`.
-  `SftpTestServer`(이제 `:core`의 testFixtures)와 같은 구성이고 subsystem 대신 commandFactory를 둔다.
+  `SftpTestServer`(`:core`의 testFixtures)와 같은 구성이고 subsystem 대신 commandFactory를 둔다.
 - 클라이언트 쪽: sshj `session.exec("/bin/sh -lc 'cd <root> && exec <command>'")`.
 - 프레이밍: 헤더는 `\r\n\r\n`까지 한 바이트씩, 본문은 `Content-Length`만큼 채워 읽는다.
 - 언어 서버: `npm i pyright` → `node_modules/.bin/pyright-langserver --stdio`. 레포에 넣지 않았다.
-- **`org.json`은 유닛 테스트 JVM에서 스텁이라 전부 던진다.** `org.json:json`을 테스트 의존성으로
-  넣어야 한다. Gradle의 `-D`는 테스트 JVM에 전달되지 않으니 `systemProperty`로 넘겨야 한다.
+- **`org.json`은 유닛 테스트 JVM에서 스텁이라 전부 던진다.** `org.json:json`을 테스트 의존성으로 넣는다.
+  Gradle의 `-D`는 테스트 JVM에 전달되지 않으니 `systemProperty`로 넘긴다.
 - 결과: initialize 98ms, 진단까지 346ms(로컬 루프백). `positionEncoding`은 응답에 없고(= `utf-16`),
-  `textDocumentSync`는 2(incremental). `값 = "한글" + 1`의 진단이 char 4..12로 UTF-16 인덱스와
-  정확히 맞았다(UTF-8이면 4..18이다).
+  `textDocumentSync`는 2(incremental). 한글이 든 줄의 진단이 UTF-16 인덱스와 정확히 맞았다.
 
 ### 아직 확인하지 않은 것
 안 되는 게 나오면 `plan.md`의 설계를 먼저 고친다.
-- **여는 흐름에서 실기기로 확인한 것:** 비밀번호가 든 링크 거부, 알 수 없는 서버 확인창, 첫 연결
-  호스트키 창(지문을 맥의 `ssh-keygen -lf`와 대조), 틀린 비밀번호 재시도 창, 저장된 프로필을 alias로
-  찾기, `onNewIntent`, 로컬 링크의 파일 접근 안내와 설정에서 돌아온 뒤 이어지기, 최근 파일 기록.
-- **확인하지 못한 것:** **바뀐 호스트키 경고 창**, 파일 매니저의 "다른 앱으로 열기"(`content://` 자체는 MediaStore URI로
-  확인했다, M2 마지막 확인 항목), 손으로 하는 핀치 줌과 상단 메뉴의 손 사용감, Android 17의
-  로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다). 탭의 Skiff Code에는 `dev-mac`(맞는 비밀번호)이 있다.
-  그 개발 맥의 두 번째 프로필(호스트 이름으로 저장된 것)은 사용자 요청으로 지웠고(호스트키는 남겼다) 사용자가 다시 테스트 중이었다.
-- **탭에서 실제 SSH 서버로 LSP를 띄워 본 적은 아직 없다.** M1에서 SFTP 탐색과 전송은 실서버로 확인했지만, 위 LSP 확인은 이 맥 안의 MINA 루프백이라 네트워크 지연, 재접속, 끊김이 빠져 있다. exec로 원격 LSP를 띄우는 것은 M6이 처음이다.
+- **바뀐 호스트키 경고 창**을 기기에서 본 적이 없다. 이제 Skiff Code가 Skiff의 호스트키를 가져오므로
+  이 경고가 뜨는 경우가 더 줄었다. 서버의 키를 일부러 바꿔 한 번 봐야 한다.
+- **서명이 다른 앱이 끼어드는 경로**(가짜 Skiff Code, 가짜 provider)는 그런 앱을 만들지 않아 기기에서 보지 못했다.
+- **링크가 아는 alias의 임의 경로를 연다.** alias가 맞으면 host는 프로필 것을 쓰지만 경로는 링크의 것이다.
+  읽기만 하는 동안은 문제가 아니고, **editor가 생기면 다시 본다.**
+- 손으로 하는 핀치 줌과 상단 메뉴의 손 사용감. adb로는 멀티터치를 못 만든다.
+- Android 17의 로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다).
+- release APK의 배포용 서명. 이번에는 debug 키로 서명해서 확인만 했다.
+- **탭에서 실제 SSH 서버로 LSP를 띄워 본 적은 없다.** 위 LSP 확인은 이 맥 안의 MINA 루프백이라
+  네트워크 지연, 재접속, 끊김이 빠져 있다. exec로 원격 LSP를 띄우는 것은 M6이 처음이다.
 - 진단이 수백~수천 개일 때의 비용. 스텁은 50개, pyright는 1개였다.
-- lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다(마크다운은 `markdown-it` 15.0.2로 정했다).
-- 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 알고, 실제 서버가 어디서 버거워하는지는 모른다.
-- pyright 말고 다른 서버(typescript-language-server, marksman)는 확인하지 않았다. TypeScript 7은 네이티브 재작성이라 `tsserver.js`가 없고, `typescript-language-server`가 그 위에서 도는지 모른다.
+- lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다.
+- 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 안다.
+- pyright 말고 다른 서버(typescript-language-server, marksman)는 확인하지 않았다.
 
 ### 주의할 점
 - **세션을 끝낼 때 `plan.md` 체크리스트를 갱신하고 이 파일을 덮어쓴다.**
-- **exec 규칙은 이미 고쳤다.** `:app`은 여전히 금지, `:code`는 허용이다. M5의 체크리스트에서 `AGENTS.md` 수정은 빠졌고 `RemoteExec` 구현만 남았다. 자세한 것은 위 "실제 LSP 서버 확인" 절과 `AGENTS.md`의 "The SFTP side, and what it must not do"에 있다.
-- `npm install` 때 fsevents install 스크립트는 npm 11 기본 정책으로 실행되지 않는다. macOS용 선택 의존성이라 영향이 없다.
+- **레포에 기기나 네트워크를 알아볼 수 있는 것을 남기지 않는다.** 호스트 이름, IP, 계정, 지문이 문서와
+  테스트에 들어가기 쉽다. 이번에도 plan.md와 테스트에서 기기 이름을 빼고 `build.example`로 바꿨다.
+  픽스처와 문서는 `192.0.2.0/24`(RFC 5737)와 `.example`을 쓴다.
+- **exec 규칙:** `:app`은 금지, `:code`는 허용. `AGENTS.md`의 "The SFTP side, and what it must not do" 참고.
+- `npm install` 때 fsevents install 스크립트는 npm 11 정책으로 실행되지 않는다. macOS용 선택 의존성이라 영향 없다.
 - 기기:
   - 시리얼은 `adb devices`로 얻고 레포에 적지 않는다.
-  - 화면은 2분 뒤 꺼지고, 꺼진 화면에서 `screencap`은 검은 화면을 찍는다. 측정 전에 `adb shell input keyevent KEYCODE_WAKEUP`을 보내고 `dumpsys window | grep mCurrentFocus`로 앱이 앞에 있는지 확인한다.
+  - **화면은 2분 뒤 꺼지고, 꺼진 화면에서 `screencap`은 검은 화면을 찍는다.** 탭 전에
+    `input keyevent KEYCODE_WAKEUP` → 잠금 해제 스와이프(`input swipe 1152 1300 1152 300 200`) →
+    `dumpsys window | grep mCurrentFocus`로 앱이 앞에 있는지 확인한다. 이걸 빼먹으면 탭이 그냥 사라진다.
   - 가로 방향(2304x1440)이고 화면은 하나라 `screencap`에 display id가 필요 없다.
   - 아래 가장자리에서 시작하는 스와이프는 시스템 제스처에 먹히므로 y 250~1100 사이에서 한다.
-  - adb로는 멀티터치를 만들 수 없다. DevTools를 포워딩하고 CDP `Input.dispatchTouchEvent`에 터치
-    점 두 개를 주면 핀치를 흉내 낼 수 있다(CSS px 기준, 화면 좌표는 ×2 + 상태 표시줄 60px). 그래도
-    손으로 하는 확인은 사용자에게 부탁한다.
-  - **탭에 외장 키보드(Corne)가 연결돼 있을 때가 있다.** 그러면 화면 키보드가 뜨지 않는다("입력이 안 된다"는
-    문의가 이것이었다). `dumpsys input | grep Corne`으로 확인한다.
-  - Skiff Code 저장 파일을 adb로 고칠 때는 먼저 `am force-stop`한다. `run-as … cat`으로 읽고
-    `adb exec-in run-as com.naki.skiff.code sh -c 'cat > files/datastore/skiffcode.json'`으로 쓴다.
-  - 페이지 좌표를 알면 `adb shell input tap`으로 링크를 실제로 탭할 수 있다(위와 같은 변환).
+  - adb로는 멀티터치를 만들 수 없다. DevTools를 포워딩하고 CDP `Input.dispatchTouchEvent`에 터치 점
+    두 개를 주면 핀치를 흉내 낼 수 있다(CSS px 기준, 화면 좌표는 ×2 + 상태 표시줄 60px).
+  - **외장 키보드(Corne)가 연결돼 있으면 화면 키보드가 뜨지 않는다.** `dumpsys input | grep Corne`.
+  - Skiff Code 저장 파일을 adb로 고칠 때는 먼저 `am force-stop`한다. `run-as … cat`으로 읽고,
+    `adb push`로 `/data/local/tmp`에 둔 뒤 `run-as … sh -c 'cat /data/local/tmp/x > files/datastore/skiffcode.json'`으로 쓴다.
+  - provider 확인: `adb shell content query --uri content://com.naki.skiff.profiles/profiles`는
+    **거부되는 것이 정상이다**(shell은 권한이 없다). 권한 부여는
+    `dumpsys package com.naki.skiff.code | grep READ_PROFILES`로 본다.
 - 환경:
   - `node`(v24)와 `npm`은 PATH에 있다.
   - `java`는 PATH에 없어서 `JAVA_HOME=/opt/homebrew/opt/openjdk@17`이 필요하다.
   - `adb`도 PATH에 없고 `/opt/homebrew/share/android-commandlinetools/platform-tools/adb`에 있다.
+    `zipalign`과 `apksigner`는 `/opt/homebrew/share/android-commandlinetools/build-tools/37.0.0/`에 있다.
+  - release APK를 기기에 넣을 때는 debug 키로 서명한다(`~/.android/debug.keystore`, 비밀번호 `android`,
+    별칭 `androiddebugkey`). 그래야 기존 debug 앱 위에 덮여 앱 데이터가 남는다. 확인이 끝나면
+    `installDebug`로 되돌린다.
   - worktree에는 gitignore된 `local.properties`가 따로 있어야 한다(메인 체크아웃에서 복사했다).
