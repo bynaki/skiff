@@ -9,23 +9,64 @@
 
 ---
 
-## 마지막 세션 (2026-09-19 새벽): M2 여섯째 항목 viewer 레이어 완료
+## 마지막 세션 (2026-09-19 저녁): M2 일곱째·여덟째 항목 완료
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **push하지 않은 커밋이 있다**: 지난 세션의 `ef1e6d7`, `dfb5434`,
-  `02842c9`와 이번 세션의 viewer 커밋, 이 인수인계 커밋. main에는 합치지 않았다.
-- **다음은 M2 일곱째 항목, 상단 메뉴 ①~④ 자리와 스크롤에 따른 숨김/표시, ② 원래 크기다**(`plan.md`의 첫 `- [ ]`).
-  메뉴는 2026-09-19에 바뀌었다: 확대/축소 버튼을 빼고 ② 원래 크기를 넣었고 번호를 당겼다(`plan.md` "화면 메뉴").
-- 모듈은 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code). 무엇이 어디 있는지는
-  `AGENTS.md`의 "Three modules"에 있다. **`:code`의 페이지는 이제 viewer다**(`web/src/main.ts`,
-  `layers/viewer.ts`, `markdown.ts`, `zoom.ts`, `bridge.ts`). M0 스파이크로 남은 것은 `diff.ts`와 `lsp.ts`뿐이고
-  페이지가 불러오지 않는다(M5·M6이 다시 쓴다).
-- 테스트: `:core` 35개, `:app` 24개, `:code` 81개(이번에 `TextLoaderTest`에 3개 추가). 실패 없음.
-  이번 세션은 `:code`만 돌렸다(`:core`, `:app`은 건드리지 않았다).
-- lint 경고: `:code` **11개**. 10개는 지난 세션과 같은 종류이고, 새로 `Recycle` 1개가 `OpenFlow`의
-  `openInputStream`에 뜬다. 스트림은 `use`로 닫히는데 lint가 `withContext` 너머를 못 보는 오탐이다.
+- 브랜치 `plan/skiffcode`(git worktree). **push하지 않은 커밋이 있다**: `2a8329d`(상단 메뉴), `1f51fcd`(Skiff →
+  Skiff Code 연결), `c2f6a36`(체크박스 색), 대화상자 결정 반영 커밋, 그리고 이 인수인계 커밋. push할지 사용자에게 아직 답을 못 받았다.
+  main에는 합치지 않았다.
+- **다음은 M2 아홉째 항목, Skiff 쪽 서명 권한 `ProfileProvider`다**(`plan.md`의 첫 `- [ ]`).
+- 테스트: `:core` 35개, `:app` 24개, `:code` 85개(이번에 `SkiffCodeLinkTest` 4개 추가). 실패 없음.
+- lint 경고: `:code` 11개(지난 세션과 같다), `:app` 4개(이번 변경으로 생긴 `UseKtx` 하나는 고쳤다).
+- **release 빌드가 실패한다**(아래 "이번에 발견한 문제" 1번). debug만 빌드해 왔다.
 
 ### 이번 세션에서 한 것과 내린 판단
+**상단 메뉴 (`2a8329d`, `web/src/chrome/topbar.ts`)**
+- 막대 없이 버튼만 떠 있다: 왼쪽 ① 사이드바, 오른쪽 묶음 ② 원래 크기(아이콘 "1:1"), ③ 레이어(눈), ④ 더보기.
+  ①③④는 `disabled`라 흐리게 보인다. ②는 `zoom.ts`의 `DEFAULT_FONT_SIZE`(14)로 가며 화면 가운데를 붙잡는다
+  (`showDocument`가 이제 `{ close, hold }`를 돌려주고 `main.ts`가 `hold(가운데)(14, 가운데)`를 부른다).
+- 스크롤 방향은 `document`의 capture `scroll` 리스너 하나가 모든 스크롤러에서 본다. 처음 본 스크롤러는
+  위치만 기록한다(링크의 줄로 뛰는 것을 아래 스크롤로 치지 않게). `setFontSize`가 시각을 남기고(`lastZoomTime`),
+  줌 뒤 250ms의 스크롤은 무시한다(핀치와 ②가 만드는 스크롤). 4px 미만 움직임도 무시한다. 새 문서면 다시 보인다.
+- 레이어는 맨 위에 `--topbar-space`(56px)만큼 비운다: CodeMirror는 `.cm-content`의 `paddingTop`(거터가 따라온다),
+  마크다운은 `.markdown`의 위 패딩, 안내는 `.notice`. `?line=`은 코드에서 `yMargin: TOPBAR_SPACE`, 마크다운에서
+  `offsetTop - TOPBAR_SPACE`로 메뉴 바로 아래에 온다.
+- 버튼 이름은 새 `labels` RPC로 Kotlin 문자열 리소스에서 온다(`menu_sidebar` 등, 영어·한국어).
+- 상태 표시줄 아이콘을 어둡게 했다(`APPEARANCE_LIGHT_STATUS_BARS`/`NAVIGATION_BARS`). 테마가 DeviceDefault(다크)라
+  흰 아이콘이 흰 페이지에서 사라졌었다. M4 테마 때 다크면 되돌려야 한다.
+- **실기기 확인(CDP 핀치 + adb 탭):** 마크다운 24px→② 14px에서 가운데 블록 비율 0.636→0.635, 코드 9.4px→②에서
+  가운데 30010번째 줄 0.47 그대로, `big.ts?line=30000`이 메뉴 바로 아래, 스와이프로 숨김/표시(핀치 중엔 안 숨음),
+  안내 화면 제목이 ① 아래에서 시작.
+- 알려둔 흠: 코드를 스크롤한 채 메뉴가 떠 있으면 ① 버튼이 맨 위 줄 번호 한두 개를 가린다. 불투명 막대로 바꿀지
+  사용자 답을 아직 못 받았다.
+
+**Skiff → Skiff Code 연결 (`1f51fcd`)**
+- `:app`의 `MainActivity.openExternally`: `FileKind`가 CODE/TEXT/MARKDOWN이면 `:core`의 새 `link/SkiffCodeLink`로
+  링크를 만들어 `setPackage("com.naki.skiff.code")`로 보낸다. `ActivityNotFoundException`이면 전처럼 외부 앱 선택
+  (로컬만). 원격 링크는 `user@host:port/경로?alias=<프로필 이름>`이고 비밀번호는 넘기지 않는다.
+- 링크 빌더를 `:core`에 둔 것은 `:code`의 `SkiffCodeLinkTest`가 `SkiffCodeUri.parse`로 되읽어 두 쪽이 어긋나지
+  않게 하려는 것이다. unreserved 문자와 `/` 말고는 전부 UTF-8 퍼센트 인코딩, IPv6는 괄호.
+- 실기기: 로컬 `Download/hello.md`가 viewer로 열렸고, Skiff에 호스트 이름으로 저장된 개발 맥 프로필의 `plan.md`는 경로가 정확히 넘어가
+  Skiff Code의 "등록되지 않은 서버" 창이 떴다(설계대로 — `ProfileProvider` 전이라). 사용자가 비밀번호를 넣고 열었다.
+- 보안 메모: 받는 앱을 패키지 이름으로만 정한다. 같은 이름의 가짜 앱이 있으면 서버 주소와 경로가 그리로 간다
+  (비밀번호는 아니다). `ProfileProvider` 때 받는 쪽 서명 확인을 같이 볼 수 있다.
+
+**체크박스 색 (`c2f6a36`)** — 다크 대화상자에서 체크박스가 어두운 회색 강조색이라 켜짐/꺼짐이 구분되지 않았다.
+사용자 요청으로 색을 직접 쓰지 않고 `buttonTintList = textColors`(글자의 대비색)로 했다.
+
+**원격 성공 경로를 드디어 봤다.** `dev-mac`(비밀번호를 사용자가 탭에서 다시 넣음)으로 이 레포의 README.md가 열렸다.
+
+### 이번에 발견한 문제 (아직 손대지 않음)
+1. **release 빌드 실패.** `:app:assembleRelease`에서 R8이 `sun.security.x509.X509Key`(sshj의 EdDSA 라이브러리
+   `net.i2p.crypto.eddsa.EdDSAEngine`이 참조)를 못 찾아 멈춘다. `proguard-rules.pro`에 `-dontwarn` 규칙이 필요하고,
+   그 뒤 release APK에서 ed25519 호스트키 접속을 실제로 확인해야 한다. `:code`도 같은 라이브러리라 같을 것이다.
+   (사용자가 `app-debug.apk`가 74MB인 이유를 물어서 봤다: debug는 R8이 없어 `material-icons-extended`(원본 36MB,
+   쓰는 아이콘은 34개)와 BouncyCastle(10MB)을 통째로 담는다.)
+2. ~~여는 흐름이 겹친다~~, ~~빈 비밀번호~~, ~~"서버로 저장" 기본값~~ — 사용자가 정해서 이번 세션에 처리했다(아래 표).
+3. 프로필의 `lastUsedEpochSeconds`가 파일을 열어도 0이다. 쓰는 화면이 없어 당장 문제는 아니다.
+
+
+### M2 여섯째 항목(viewer)에서 내린 판단
 **흐름.** `OpenFlow`가 여는 데서 멈추지 않고 `TextLoader`로 읽는다. `Opened`에 `result: LoadResult`와
 `line`이 붙었다. 원격은 세션의 `SftpFileSystem`, 로컬은 `LocalFileSystem`, `content://`는 새
 `TextLoader.load(Source)`(크기는 읽은 만큼, mtime은 0 — M3 `FileWatcher`가 `content://` 폴링 방법을 정할 때 볼 것).
@@ -180,17 +221,15 @@ mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다
 명령당 왕복을 줄이는 자리고, 프레이밍이 `LspProcess`와 같은 모양이다.
 
 ### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing(**커밋마다 사용자에게 먼저
+1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing(**커밋마다, push마다 사용자에게 먼저
    묻는다**), 보고와 알림 규칙을 본다.
 2. push하지 않은 커밋이 있다. push할지 사용자에게 묻는다.
-3. 사용자에게 **손으로 핀치 줌**(코드와 마크다운)을 부탁하고, 가능하면 맞는 비밀번호로 **원격 파일을
-   여는 성공 경로**를 본다.
-4. `plan.md`의 첫 `- [ ]`인 **상단 메뉴 ①~④ 자리와 스크롤 숨김/표시, ② 원래 크기**를 한다(①③④는 자리만).
-   - 메뉴는 `index.html`/`main.ts`의 `#viewer` 위에 겹친다. 코드는 `view.scrollDOM`, 마크다운은
-     `.markdown-scroller`가 스크롤하므로 두 스크롤러 모두에서 방향을 봐야 한다.
-   - ② 원래 크기는 `zoom.ts`의 `setFontSize`로 14px(설정이 생기면 설정값)에 돌아가고, 기준 줄은
-     화면 가운데로 두면 된다(`Hold`에 가운데 y를 주면 된다. M0의 `zoomTest`도 그렇게 했다).
-   - 설계 문서의 `chrome/topbar.ts` 자리다.
+3. 상단 메뉴를 불투명 막대로 바꿀지, release 빌드(위 1번)를 언제 고칠지 사용자에게 묻는다.
+4. `plan.md`의 첫 `- [ ]`인 **`ProfileProvider`** 를 한다: Skiff가 서명 권한(`protectionLevel="signature"`)
+   Provider로 프로필(비밀번호 제외)과 호스트키를 내주고, Skiff Code가 읽어 자기 저장소에 반영한다. 지문이 다르면
+   경고 흐름. 끝나면 Skiff의 서버를 누를 때 "등록되지 않은 서버" 창 없이 비밀번호만 묻게 된다.
+   - Skiff Code의 `alias` 조회는 프로필 **이름**으로 한다. Skiff의 이름과 맞춰 넣으면 링크의 `alias`가 바로 맞는다.
+
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -210,6 +249,7 @@ mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다
 | 로컬 파일 경로 | `skiffcode:///경로`(MANAGE_EXTERNAL_STORAGE)와 `content://`(ACTION_VIEW/EDIT) 둘 다 받는다 | 2026-09-18 사용자가 가정대로 진행하라고 했다. `plan.md` "정한 것" 5번 |
 | M2 순서 | 계획 순서대로: `TextLoader` → 브리지 → viewer → Skiff 쪽 연결 | 2026-09-18 사용자 선택. Skiff 쪽을 먼저 붙이면 탭해도 토스트까지만 가고, `ProfileProvider` 전이라 비밀번호와 호스트키를 다시 받아야 한다 |
 | 상단 메뉴 | ② 확대·③ 축소를 빼고 **② 원래 크기**(설정의 기본 글자 크기)를 넣고 번호를 당겼다: ① 사이드바, ② 원래 크기, ③ 레이어 토글, ④ 더보기. editor 하단 ±도 뺐다. 팔레트의 확대/축소 명령은 남긴다 | 2026-09-19 사용자 결정. 확대/축소는 핀치로 한다. `menu.layout.jpg`와 번호가 다르다 |
+| 링크로 여는 대화상자 | "서버로 저장"은 **기본 켬** 유지. 비어 있는 필수 칸(사용자, 비밀번호)이 있으면 **연결 버튼을 끈다**. 여는 중에 **새 링크가 오면 이전 흐름을 취소**한다(창이 닫히고 결과는 버린다) | 2026-09-19 사용자 결정. 전에는 빈 비밀번호가 저장·시도돼 "거부됐습니다"가 한 번 더 떴고, 창이 떠 있을 때 온 링크가 창을 하나 더 쌓았다. `Dialogs.await`의 `required`, `MainActivity.opening` |
 | 보고 방식 | 작업마다 한국어로 보고하고 푸시 알림을 보낸다 | 사용자가 자리를 비울 때가 많다. `AGENTS.md`에 적었다 |
 
 ### 사용자 확인을 아직 받지 않은 가정
@@ -243,11 +283,10 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
 - **여는 흐름에서 실기기로 확인한 것:** 비밀번호가 든 링크 거부, 알 수 없는 서버 확인창, 첫 연결
   호스트키 창(지문을 맥의 `ssh-keygen -lf`와 대조), 틀린 비밀번호 재시도 창, 저장된 프로필을 alias로
   찾기, `onNewIntent`, 로컬 링크의 파일 접근 안내와 설정에서 돌아온 뒤 이어지기, 최근 파일 기록.
-- **확인하지 못한 것:** 맞는 비밀번호로 원격 파일까지 여는 성공 경로(사용자 비밀번호가 필요하다),
-  **바뀐 호스트키 경고 창**, 파일 매니저의 "다른 앱으로 열기"(`content://` 자체는 MediaStore URI로
-  확인했다, M2 마지막 확인 항목), 손으로 하는 핀치 줌, Android 17의
-  로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다). 탭의 Skiff Code에는 `dev-mac`
-  프로필이 틀린 비밀번호로 저장돼 있다. 성공 경로를 볼 때 비밀번호 창에 맞는 것을 넣으면 갱신된다.
+- **확인하지 못한 것:** **바뀐 호스트키 경고 창**, 파일 매니저의 "다른 앱으로 열기"(`content://` 자체는 MediaStore URI로
+  확인했다, M2 마지막 확인 항목), 손으로 하는 핀치 줌과 상단 메뉴의 손 사용감, Android 17의
+  로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다). 탭의 Skiff Code에는 `dev-mac`(맞는 비밀번호)이 있다.
+  그 개발 맥의 두 번째 프로필(호스트 이름으로 저장된 것)은 사용자 요청으로 지웠고(호스트키는 남겼다) 사용자가 다시 테스트 중이었다.
 - **탭에서 실제 SSH 서버로 LSP를 띄워 본 적은 아직 없다.** M1에서 SFTP 탐색과 전송은 실서버로 확인했지만, 위 LSP 확인은 이 맥 안의 MINA 루프백이라 네트워크 지연, 재접속, 끊김이 빠져 있다. exec로 원격 LSP를 띄우는 것은 M6이 처음이다.
 - 진단이 수백~수천 개일 때의 비용. 스텁은 50개, pyright는 1개였다.
 - lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다(마크다운은 `markdown-it` 15.0.2로 정했다).
@@ -266,6 +305,10 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
   - adb로는 멀티터치를 만들 수 없다. DevTools를 포워딩하고 CDP `Input.dispatchTouchEvent`에 터치
     점 두 개를 주면 핀치를 흉내 낼 수 있다(CSS px 기준, 화면 좌표는 ×2 + 상태 표시줄 60px). 그래도
     손으로 하는 확인은 사용자에게 부탁한다.
+  - **탭에 외장 키보드(Corne)가 연결돼 있을 때가 있다.** 그러면 화면 키보드가 뜨지 않는다("입력이 안 된다"는
+    문의가 이것이었다). `dumpsys input | grep Corne`으로 확인한다.
+  - Skiff Code 저장 파일을 adb로 고칠 때는 먼저 `am force-stop`한다. `run-as … cat`으로 읽고
+    `adb exec-in run-as com.naki.skiff.code sh -c 'cat > files/datastore/skiffcode.json'`으로 쓴다.
   - 페이지 좌표를 알면 `adb shell input tap`으로 링크를 실제로 탭할 수 있다(위와 같은 변환).
 - 환경:
   - `node`(v24)와 `npm`은 PATH에 있다.
