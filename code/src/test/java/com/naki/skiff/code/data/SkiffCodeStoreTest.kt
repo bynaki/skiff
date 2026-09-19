@@ -135,4 +135,88 @@ class SkiffCodeStoreTest {
             assertEquals("skiffcode:///1", uris.last())
         }
     }
+
+    // Skiff's side of importFromSkiff: what its provider hands over, never with a password.
+    private val shared = ServerProfile(
+        id = "s1",
+        name = "home-server",
+        host = "192.0.2.10",
+        username = "alice",
+        startPath = "/home/alice",
+    )
+
+    @Test
+    fun `a server only Skiff knows is added without a password`() = runTest {
+        withStore { store ->
+            store.importFromSkiff(listOf(shared), emptyList())
+            assertEquals(listOf(shared.copy(auth = AuthMethod.Password(null))), store.profiles.first())
+        }
+    }
+
+    @Test
+    fun `a profile matched by name takes Skiff's start path and keeps its own id and password`() = runTest {
+        withStore { store ->
+            store.upsertProfile(home)
+            store.importFromSkiff(listOf(shared), emptyList())
+            assertEquals(listOf(home.copy(startPath = "/home/alice")), store.profiles.first())
+        }
+    }
+
+    @Test
+    fun `a profile matched by id follows a rename in Skiff`() = runTest {
+        withStore { store ->
+            store.upsertProfile(home.copy(id = "s1"))
+            store.importFromSkiff(listOf(shared.copy(name = "renamed")), emptyList())
+            assertEquals(listOf("renamed"), store.profiles.first().map { it.name })
+            assertEquals(home.auth, store.profiles.first().single().auth)
+        }
+    }
+
+    @Test
+    fun `the password is dropped when Skiff points the profile at another machine or user`() = runTest {
+        for (moved in listOf(shared.copy(host = "192.0.2.11"), shared.copy(port = 2222), shared.copy(username = "bob"))) {
+            withStore { store ->
+                store.upsertProfile(home)
+                store.importFromSkiff(listOf(moved), emptyList())
+                val profile = store.profiles.first().single()
+                assertEquals(moved.host to moved.port, profile.host to profile.port)
+                assertEquals(AuthMethod.Password(null), profile.auth)
+                store.deleteProfile(home.id)
+            }
+        }
+    }
+
+    @Test
+    fun `the host's case alone does not drop the password`() = runTest {
+        withStore { store ->
+            store.upsertProfile(home.copy(host = "Build.EXAMPLE"))
+            store.importFromSkiff(listOf(shared.copy(host = "build.example")), emptyList())
+            assertEquals(home.auth, store.profiles.first().single().auth)
+        }
+    }
+
+    @Test
+    fun `a profile Skiff does not share is left alone`() = runTest {
+        withStore { store ->
+            store.upsertProfile(home.copy(id = "own", name = "own"))
+            store.importFromSkiff(emptyList(), emptyList())
+            assertEquals(listOf("own"), store.profiles.first().map { it.name })
+        }
+    }
+
+    @Test
+    fun `a host key is taken only where we have none, and ours is never overwritten`() = runTest {
+        withStore { store ->
+            store.rememberHost(KnownHost("192.0.2.10", 22, "ssh-ed25519", "SHA256:OURS"))
+            store.importFromSkiff(
+                emptyList(),
+                listOf(
+                    KnownHost("192.0.2.10", 22, "ssh-ed25519", "SHA256:SKIFF"),
+                    KnownHost("192.0.2.10", 2222, "ssh-ed25519", "SHA256:NEW"),
+                ),
+            )
+            assertEquals("SHA256:OURS", store.knownHost("192.0.2.10", 22)?.fingerprint)
+            assertEquals("SHA256:NEW", store.knownHost("192.0.2.10", 2222)?.fingerprint)
+        }
+    }
 }

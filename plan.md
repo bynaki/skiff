@@ -318,7 +318,12 @@ method로 구독한다(M0에서 확인).
   - 실기기 확인(탭, 로컬 파일과 `content://`): Python·TS·Makefile 하이라이팅, 2MB TS 파일을 30000번째 줄에서 열기(읽고 여는 데 약 50ms), 마크다운의 raw HTML이 글자로 나오고 `javascript:` 링크가 링크가 되지 않고 외부 이미지가 CSP로 막히는 것, `?line=`, 3MB 파일·바이너리·깨진 인코딩의 안내, EUC-KR 파일. **링크를 adb로 실제로 탭해서** https는 Chrome으로, mailto는 메일 앱으로 가고 페이지는 남는 것, `intent:`는 버려지고 상대·조각 링크는 아무 일도 없는 것을 봤다. 핀치 줌은 DevTools 프로토콜로 두 손가락 터치를 만들어 코드(줄 30016)와 마크다운(문단 61) 모두 손가락 아래가 그대로인 것을 봤다. **손으로 하는 핀치와 원격 파일 성공 경로는 아직이다.**
 - [x] 상단 메뉴 ①~④ 자리와 스크롤에 따른 숨김/표시, ② 원래 크기 동작(①③④는 이후 단계에서 채운다)
 - [x] Skiff 쪽: `onOpen`에서 CODE/TEXT/MARKDOWN이면 `skiffcode://` 인텐트를 보내고, Skiff Code가 없으면 기존 외부 앱으로 열기
-- [ ] Skiff 쪽: 서명 권한 `ProfileProvider` + Skiff Code가 읽어 프로필과 호스트키에 반영(지문이 다르면 경고 흐름)
+- [x] Skiff 쪽: 서명 권한 `ProfileProvider` + Skiff Code가 읽어 프로필과 호스트키에 반영(지문이 다르면 경고 흐름)
+  - 계약은 `:core`의 `link/SharedProfiles`(권한, authority, 열 이름). 권한 `com.naki.skiff.permission.READ_PROFILES`(signature)는 **두 앱이 모두 선언한다.** 어느 앱이 먼저 설치되든 부여되게 하려는 것이다. provider는 `profiles`(id, name, host, port, username, start_path)와 `known_hosts`를 읽기 전용으로 내준다. 비밀번호는 없다.
+  - Skiff Code는 원격 링크(`Remote`, `UnknownServer`)를 받을 때마다 provider를 읽어 `SkiffCodeStore.importFromSkiff`로 합친 뒤 링크를 다시 해석한다. **읽기 전에 authority의 주인이 `com.naki.skiff`이고 같은 키로 서명됐는지 본다.** Skiff가 없을 때 다른 앱이 authority를 차지하면 우리가 믿을 호스트키를 그 앱이 정할 수 있기 때문이다(권한은 읽는 쪽이 가진 것이라 이것을 막지 못한다). 아니면 건너뛴다.
+  - 합치는 규칙(사용자 결정, `SkiffCodeStoreTest`): 프로필은 Skiff id, 그다음 이름으로 찾아 Skiff의 주소와 시작 경로를 받고, 자기 id와 비밀번호는 유지한다. host(대소문자 무시)·port·user가 바뀌면 비밀번호를 지운다. 없으면 비밀번호 없이 추가한다. 지우지는 않는다. 호스트키는 그 host:port에 없을 때만 받고, 있는 것은 Skiff와 달라도 두어 접속할 때 `HostKeyGate`의 경고가 판단하게 한다.
+  - Skiff는 링크를 보내기 전에 `checkSignatures`로 Skiff Code가 같은 키로 서명됐는지 본다. 다르면 설치되지 않은 것처럼 외부 앱(로컬만)으로 간다. 그래서 `<queries>`가 두 앱 모두에 있다.
+  - 실기기: 권한 `granted=true`, adb shell의 `content query`는 `SecurityException`. Skiff에서 개발 맥 프로필의 README.md를 탭하니 대화상자 없이 열렸고, Skiff에만 있던 프로필이 비밀번호 없이, 없던 호스트키가 들어왔다. 서명이 다른 Skiff Code로 가는 경로는 기기에서 보지 않았다.
 - [ ] **확인:** `adb shell am start -a android.intent.action.VIEW -d 'skiffcode://…'`, Skiff에서 파일 탭, 파일 매니저의 "다른 앱으로 열기"를 각각 실기기에서 확인
 
 ### M3. editor, 저장, 실시간 반영, 열린 파일

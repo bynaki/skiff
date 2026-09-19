@@ -22,15 +22,18 @@ import android.widget.FrameLayout
 import androidx.webkit.WebViewAssetLoader
 import com.naki.skiff.code.R
 import com.naki.skiff.code.bridge.WebBridge
+import com.naki.skiff.code.data.readSkiffProfiles
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.text.DecimalFormat
@@ -139,7 +142,15 @@ class MainActivity : Activity() {
         // rather than a second set of dialogs stacking on top of the first.
         opening?.cancel()
         opening = scope.launch {
-            val request = OpenRequest.of(intent.action, link, container.store.profiles.first())
+            var request = OpenRequest.of(intent.action, link, container.store.profiles.first())
+            if (request is OpenRequest.Remote || request is OpenRequest.UnknownServer) {
+                // Skiff may know this server, or know it better than we do: take its profiles first.
+                val shared = withContext(Dispatchers.IO) { readSkiffProfiles(this@MainActivity) }
+                if (shared != null) {
+                    container.store.importFromSkiff(shared.first, shared.second)
+                    request = OpenRequest.of(intent.action, link, container.store.profiles.first())
+                }
+            }
             Log.i(TAG, "open ${request.javaClass.simpleName}")
             val opened = OpenFlow(this@MainActivity, container).open(link, request) ?: return@launch
             Log.i(TAG, "opened ${opened.name}: ${opened.result.javaClass.simpleName}")

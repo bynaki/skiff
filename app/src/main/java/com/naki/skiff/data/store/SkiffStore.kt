@@ -23,6 +23,9 @@ class SkiffStore(private val dataStore: DataStore<SkiffData>) : KnownHostStore {
     val profiles: Flow<List<ServerProfile>> =
         dataStore.data.map { it.profiles }
 
+    val knownHosts: Flow<List<KnownHost>> =
+        dataStore.data.map { it.knownHosts }
+
     val settings: Flow<Settings> =
         dataStore.data.map { it.settings }
 

@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Code, text and markdown go to Skiff Code as a `skiffcode://` link, from the phone or a
-     * server alike. Anything else, or everything when Skiff Code is not installed, is handed to
+     * server alike. Anything else, or everything when Skiff Code is not installed or not signed by us, is handed to
      * whatever app the system offers — which only works for local files, since a remote one would
      * have to be downloaded first.
      */
@@ -102,8 +102,13 @@ class MainActivity : ComponentActivity() {
         runCatching { startActivity(Intent.createChooser(intent, node.name)) }
     }
 
-    /** False when Skiff Code is not installed, or the server's profile is gone. */
+    /**
+     * False when Skiff Code is not installed, is signed by another key, or the server's profile is
+     * gone. The signature check keeps an app that only took Skiff Code's package name from
+     * receiving server addresses and paths.
+     */
     private fun openInSkiffCode(source: SourceId, node: FileNode, profiles: List<ServerProfile>): Boolean {
+        if (packageManager.checkSignatures(packageName, SKIFF_CODE_PACKAGE) != PackageManager.SIGNATURE_MATCH) return false
         val link = when (source) {
             SourceId.Local -> SkiffCodeLink.local(node.path)
             is SourceId.Remote -> {

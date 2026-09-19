@@ -3,6 +3,7 @@ package com.naki.skiff.code.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStoreFile
+import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.KnownHostStore
 import com.naki.skiff.data.store.ServerProfile
@@ -57,6 +58,46 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
     suspend fun deleteProfile(id: String) {
         dataStore.updateData { data ->
             data.copy(profiles = data.profiles.filterNot { it.id == id })
+        }
+    }
+
+    /**
+     * Takes in the servers Skiff shared. A profile is matched by Skiff's id, then by name — a
+     * server saved from the unknown-server dialog is named after Skiff's alias — and takes Skiff's
+     * address and start path, keeping its own id and password. The password is dropped when the
+     * host, port or user changed, so it is never sent to another machine. Unmatched ones are added
+     * without a password. Nothing is deleted.
+     *
+     * A host key is added only where there is none for that host and port. One we already have is
+     * kept even if Skiff's differs: which is right is for [com.naki.skiff.fs.sftp.HostKeyGate] to
+     * ask when the server shows its key, not for this to settle silently.
+     */
+    suspend fun importFromSkiff(profiles: List<ServerProfile>, knownHosts: List<KnownHost>) {
+        dataStore.updateData { data ->
+            val merged = data.profiles.toMutableList()
+            for (shared in profiles) {
+                val i = merged.indexOfFirst { it.id == shared.id }.takeIf { it >= 0 }
+                    ?: merged.indexOfFirst { it.name == shared.name }
+                if (i < 0) {
+                    merged.add(shared.copy(auth = AuthMethod.Password(null), lastUsedEpochSeconds = 0))
+                    continue
+                }
+                val own = merged[i]
+                val sameMachine = own.host.equals(shared.host, ignoreCase = true) &&
+                    own.port == shared.port && own.username == shared.username
+                merged[i] = own.copy(
+                    name = shared.name,
+                    host = shared.host,
+                    port = shared.port,
+                    username = shared.username,
+                    startPath = shared.startPath,
+                    auth = if (sameMachine) own.auth else AuthMethod.Password(null),
+                )
+            }
+            val newHosts = knownHosts.filter { shared ->
+                data.knownHosts.none { it.host == shared.host && it.port == shared.port }
+            }
+            data.copy(profiles = merged, knownHosts = data.knownHosts + newHosts)
         }
     }
 

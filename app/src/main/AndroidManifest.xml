@@ -13,6 +13,19 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Guards ProfileProvider. Skiff Code declares the same permission, so it is granted whichever
+      app is installed first, and only when both are signed with the same key.
+    -->
+    <permission
+        android:name="com.naki.skiff.permission.READ_PROFILES"
+        android:protectionLevel="signature" />
+
+    <!-- openInSkiffCode compares Skiff Code's signature with ours before sending it a link. -->
+    <queries>
+        <package android:name="com.naki.skiff.code" />
+    </queries>
+
     <application
         android:name=".SkiffApplication"
         android:allowBackup="false"
@@ -47,5 +60,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <provider
+            android:name=".data.ProfileProvider"
+            android:authorities="com.naki.skiff.profiles"
+            android:exported="true"
+            android:permission="com.naki.skiff.permission.READ_PROFILES" />
     </application>
 </manifest>
