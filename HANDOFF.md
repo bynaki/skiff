@@ -9,25 +9,68 @@
 
 ---
 
-## 마지막 세션 (2026-09-18 저녁): M2 넷째·다섯째 항목 완료
+## 마지막 세션 (2026-09-19 새벽): M2 여섯째 항목 viewer 레이어 완료
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **이번 세션 커밋(`ef1e6d7`, `dfb5434`, 그리고 이 인수인계 커밋)은
-  아직 push하지 않았다.** main에는 합치지 않았다.
-- **다음은 M2 여섯째 항목, viewer 레이어다**(`plan.md`의 첫 `- [ ]`).
+- 브랜치 `plan/skiffcode`(git worktree). **push하지 않은 커밋이 있다**: 지난 세션의 `ef1e6d7`, `dfb5434`,
+  `02842c9`와 이번 세션의 viewer 커밋, 이 인수인계 커밋. main에는 합치지 않았다.
+- **다음은 M2 일곱째 항목, 상단 메뉴 ①~⑤ 자리와 스크롤에 따른 숨김/표시다**(`plan.md`의 첫 `- [ ]`).
 - 모듈은 셋이다: `:core`(라이브러리), `:app`(Skiff), `:code`(Skiff Code). 무엇이 어디 있는지는
-  `AGENTS.md`의 "Three modules"에 있다. **`:code`의 WebView 페이지(`web/src/main.ts`, `diff.ts`,
-  `lsp.ts`, `zoom.ts`)는 아직 M0 스파이크다.** 브리지(`bridge.ts`, `bridge/WebBridge.kt`)만 정식이 됐다.
-- 테스트: `:core` 35개, `:app` 24개, `:code` 78개(`SkiffCodeUriTest` 27, `OpenRequestTest` 12,
-  `WebBridgeTest` 12, `TextLoaderTest` 11 + `TextLoaderTest$OverSftp` 6, `SkiffCodeStoreTest` 7,
-  M0 ktoml 스파이크 3). 실패 없음. 이번 세션은 `:code`만 돌렸다(`:core`, `:app`은 건드리지 않았다).
-- lint 경고: `:code` **10개**(12개에서 줄었다. 스파이크의 `WebViewCompat` 직접 호출이 빠져
-  `RequiresFeature`가 4→2). 나머지는 `MissingOnRenderProcessGone` 4, `RequiresFeature` 2,
-  `DataExtractionRules` 1, `SetJavaScriptEnabled` 1, `TrustAllX509TrustManager` 1(BouncyCastle jar),
-  `ScopedStorage` 1. `:core` 9개, `:app` 4개는 지난 세션 수치다. "새 라이브러리 버전" 경고는
-  그때그때 달라지니 개수보다 종류를 비교한다.
+  `AGENTS.md`의 "Three modules"에 있다. **`:code`의 페이지는 이제 viewer다**(`web/src/main.ts`,
+  `layers/viewer.ts`, `markdown.ts`, `zoom.ts`, `bridge.ts`). M0 스파이크로 남은 것은 `diff.ts`와 `lsp.ts`뿐이고
+  페이지가 불러오지 않는다(M5·M6이 다시 쓴다).
+- 테스트: `:core` 35개, `:app` 24개, `:code` 81개(이번에 `TextLoaderTest`에 3개 추가). 실패 없음.
+  이번 세션은 `:code`만 돌렸다(`:core`, `:app`은 건드리지 않았다).
+- lint 경고: `:code` **11개**. 10개는 지난 세션과 같은 종류이고, 새로 `Recycle` 1개가 `OpenFlow`의
+  `openInputStream`에 뜬다. 스트림은 `use`로 닫히는데 lint가 `withContext` 너머를 못 보는 오탐이다.
 
 ### 이번 세션에서 한 것과 내린 판단
+**흐름.** `OpenFlow`가 여는 데서 멈추지 않고 `TextLoader`로 읽는다. `Opened`에 `result: LoadResult`와
+`line`이 붙었다. 원격은 세션의 `SftpFileSystem`, 로컬은 `LocalFileSystem`, `content://`는 새
+`TextLoader.load(Source)`(크기는 읽은 만큼, mtime은 0 — M3 `FileWatcher`가 `content://` 폴링 방법을 정할 때 볼 것).
+`MainActivity`가 문서 상태(JSON)를 들고, 페이지는 `document` RPC로 가져가며 `documentChanged` 알림을
+받으면 다시 묻는다. 핸들러가 멈추지 않아 응답이 요청 순서대로 나가므로 마지막 응답이 늘 현재 문서다.
+- 읽는 중의 실패(연결, 권한)는 지금처럼 **네이티브 대화상자**다. 읽었지만 못 보여 주는 것(`TooLarge`,
+  `Binary`, `UnknownEncoding`)만 페이지에 안내로 나온다. **페이지의 글은 전부 Kotlin 문자열 리소스**
+  (영어, 한국어)에서 온다. 웹 쪽에 번역 테이블을 따로 두지 않으려는 것이다.
+- 링크 파서의 거부 이유(영어 그대로)는 페이지가 아니라 대화상자에 나오는 것이라 이번에 손대지 않았다.
+- "불러오는 중" 상태는 없다. 원격에서 읽는 동안 이전 화면이 남는다.
+
+**viewer.** 언어는 `@codemirror/language-data` 6.5.2로 **파일 이름**에서 찾고, 파서는 언어마다 청크로
+나뉘어 처음 필요할 때 불러온다(번들 1.8MB). 이름이 마크다운이면 `markdown-it` 15.0.2(`html: false`,
+타입 내장)로 렌더링한다. 원문 보기는 M3 editor의 몫이다. 문서를 바꿀 때마다 `EditorView`를 새로
+만든다 — 하나의 뷰에 파일별 `EditorState`를 두는 것은 M3 항목이다.
+- `?line=`: 코드는 그 줄을 맨 위로, 마크다운은 그 줄 이전에서 시작하는 마지막 최상위 블록을 맨 위로
+  (`markdown-it`의 `map`으로 `data-line`을 붙였다).
+- 줌: `zoom.ts`를 `Hold`(제스처 시작 때 붙잡고, 크기를 바꾸며 되돌려 놓는 함수)로 일반화했다. 코드는
+  M0의 `scrollIntoView` 방식 그대로, 마크다운은 손가락 아래 블록을 같은 비율 위치에 둔다. 글자 크기는
+  하나를 같이 쓰고 문서를 바꿔도 유지된다. 마크다운 본문도 `--code-font-size`를 쓴다(테마는 M4).
+- 마크다운 링크: 상대 링크와 `#조각`은 페이지에서 `preventDefault`한다. 브라우저로 넘기면
+  `appassets…` 주소가 열리기 때문이다. 다른 파일로 가는 상대 링크는 아직 아무 일도 하지 않는다.
+- 스타일은 밝은 색 하나다. 다크와 테마는 M4.
+- Android 15의 edge-to-edge로 페이지가 상태 표시줄 밑에 그려져서, WebView를 `FrameLayout`에 넣고
+  시스템 바 여백을 줬다(WebView 자신의 padding은 내용에 먹지 않는다). **상단 메뉴 항목은 이 여백
+  안쪽에서 시작한다.**
+- M0 스파이크의 Kotlin 쪽(`StubLsp`, `sampleText`, 실행 인자)과 페이지의 측정 코드는 지웠다.
+- 상한 문구는 "2 MB"로 쓴다. `Formatter`는 1000 단위라 2MiB를 "2.1MB"로 보여 준다.
+
+**실기기에서 찾아 고친 버그 — EUC-KR.** Android의 `EUC-KR` 디코더는 JVM보다 넓다. `A1 41`(UHC 확장
+한글)을 U+C8A5로, `80`을 U+0080으로, `FF`와 사용자 정의 행 `FE xx`를 PUA 문자로 받는다. JVM은 전부
+거부해서 **단위 테스트는 통과하는데 기기에서는 깨진 파일이 열렸다.** 이제 `TextLoader`가 디코딩 전에
+EUC-KR 바이트 모양(ASCII, 또는 두 바이트 모두 A1..FE이고 C9·FE 행이 아닌 것)을 직접 본다. 기기에서
+네 경우 모두 `UnknownEncoding`이 되고 정상 EUC-KR 파일은 그대로 열리는 것을 확인했다. `AGENTS.md`
+툴체인 제약과 `plan.md` 설계에 적었다. (DevTools로 본 `C9 A1`→U+0261은 버그가 아니라 올바른 UTF-8이었다.)
+
+**실기기 확인(탭, 로컬 파일과 `content://`):** 테스트 파일은 탭의 `Download/skiffcode-test/`에 있다.
+Python·TS·Makefile 하이라이팅, 2MB TS를 30000번째 줄로 열기(읽고 여는 데 약 50ms), 마크다운의 raw HTML이
+글자로 나오고 `javascript:` 링크가 링크가 되지 않고 외부 이미지가 CSP로 막힘, 3MB·바이너리·깨진 인코딩
+안내, `content://media/external/file/<id>`로 EUC-KR 파일 열기. **adb로 링크를 실제로 탭해** https는 Chrome,
+mailto는 Gmail로 가고 페이지는 남고, `intent:`는 버려지고 상대·조각 링크는 아무 일도 없었다.
+핀치 줌은 DevTools 프로토콜 `Input.dispatchTouchEvent`로 두 손가락을 만들어 코드(줄 30016)와
+마크다운(문단 61) 모두 손가락 아래가 그대로인 것을 봤다. **adb는 멀티터치를 못 만들지만 CDP는 된다.**
+mailto 확인 때 Gmail 작성 화면이 열렸다가 보내지 않고 닫혔다. Gmail 임시보관함에 빈 메일이 남았을 수 있다.
+
+### M2 넷째·다섯째 항목(`TextLoader`, 브리지)에서 내린 판단
 **순서 질문의 답:** 지난 세션에서 답을 못 받은 질문에 사용자가 **"계획 순서대로"**를 골랐다.
 `TextLoader` → 브리지 → viewer 다음에 Skiff 쪽(`onOpen`에서 `skiffcode://` 인텐트)을 연결한다.
 그래서 Skiff에서 원격 파일을 탭하면 아무 일도 없는 것은 그 항목까지 그대로다(`openExternally`가
@@ -43,7 +86,7 @@
   바꿔 넘긴다. 섞인 파일은 저장하면 한 가지로 통일된다.
 - 결과의 `size`, `modifiedEpochSeconds`는 읽기 전 `stat` 값이다. M3의 `DocumentSaver`가 충돌 비교에 쓴다.
 - `:code` 테스트가 `:core`의 testFixtures(`SftpTestServer`)와 `slf4j-simple`을 쓰게 됐다(`:app`과 같은 방식).
-- **아직 `OpenFlow`에 연결하지 않았다.** 링크로 열면 여전히 토스트에서 끝난다. viewer 항목에서 잇는다.
+- viewer 항목에서 `OpenFlow`에 연결했다. `content://`용으로 `load(Source)`가 생겼다.
 
 **`bridge/WebBridge` + `bridge.ts` (`dfb5434`)**
 - `method(name) { params -> result }`, `onNotify(name)`, `notify(method, params)`(아무 스레드에서나).
@@ -52,18 +95,18 @@
 - **`ready` 규칙:** Kotlin은 페이지가 먼저 말해야 답할 통로(reply proxy)를 얻는다. 그래서 `bridge.ts`가
   로드되자마자 `ready` 알림을 보내고, 그 전에 Kotlin이 보낸 알림은 모아 뒀다가 순서대로 넘긴다.
   페이지를 다시 불러오면 새 `ready`의 통로로 바뀐다. **주의:** `ready` 직후 넘어온 알림은 그때까지
-  `onNotify`로 구독하지 않은 Web 리스너에게는 전달되지 않는다. viewer에서 Kotlin이 파일을 먼저
-  밀어 넣는 구조로 가면 이 순서를 고려할 것(페이지가 `rpc`로 요청하는 쪽이 단순하다).
+  `onNotify`로 구독하지 않은 Web 리스너에게는 전달되지 않는다. viewer는 그래서 페이지가 `rpc`로
+  묻는 구조로 갔다.
 - 메인 프레임에서 온 메시지만 받는다. `Log`는 JVM 테스트에서 스텁이라 로거를 생성자로 받는다.
 - 보안: 자산 로더는 `/assets/web/`만 내주고 나머지 요청은 모두 빈 403. CSP는 `index.html`에 있다
   (`style-src`의 `'unsafe-inline'`은 그 파일의 `<style>` 때문). 링크는 http/https/mailto만 `ACTION_VIEW`로
   넘기고 `intent:` 등은 버린다. 자세한 규칙은 `plan.md` "보안 규칙".
-- 스파이크의 `sampleText`와 스텁 LSP는 새 브리지 위로 옮겨 두었다(`MainActivity.registerSpikeMethods`).
+- 스파이크의 `sampleText`와 스텁 LSP는 viewer 항목에서 지웠다.
 - 실기기 확인: LSP 스파이크가 M0과 같은 수치(initialize 4ms, 진단 250ms, 재동기화 589ms). DevTools로
   외부 fetch·외부 이미지·인라인 스크립트·iframe이 CSP로 막히고, `web/` 밖 자산이 403이고,
   `location.href = 'https://…'`는 Chrome을 열고 페이지는 남고, `intent:` 링크는 버려지는 것을 봤다.
-- **확인 못 한 것:** DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았다(로그도 없음).
-  원인은 모른다. viewer에서 마크다운 링크를 **실제로 탭해서** 외부로 나가는지 확인할 것.
+- DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았지만(원인 모름), viewer에서
+  **실제로 탭하면** Chrome으로 나간다. 확인 끝.
 
 ### 지난 세션(M2 첫~셋째 항목)에서 내린 판단
 **`SkiffCodeUri`**
@@ -139,15 +182,14 @@
 1. `AGENTS.md`를 읽는다. 특히 Toolchain constraints, Before committing(**커밋마다 사용자에게 먼저
    묻는다**), 보고와 알림 규칙을 본다.
 2. push하지 않은 커밋이 있다. push할지 사용자에게 묻는다.
-3. `plan.md`의 첫 `- [ ]`인 **viewer 레이어**부터 시작한다(읽기 전용 CM6, 하이라이팅, 줄 번호, 핀치 줌,
-   마크다운 `html: false`).
-   - 스파이크의 줌(`zoom.ts`의 `anchorAt`/`zoomTo`, `scrollIntoView` 방식)은 M0에서 검증된 것이라 가져다 쓴다.
-   - `OpenFlow.Opened` → `TextLoader.load(...)` → 페이지로 텍스트 전달을 잇는다. 원격은
-     `container.sessions.get(profile)`, 로컬 경로는 `LocalFileSystem`, `content://`는 `decode`.
-   - `TooLarge`/`Binary`/`UnknownEncoding`과 파서 거부 이유(지금 영어 그대로)를 페이지에서 한국어로 보여 줄 것.
-   - `markdown-it`은 버전을 아직 고르지 않았다. 고르면 `AGENTS.md`의 버전 목록에 적는다.
-   - 스파이크 전용 코드(`sampleText`, `StubLsp`, 측정 코드, `MainActivity`의 스파이크 인자)를 지울지는
-     범위를 보고 정한다. `diff.ts`의 CM6 패치와 `lsp.ts`의 브리지 Transport는 M5·M6이 다시 쓴다.
+3. 사용자에게 **손으로 핀치 줌**(코드와 마크다운)을 부탁하고, 가능하면 맞는 비밀번호로 **원격 파일을
+   여는 성공 경로**를 본다.
+4. `plan.md`의 첫 `- [ ]`인 **상단 메뉴 ①~⑤ 자리와 스크롤 숨김/표시**를 한다(①④⑤는 자리만).
+   - 메뉴는 `index.html`/`main.ts`의 `#viewer` 위에 겹친다. 코드는 `view.scrollDOM`, 마크다운은
+     `.markdown-scroller`가 스크롤하므로 두 스크롤러 모두에서 방향을 봐야 한다.
+   - ②③(레이어 확대/축소)은 `zoom.ts`의 `setFontSize`와 이어진다. 버튼으로 줌할 때의 기준 줄은
+     화면 가운데로 두면 된다(M0의 `zoomTest`가 그렇게 했다, git 히스토리에 있다).
+   - 설계 문서의 `chrome/topbar.ts` 자리다.
 
 ### 사용자와 정한 것, 그리고 이유
 다시 논의하지 말고 이대로 진행한다.
@@ -200,12 +242,13 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
   호스트키 창(지문을 맥의 `ssh-keygen -lf`와 대조), 틀린 비밀번호 재시도 창, 저장된 프로필을 alias로
   찾기, `onNewIntent`, 로컬 링크의 파일 접근 안내와 설정에서 돌아온 뒤 이어지기, 최근 파일 기록.
 - **확인하지 못한 것:** 맞는 비밀번호로 원격 파일까지 여는 성공 경로(사용자 비밀번호가 필요하다),
-  **바뀐 호스트키 경고 창**, `content://`(M2 마지막 확인 항목에서 파일 매니저로), Android 17의
+  **바뀐 호스트키 경고 창**, 파일 매니저의 "다른 앱으로 열기"(`content://` 자체는 MediaStore URI로
+  확인했다, M2 마지막 확인 항목), 손으로 하는 핀치 줌, Android 17의
   로컬 네트워크 권한 요청(탭은 Android 16이라 요청하지 않는다). 탭의 Skiff Code에는 `dev-mac`
   프로필이 틀린 비밀번호로 저장돼 있다. 성공 경로를 볼 때 비밀번호 창에 맞는 것을 넣으면 갱신된다.
 - **탭에서 실제 SSH 서버로 LSP를 띄워 본 적은 아직 없다.** M1에서 SFTP 탐색과 전송은 실서버로 확인했지만, 위 LSP 확인은 이 맥 안의 MINA 루프백이라 네트워크 지연, 재접속, 끊김이 빠져 있다. exec로 원격 LSP를 띄우는 것은 M6이 처음이다.
 - 진단이 수백~수천 개일 때의 비용. 스텁은 50개, pyright는 1개였다.
-- 마크다운 렌더링(`markdown-it`), lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다.
+- lezer 심볼 추출, 테마 CSS 변수, SAF import/export는 라이브러리 버전도 고르지 않았다(마크다운은 `markdown-it` 15.0.2로 정했다).
 - 큰 파일에서 편집 중 동기화 비용. 2MB에서 incremental이 훨씬 싸다는 것만 알고, 실제 서버가 어디서 버거워하는지는 모른다.
 - pyright 말고 다른 서버(typescript-language-server, marksman)는 확인하지 않았다. TypeScript 7은 네이티브 재작성이라 `tsserver.js`가 없고, `typescript-language-server`가 그 위에서 도는지 모른다.
 
@@ -218,7 +261,10 @@ M6에서 다시 만들 때 필요한 것은 이것뿐이다:
   - 화면은 2분 뒤 꺼지고, 꺼진 화면에서 `screencap`은 검은 화면을 찍는다. 측정 전에 `adb shell input keyevent KEYCODE_WAKEUP`을 보내고 `dumpsys window | grep mCurrentFocus`로 앱이 앞에 있는지 확인한다.
   - 가로 방향(2304x1440)이고 화면은 하나라 `screencap`에 display id가 필요 없다.
   - 아래 가장자리에서 시작하는 스와이프는 시스템 제스처에 먹히므로 y 250~1100 사이에서 한다.
-  - adb로는 멀티터치를 만들 수 없으니, 핀치 같은 제스처는 사용자에게 손으로 확인을 부탁한다.
+  - adb로는 멀티터치를 만들 수 없다. DevTools를 포워딩하고 CDP `Input.dispatchTouchEvent`에 터치
+    점 두 개를 주면 핀치를 흉내 낼 수 있다(CSS px 기준, 화면 좌표는 ×2 + 상태 표시줄 60px). 그래도
+    손으로 하는 확인은 사용자에게 부탁한다.
+  - 페이지 좌표를 알면 `adb shell input tap`으로 링크를 실제로 탭할 수 있다(위와 같은 변환).
 - 환경:
   - `node`(v24)와 `npm`은 PATH에 있다.
   - `java`는 PATH에 없어서 `JAVA_HOME=/opt/homebrew/opt/openjdk@17`이 필요하다.
