@@ -150,6 +150,9 @@ private class Form(private val activity: Activity) {
     fun checkbox(label: String, checked: Boolean): CheckBox = CheckBox(activity).apply {
         text = label
         isChecked = checked
+        // The theme's accent is a dark grey on the dark dialog, so a checked box could not be told
+        // from an unchecked one. The label's colour is the theme's contrast to the background.
+        buttonTintList = textColors
         root.addView(this)
     }
 }
