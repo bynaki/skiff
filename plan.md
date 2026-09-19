@@ -42,7 +42,7 @@
 5. **로컬 파일은 두 경로로 받는다** (2026-09-18 사용자 확인). Skiff에서는 `skiffcode:///절대경로`로 받고(MANAGE_EXTERNAL_STORAGE 사용), 다른 앱에서는 표준 `ACTION_VIEW`/`ACTION_EDIT`의 `content://`로 받는다. 로컬은 항상 단일 파일 모드다.
 
 **가정** (틀렸으면 여기부터 고칠 것):
-- diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "이 파일을 건드린 직전 커밋과 HEAD"는 더보기(⑤) 메뉴에서 바꾸는 두 번째 비교 대상이다.
+- diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "이 파일을 건드린 직전 커밋과 HEAD"는 더보기(④) 메뉴에서 바꾸는 두 번째 비교 대상이다.
 - LSP 서버는 원격에 **자동 설치하지 않는다.** PATH에서 찾고, 경로는 설정에서 덮어쓸 수 있다.
 
 ## 설계
@@ -134,7 +134,7 @@ method로 구독한다(M0에서 확인).
   - 줌 중심 줄 고정은 CM6의 `EditorView.scrollIntoView(pos, {y: 'start', yMargin})` 효과로 한다. CM6가 줄 높이를 다시 잰 뒤 적용하기 때문이다. `requestMeasure`에서 `scrollTop`을 직접 쓰면 CM6의 스크롤 앵커와 싸워서 수만 px씩 어긋난다(M0에서 확인).
 - **editor:**
   - viewer와 같은 `EditorState`를 쓰고, `Compartment`로 readOnly와 확장만 바꾼다.
-  - 글자 크기 ±는 하단 메뉴에 둔다.
+  - 글자 크기는 viewer와 같이 핀치로 바꾸고, 상단 ②로 원래 크기에 돌아온다. 하단 ± 메뉴는 두지 않는다(아래 "화면 메뉴").
   - LSP 진단과 자동완성을 붙인다.
 - **diff:**
   - 읽기 전용 unified 뷰다. 현재 버퍼를 문서로 두고 `@codemirror/merge`의 `unifiedMergeView({original, mergeControls: false})`로 비교 대상과 비교한다. 지운 줄은 블록 위젯으로 끼워진다.
@@ -145,11 +145,12 @@ method로 구독한다(M0에서 확인).
 
 ### 화면 메뉴 (`menu.layout.jpg`를 글로 옮김)
 
-**상단 메뉴** (왼쪽 ①, 오른쪽 묶음 ②③④⑤)
+**상단 메뉴** (왼쪽 ①, 오른쪽 묶음 ②③④)
 - ① 사이드바 버튼. 사이드바가 왼쪽에서 밀려 나온다. 열린 파일, 프로젝트 목록, 프로젝트 파일 트리를 보여준다. 사이드바 버튼이나 바깥을 누르면 밀려 들어간다.
-- ② 레이어 확대, ③ 레이어 축소.
-- ④ viewer → editor → diff 순환 토글. 아이콘이 현재 레이어에 맞게 바뀐다.
-- ⑤ 더보기. 지금은 자리만 만들어 둔다(비교 대상 선택 등이 들어갈 곳).
+- ② 원래 크기. 핀치로 바꾼 글자 크기를 설정의 기본 글자 크기로 되돌린다(`settings.toml`이 생기기 전까지는 14px). 화면 가운데 줄을 제자리에 둔다.
+- ③ viewer → editor → diff 순환 토글. 아이콘이 현재 레이어에 맞게 바뀐다.
+- ④ 더보기. 지금은 자리만 만들어 둔다(비교 대상 선택 등이 들어갈 곳).
+- **그림과 번호가 다르다** (2026-09-19 사용자 결정). 그림의 ② 확대와 ③ 축소를 빼고 ② 원래 크기 하나로 바꿨고, 뒤의 번호를 당겼다(그림의 ④ 토글 → ③, ⑤ 더보기 → ④). 확대/축소는 핀치로 하고, 원래 요구사항(`skiff.code.plan.md`)의 "글자 크기 확대 축소는 아래 메뉴에 배치"도 같은 결정으로 뺐다. 커맨드 팔레트의 확대/축소 명령은 남긴다.
 - 레이어를 아래로 스크롤하면 메뉴가 위로 숨고, 위로 스크롤하면 다시 나타난다.
 
 **커맨드 버튼과 팔레트** (VS Code 커맨드 팔레트 방식)
@@ -315,13 +316,13 @@ method로 구독한다(M0에서 확인).
   - Android 15의 edge-to-edge 때문에 페이지가 상태 표시줄 밑에 그려져서, WebView를 감싼 프레임에 시스템 바 여백을 준다.
   - M0 스파이크의 Kotlin 쪽(`StubLsp`, `sampleText`, 실행 인자)과 페이지의 측정 코드는 지웠다. `diff.ts`와 `lsp.ts`는 M5·M6을 위해 남겼고 페이지가 불러오지 않는다.
   - 실기기 확인(탭, 로컬 파일과 `content://`): Python·TS·Makefile 하이라이팅, 2MB TS 파일을 30000번째 줄에서 열기(읽고 여는 데 약 50ms), 마크다운의 raw HTML이 글자로 나오고 `javascript:` 링크가 링크가 되지 않고 외부 이미지가 CSP로 막히는 것, `?line=`, 3MB 파일·바이너리·깨진 인코딩의 안내, EUC-KR 파일. **링크를 adb로 실제로 탭해서** https는 Chrome으로, mailto는 메일 앱으로 가고 페이지는 남는 것, `intent:`는 버려지고 상대·조각 링크는 아무 일도 없는 것을 봤다. 핀치 줌은 DevTools 프로토콜로 두 손가락 터치를 만들어 코드(줄 30016)와 마크다운(문단 61) 모두 손가락 아래가 그대로인 것을 봤다. **손으로 하는 핀치와 원격 파일 성공 경로는 아직이다.**
-- [ ] 상단 메뉴 ①~⑤ 자리와 스크롤에 따른 숨김/표시(①④⑤는 이후 단계에서 채운다)
+- [ ] 상단 메뉴 ①~④ 자리와 스크롤에 따른 숨김/표시, ② 원래 크기 동작(①③④는 이후 단계에서 채운다)
 - [ ] Skiff 쪽: `onOpen`에서 CODE/TEXT/MARKDOWN이면 `skiffcode://` 인텐트를 보내고, Skiff Code가 없으면 기존 외부 앱으로 열기
 - [ ] Skiff 쪽: 서명 권한 `ProfileProvider` + Skiff Code가 읽어 프로필과 호스트키에 반영(지문이 다르면 경고 흐름)
 - [ ] **확인:** `adb shell am start -a android.intent.action.VIEW -d 'skiffcode://…'`, Skiff에서 파일 탭, 파일 매니저의 "다른 앱으로 열기"를 각각 실기기에서 확인
 
 ### M3. editor, 저장, 실시간 반영, 열린 파일
-- [ ] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어별 스크롤 보존, ④ 토글 순환과 아이콘 연결, 하단 글자 크기 ±
+- [ ] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어별 스크롤 보존, ③ 토글 순환과 아이콘 연결
 - [ ] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
 - [ ] `FileWatcher`: 원격 폴링(별도 연결), `FileObserver`, `content://` 폴링. 깨끗한 버퍼는 병합하고 수정 중이면 배너
 - [ ] 사이드바(①): 슬라이드 인/아웃, 열린 파일 목록과 전환
@@ -344,7 +345,7 @@ method로 구독한다(M0에서 확인).
 - [ ] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지). `AGENTS.md`의 exec 원칙 수정은 M0에서 이미 했다
 - [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
 - [ ] git 거터(viewer, editor, diff 공통)
-- [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ⑤ 더보기에 비교 대상 선택 추가
+- [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
 - [ ] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장
 - [ ] **확인:** 실기기에서 git 레포 안 파일을 열면 묻는 창이 뜨고, 프로젝트를 만든 뒤 거터와 diff가 서버의 `git diff`와 일치한다. internal-sftp 계정에서는 git 없이 열린다
 
