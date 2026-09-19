@@ -315,8 +315,10 @@ does not carry over to the next.
 The preview viewer (code/markdown) is deliberately absent from Skiff. It is being built as a
 separate app, **Skiff Code** (viewer / editor / diff layers on CodeMirror 6 in a WebView, remote
 projects with git and LSP), in this same repository. `fs/FileKind` and the `onOpen` hook in
-`PaneScreen` are the seams Skiff keeps for it; tapping a file currently hands it to an external
-app. Key and keyboard-interactive auth are extension points on `AuthMethod` — only password is
+`PaneScreen` are the seams Skiff keeps for it. Tapping code, text or markdown sends a
+`skiffcode://` link built by `:core`'s `link/SkiffCodeLink` (`SkiffCodeLinkTest` in `:code` parses
+it back); anything else, or everything when Skiff Code is not installed, goes to an external app,
+local files only. Key and keyboard-interactive auth are extension points on `AuthMethod` — only password is
 implemented.
 
 Skiff Code relaxes one rule above, under the terms written there: `exec` is Skiff Code's to use

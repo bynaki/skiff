@@ -1,6 +1,7 @@
 package com.naki.skiff.ui
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -14,11 +15,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.naki.skiff.data.store.ServerProfile
+import com.naki.skiff.fs.FileKind
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.fs.FsPath
 import com.naki.skiff.fs.SourceId
+import com.naki.skiff.link.SkiffCodeLink
 import androidx.compose.runtime.Composable
 import com.naki.skiff.ui.theme.SkiffTheme
 import com.naki.skiff.ui.workspace.StorageGate
@@ -73,15 +78,16 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Until the built-in preview viewer lands, tapping a file hands it to whatever app
-     * the system offers. Only local files can be shared this way; remote files will be
-     * cached locally first once transfers exist.
+     * Code, text and markdown go to Skiff Code as a `skiffcode://` link, from the phone or a
+     * server alike. Anything else, or everything when Skiff Code is not installed, is handed to
+     * whatever app the system offers — which only works for local files, since a remote one would
+     * have to be downloaded first.
      */
     private fun openExternally(node: FileNode) {
-        if (viewModel?.state?.value == null) return
-        val side = viewModel?.state?.value?.activeSide ?: return
-        val paneState = viewModel?.controller(side)?.state?.value ?: return
-        if (paneState.sourceId !is SourceId.Local) return
+        val state = viewModel?.state?.value ?: return
+        val source = viewModel?.controller(state.activeSide)?.state?.value?.sourceId ?: return
+        if (FileKind.of(node) in SKIFF_CODE_KINDS && openInSkiffCode(source, node, state.profiles)) return
+        if (source !is SourceId.Local) return
 
         val uri = runCatching {
             FileProvider.getUriForFile(this, "$packageName.files", File(node.path))
@@ -94,5 +100,29 @@ class MainActivity : ComponentActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching { startActivity(Intent.createChooser(intent, node.name)) }
+    }
+
+    /** False when Skiff Code is not installed, or the server's profile is gone. */
+    private fun openInSkiffCode(source: SourceId, node: FileNode, profiles: List<ServerProfile>): Boolean {
+        val link = when (source) {
+            SourceId.Local -> SkiffCodeLink.local(node.path)
+            is SourceId.Remote -> {
+                val profile = profiles.firstOrNull { it.id == source.profileId } ?: return false
+                // Only the address goes over. Skiff Code keeps its own password and host key.
+                SkiffCodeLink.remote(profile.username, profile.host, profile.port, node.path, profile.name)
+            }
+        }
+        val intent = Intent(Intent.ACTION_VIEW, link.toUri()).setPackage(SKIFF_CODE_PACKAGE)
+        return try {
+            startActivity(intent)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    private companion object {
+        const val SKIFF_CODE_PACKAGE = "com.naki.skiff.code"
+        val SKIFF_CODE_KINDS = setOf(FileKind.CODE, FileKind.TEXT, FileKind.MARKDOWN)
     }
 }
