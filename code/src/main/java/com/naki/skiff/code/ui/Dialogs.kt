@@ -3,7 +3,9 @@ package com.naki.skiff.code.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.graphics.Color
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -21,8 +23,15 @@ import kotlin.coroutines.resume
  * through a WebView that renders remote content.
  */
 
-/** Shows the dialog [build] makes and waits for [finish], or [dismissed] if it goes away unanswered. */
-private suspend fun <T> Activity.await(dismissed: T, build: AlertDialog.Builder.(finish: (T) -> Unit) -> Unit): T =
+/**
+ * Shows the dialog [build] makes and waits for [finish], or [dismissed] if it goes away unanswered.
+ * [required] fields keep the positive button disabled while any of them is empty.
+ */
+private suspend fun <T> Activity.await(
+    dismissed: T,
+    required: List<EditText> = emptyList(),
+    build: AlertDialog.Builder.(finish: (T) -> Unit) -> Unit,
+): T =
     suspendCancellableCoroutine { cont ->
         var answered = false
         val finish: (T) -> Unit = { value ->
@@ -32,6 +41,17 @@ private suspend fun <T> Activity.await(dismissed: T, build: AlertDialog.Builder.
             }
         }
         val dialog = AlertDialog.Builder(this).apply { build(finish) }.show()
+        if (required.isNotEmpty()) {
+            val positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            val update = { positive.isEnabled = required.all { it.text.isNotEmpty() } }
+            val watcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) = update()
+            }
+            required.forEach { it.addTextChangedListener(watcher) }
+            update()
+        }
         // A button's listener runs before the dismissal, so this only fires for back or outside taps.
         dialog.setOnDismissListener { finish(dismissed) }
         cont.invokeOnCancellation { dialog.dismiss() }
@@ -66,7 +86,7 @@ suspend fun Activity.confirmUnknownServer(request: OpenRequest.UnknownServer): U
     val password = form.field(getString(R.string.field_password), "", password = true)
     val save = form.checkbox(getString(R.string.save_as_profile), checked = true)
 
-    return await(null) { finish ->
+    return await(null, required = listOf(user, password)) { finish ->
         setTitle(R.string.unknown_server_title)
         setView(form.root)
         setPositiveButton(R.string.action_connect) { _, _ ->
@@ -81,7 +101,7 @@ suspend fun Activity.askPassword(target: String, retry: Boolean): String? {
     val form = Form(this)
     form.text(getString(if (retry) R.string.password_wrong_body else R.string.password_body, target))
     val password = form.field(getString(R.string.field_password), "", password = true)
-    return await(null) { finish ->
+    return await(null, required = listOf(password)) { finish ->
         setTitle(R.string.password_title)
         setView(form.root)
         setPositiveButton(R.string.action_connect) { _, _ -> finish(password.text.toString()) }

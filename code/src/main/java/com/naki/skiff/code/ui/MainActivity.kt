@@ -26,6 +26,7 @@ import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
@@ -50,6 +51,7 @@ class MainActivity : Activity() {
     private var hostKeyDialog: AlertDialog? = null
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
+    private var opening: Job? = null
 
     /** What the page's `document` call answers, in the shape `main.ts`'s `DocumentState` expects. */
     private lateinit var document: JSONObject
@@ -133,7 +135,10 @@ class MainActivity : Activity() {
 
     private fun handleLink(intent: Intent) {
         val link = intent.dataString ?: return
-        scope.launch {
+        // A newer link replaces one still being opened: its dialogs close and its result is dropped,
+        // rather than a second set of dialogs stacking on top of the first.
+        opening?.cancel()
+        opening = scope.launch {
             val request = OpenRequest.of(intent.action, link, container.store.profiles.first())
             Log.i(TAG, "open ${request.javaClass.simpleName}")
             val opened = OpenFlow(this@MainActivity, container).open(link, request) ?: return@launch
