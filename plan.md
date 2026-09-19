@@ -324,7 +324,8 @@ method로 구독한다(M0에서 확인).
   - 합치는 규칙(사용자 결정, `SkiffCodeStoreTest`): 프로필은 Skiff id, 그다음 이름으로 찾아 Skiff의 주소와 시작 경로를 받고, 자기 id와 비밀번호는 유지한다. host(대소문자 무시)·port·user가 바뀌면 비밀번호를 지운다. 없으면 비밀번호 없이 추가한다. 지우지는 않는다. 호스트키는 그 host:port에 없을 때만 받고, 있는 것은 Skiff와 달라도 두어 접속할 때 `HostKeyGate`의 경고가 판단하게 한다.
   - Skiff는 링크를 보내기 전에 `checkSignatures`로 Skiff Code가 같은 키로 서명됐는지 본다. 다르면 설치되지 않은 것처럼 외부 앱(로컬만)으로 간다. 그래서 `<queries>`가 두 앱 모두에 있다.
   - 실기기: 권한 `granted=true`, adb shell의 `content query`는 `SecurityException`. Skiff에서 개발 맥 프로필의 README.md를 탭하니 대화상자 없이 열렸고, Skiff에만 있던 프로필이 비밀번호 없이, 없던 호스트키가 들어왔다. 서명이 다른 Skiff Code로 가는 경로는 기기에서 보지 않았다.
-- [ ] **확인:** `adb shell am start -a android.intent.action.VIEW -d 'skiffcode://…'`, Skiff에서 파일 탭, 파일 매니저의 "다른 앱으로 열기"를 각각 실기기에서 확인
+- [x] **확인:** `adb shell am start -a android.intent.action.VIEW -d 'skiffcode://…'`, Skiff에서 파일 탭, 파일 매니저의 "다른 앱으로 열기"를 각각 실기기에서 확인
+  - 탭(갤럭시탭 S10 FE)에서 확인: adb로 원격 링크(`?alias=`와 `line=300`, 그 줄 근처 블록이 맨 위)와 로컬 링크(`skiffcode:///…/hello.py`, 하이라이팅). Skiff에서 원격 파일 탭(서명 확인과 프로필 가져오기를 거쳐 대화상자 없이 열림). 삼성 "내 파일"의 "다른 앱에서 열기" → 연결 앱 목록에 Skiff Code → "한 번만"으로 `content://` 마크다운이 열림.
 
 ### M3. editor, 저장, 실시간 반영, 열린 파일
 - [ ] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어별 스크롤 보존, ③ 토글 순환과 아이콘 연결
