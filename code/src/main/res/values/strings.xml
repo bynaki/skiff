@@ -40,4 +40,8 @@
     <string name="refused_too_large">Files larger than %1$s are not opened.</string>
     <string name="refused_binary">This is not a text file.</string>
     <string name="refused_encoding">The file is neither UTF-8 nor EUC-KR, so it was not opened rather than shown with broken characters.</string>
+    <string name="menu_sidebar">Sidebar</string>
+    <string name="menu_reset_zoom">Original size</string>
+    <string name="menu_layer">Switch layer</string>
+    <string name="menu_more">More</string>
 </resources>

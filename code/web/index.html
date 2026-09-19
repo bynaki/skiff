@@ -15,13 +15,13 @@
     html, body { margin: 0; height: 100%; }
     body { background: #fff; color: #1f2328; font-family: sans-serif; }
     #viewer { height: 100%; }
-    .notice { padding: 32px 24px; }
+    .notice { padding: calc(var(--topbar-space) + 16px) 24px 32px; }
     .notice h1 { margin: 0 0 8px; font-size: 18px; }
     .notice p { margin: 0; color: #59636e; overflow-wrap: anywhere; }
     /* Positioned so a block's offsetTop is measured from it, for scrolling to a link's line. */
     .markdown-scroller { position: relative; height: 100%; overflow: auto; touch-action: pan-x pan-y; }
     .markdown {
-      max-width: 60em; margin: 0 auto; padding: 16px 24px 48px;
+      max-width: 60em; margin: 0 auto; padding: var(--topbar-space) 24px 48px;
       font-size: var(--code-font-size); line-height: 1.6; overflow-wrap: break-word;
     }
     .markdown h1, .markdown h2 { border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
@@ -33,6 +33,21 @@
     .markdown table { border-collapse: collapse; display: block; overflow: auto; }
     .markdown th, .markdown td { border: 1px solid #d1d9e0; padding: 4px 12px; }
     .markdown img { max-width: 100%; }
+    /* Floats over the layer; pointer-events pass through the gap between the two ends. */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10; box-sizing: border-box;
+      height: var(--topbar-space); padding: 8px; display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; transition: transform 0.2s ease;
+    }
+    #topbar.hidden { transform: translateY(-100%); }
+    #topbar > button, #topbar .group {
+      display: flex; pointer-events: auto; background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #d1d9e0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; }
+    #topbar .group button { border: 0; background: none; }
+    #topbar button:disabled { color: #afb8c1; }
+    #topbar svg { display: block; width: 22px; height: 22px; }
   </style>
 </head>
 <body>

@@ -25,15 +25,25 @@ export interface Anchor {
  */
 export type Hold = (clientY: number) => (size: number, clientY: number) => void
 
+/** What ② original size returns to, until settings.toml gives the user's own. */
+export const DEFAULT_FONT_SIZE = 14
+
 // One size for every document, so opening another file keeps the zoom.
-let fontSize = 14
+let fontSize = DEFAULT_FONT_SIZE
+let zoomedAt = -Infinity
 
 export function currentFontSize(): number {
   return fontSize
 }
 
+/** When the size last changed, as performance.now(), so a scroll that follows can be told apart. */
+export function lastZoomTime(): number {
+  return zoomedAt
+}
+
 export function setFontSize(size: number): void {
   fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
+  zoomedAt = performance.now()
   document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
 }
 

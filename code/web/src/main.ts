@@ -1,8 +1,9 @@
 // The page: shows whichever document Kotlin has open. Kotlin says `documentChanged` when that
 // changes and the page asks for it, so a reloaded page and a new link take the same path.
 import { onNotify, rpc } from './bridge'
-import { showDocument } from './layers/viewer'
-import { currentFontSize, setFontSize } from './zoom'
+import { type TopbarLabels, createTopbar } from './chrome/topbar'
+import { type Shown, showDocument } from './layers/viewer'
+import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
@@ -11,16 +12,26 @@ type DocumentState =
   | { state: 'refused'; name: string; title: string; message: string }
 
 const root = document.getElementById('viewer')!
-let takeDown: (() => void) | null = null
+let shown: Shown | null = null
+
+const topbar = createTopbar({
+  // Keeps the line at the middle of the screen where it is.
+  resetZoom() {
+    const middle = root.getBoundingClientRect().top + root.clientHeight / 2
+    if (shown) shown.hold(middle)(DEFAULT_FONT_SIZE, middle)
+    else setFontSize(DEFAULT_FONT_SIZE)
+  },
+})
 
 function show(doc: DocumentState) {
-  takeDown?.()
-  takeDown = null
+  shown?.close()
+  shown = null
   root.replaceChildren()
+  topbar.show()
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
-      takeDown = showDocument(root, doc)
+      shown = showDocument(root, doc)
       break
     case 'refused':
       root.append(notice(doc.title, doc.message))
@@ -43,5 +54,6 @@ function notice(title: string | null, message: string): HTMLElement {
 const refresh = () => rpc<DocumentState>('document').then(show).catch((error) => console.log(`document: ${error}`))
 
 setFontSize(currentFontSize())
+rpc<TopbarLabels>('labels').then(topbar.label).catch((error) => console.log(`labels: ${error}`))
 onNotify('documentChanged', refresh)
 refresh()

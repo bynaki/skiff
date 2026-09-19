@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -88,6 +89,13 @@ class MainActivity : Activity() {
         // Answered without suspending, so replies leave in the order the calls came in and the
         // page's last answer is always the current document.
         bridge.method("document") { document }
+        bridge.method("labels") {
+            JSONObject()
+                .put("sidebar", getString(R.string.menu_sidebar))
+                .put("resetZoom", getString(R.string.menu_reset_zoom))
+                .put("layer", getString(R.string.menu_layer))
+                .put("more", getString(R.string.menu_more))
+        }
         bridge.attach(webView)
 
         // Android 15 draws the app under the system bars. The page is kept inside them by the frame
@@ -101,6 +109,9 @@ class MainActivity : Activity() {
             WindowInsets.CONSUMED
         }
         setContentView(frame)
+        // The theme is dark, so its bar icons are white; on the page's white they vanish.
+        val light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        window.insetsController?.setSystemBarsAppearance(light, light)
         webView.loadUrl("$ORIGIN/assets/web/index.html")
 
         // The prompter outlives this activity, so a question asked while none was in front is
