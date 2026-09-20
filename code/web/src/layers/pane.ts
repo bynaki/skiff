@@ -14,7 +14,7 @@ import { LanguageDescription, defaultHighlightStyle, syntaxHighlighting } from '
 import { languages } from '@codemirror/language-data'
 import { type MarkdownSurface, showMarkdown } from '../markdown'
 import { TOPBAR_SPACE } from '../chrome/topbar'
-import { type Hold, anchorAt, holdLine, installPinchZoom } from '../zoom'
+import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinchZoom } from '../zoom'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -64,8 +64,9 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
           syntax.of([]),
           syntaxHighlighting(defaultHighlightStyle),
           layerBundle.of(BUNDLES[layer]),
+          codeFontSize(),
           EditorView.theme({
-            '&': { height: '100%', fontSize: 'var(--code-font-size)' },
+            '&': { height: '100%' },
             '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
             // Gutters follow the content's padding, so the line numbers move down with it.
             '.cm-content': { paddingTop: 'var(--topbar-space)' },
@@ -112,8 +113,9 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     markdown!.visible(false)
     if (view) {
       view.dom.style.removeProperty('display')
-      // CodeMirror measures nothing while it is display:none, so it re-measures on the way back.
-      view.requestMeasure()
+      // CodeMirror measures nothing while it is display:none, and the markdown surface may have
+      // been zoomed meanwhile; the size it carries settles both on the way back.
+      applyFontSize(view)
     } else {
       view = createView()
     }

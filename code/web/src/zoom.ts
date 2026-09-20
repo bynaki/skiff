@@ -1,5 +1,7 @@
 // Pinch zoom by font size: the CSS variable --code-font-size changes, and what is under the fingers
-// stays where it was on screen.
+// stays where it was on screen. A code view is told the size through a theme as well, for the
+// reason [codeFontSize] gives.
+import { Compartment, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
 export const MIN_FONT_SIZE = 8
@@ -47,6 +49,37 @@ export function setFontSize(size: number): void {
   document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
 }
 
+/**
+ * The font size a code view reads, as a theme rather than through `--code-font-size`.
+ *
+ * CodeMirror re-reads line heights only when the theme facet changed or when `.cm-content`'s box
+ * changed height. Its base theme gives that box `min-height: 100%` inside a flex scroller, so a
+ * document shorter than the screen keeps the same box height at every font size and neither test
+ * fires: the line boxes grow in the DOM while the height map, and with it the gutter's line
+ * spacing, stays at the size the view was built with. Changing the size through a compartment is
+ * what tells the view to measure again. Found on the tablet with a file of eight lines.
+ */
+const codeFont = new Compartment()
+
+function fontTheme(size: number): Extension {
+  return EditorView.theme({ '&': { fontSize: `${size}px` } })
+}
+
+/** What a code view starts at; [zoomTo] moves it from there. */
+export function codeFontSize(): Extension {
+  return codeFont.of(fontTheme(fontSize))
+}
+
+/**
+ * Brings [view] to the size the rest of the screen is at. A pane whose markdown surface was
+ * zoomed while the code view was hidden has a view still configured for the old size, and a
+ * hidden view measures nothing; reconfiguring settles both, since a theme change is what makes
+ * CodeMirror read line heights again.
+ */
+export function applyFontSize(view: EditorView): void {
+  view.dispatch({ effects: codeFont.reconfigure(fontTheme(fontSize)) })
+}
+
 export function anchorAt(view: EditorView, clientY: number): Anchor {
   const block = view.lineBlockAtHeight(clientY - view.documentTop)
   const blockTop = view.documentTop + block.top
@@ -70,10 +103,13 @@ export function zoomTo(view: EditorView, size: number, anchor: Anchor, clientY: 
   const lineHeight = anchor.lineHeight * (fontSize / anchor.size)
   const scrollerTop = view.scrollDOM.getBoundingClientRect().top
   view.dispatch({
-    effects: EditorView.scrollIntoView(anchor.pos, {
-      y: 'start',
-      yMargin: clientY - scrollerTop - (anchor.fraction - anchor.glyph) * lineHeight,
-    }),
+    effects: [
+      codeFont.reconfigure(fontTheme(fontSize)),
+      EditorView.scrollIntoView(anchor.pos, {
+        y: 'start',
+        yMargin: clientY - scrollerTop - (anchor.fraction - anchor.glyph) * lineHeight,
+      }),
+    ],
   })
 }
 
