@@ -1,6 +1,7 @@
 package com.naki.skiff.ui
 
 import android.Manifest
+import android.app.ActivityOptions
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -118,8 +119,17 @@ class MainActivity : ComponentActivity() {
             }
         }
         val intent = Intent(Intent.ACTION_VIEW, link.toUri()).setPackage(SKIFF_CODE_PACKAGE)
+        // Skiff Code opens a link's path without asking only when it can see the link came from
+        // here, and the system tells it that only for a sender that shares its identity. Without
+        // this, every file tapped in Skiff would be confirmed again on the other side. Android 15
+        // is where the other side can read it; below that there is nothing to share it with.
+        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            ActivityOptions.makeBasic().setShareIdentityEnabled(true).toBundle()
+        } else {
+            null
+        }
         return try {
-            startActivity(intent)
+            startActivity(intent, options)
             true
         } catch (_: ActivityNotFoundException) {
             false

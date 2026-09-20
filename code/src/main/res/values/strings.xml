@@ -3,6 +3,7 @@
     <string name="action_connect">Connect</string>
     <string name="action_trust">Trust</string>
     <string name="action_open_settings">Open settings</string>
+    <string name="action_open">Open</string>
 
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
@@ -10,6 +11,10 @@
     <string name="unknown_server_title">Open a file on an unknown server?</string>
     <string name="unknown_server_body">The link points at %1$s, which is not one of your servers.\n\n%2$s</string>
     <string name="save_as_profile">Save as a server</string>
+
+    <string name="link_path_title">Open this file?</string>
+    <string name="link_path_body">A link that did not come from Skiff asks to open this file.\n\n%1$s\n%2$s</string>
+    <string name="link_path_device">this device</string>
 
     <string name="password_title">Password</string>
     <string name="password_body">Enter the password for %1$s.</string>

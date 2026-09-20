@@ -39,9 +39,13 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
     /** A file that was read, how to name it, and the line the link asked for. */
     data class Opened(val link: String, val name: String, val request: OpenRequest, val result: LoadResult, val line: Int?)
 
-    /** Null when the user backed out or the file could not be opened; either way they have been told. */
-    suspend fun open(link: String, request: OpenRequest): Opened? = try {
-        val opened = when (request) {
+    /**
+     * Null when the user backed out or the file could not be opened; either way they have been
+     * told. [fromSkiff] says the link came from Skiff itself, which is what lets it open without
+     * confirming the path; see [confirmPath].
+     */
+    suspend fun open(link: String, request: OpenRequest, fromSkiff: Boolean): Opened? = try {
+        val opened = if (!fromSkiff && !confirmPath(request)) null else when (request) {
             is OpenRequest.Invalid -> fail(R.string.error_bad_link, request.reason)
             is OpenRequest.LocalPath -> openLocal(link, request)
             is OpenRequest.Content -> openContent(link, request)
@@ -55,6 +59,32 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         Log.w(TAG, "open failed: $link", e)
         fail(R.string.error_open, describe(e))
     }
+
+    /**
+     * Shows the server and the path a link picked, before anything is read or written there.
+     *
+     * A matched alias only decides *which server*: the path stays the link's own, so a link that
+     * guesses a profile's name otherwise reaches any file on it with the stored credentials. That
+     * was a file shown on screen while this was a viewer; once documents can be saved it is the
+     * file the user's typing lands in.
+     *
+     * Listed one by one rather than with an `else`, so that a new kind of [OpenRequest] has to
+     * say here whether its path was the user's choice instead of quietly skipping the question.
+     */
+    private suspend fun confirmPath(request: OpenRequest): Boolean = when (request) {
+        is OpenRequest.LocalPath -> confirmPath(activity.getString(R.string.link_path_device), request.path)
+        is OpenRequest.Remote ->
+            confirmPath("${request.profile.username}@${request.profile.host}:${request.profile.port}", request.path)
+        // UnknownServer asks anyway, with the same path in its dialog. Content is a grant the
+        // sending app handed us, not a path we picked. Invalid never reaches a file.
+        is OpenRequest.UnknownServer, is OpenRequest.Content, is OpenRequest.Invalid -> true
+    }
+
+    private suspend fun confirmPath(where: String, path: String): Boolean = activity.confirm(
+        activity.getString(R.string.link_path_title),
+        activity.getString(R.string.link_path_body, where, path),
+        activity.getString(R.string.action_open),
+    )
 
     private suspend fun openLocal(link: String, request: OpenRequest.LocalPath): Opened? {
         if (!Environment.isExternalStorageManager()) {

@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowInsets
@@ -25,6 +26,7 @@ import com.naki.skiff.code.bridge.WebBridge
 import com.naki.skiff.code.data.readSkiffProfiles
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -134,17 +136,36 @@ class MainActivity : Activity() {
                 hostKeyDialog = prompt?.let { hostKeyDialog(it, container.hostKeyPrompter::respond).apply { show() } }
             }
         }
-        handleLink(intent)
+        handleLink(intent, senderOf(initial = true))
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleLink(intent)
+        // The sender of *this* intent, not of the one that started the activity. A link arriving
+        // in a running instance is exactly the case where the two differ.
+        handleLink(intent, senderOf(initial = false))
     }
 
-    private fun handleLink(intent: Intent) {
+    /**
+     * The package that sent an intent, when the system will say so: only for a sender that shared
+     * its identity, and only from Android 15, where `ComponentCaller` arrived. Null otherwise,
+     * which [sentBySkiff] reads as "not Skiff" and so asks about the path.
+     */
+    private fun senderOf(initial: Boolean): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return null
+        return try {
+            (if (initial) initialCaller else currentCaller).getPackage()
+        } catch (e: IllegalStateException) {
+            // getCurrentCaller only answers inside onNewIntent, and not on every path into it.
+            Log.i(TAG, "no caller for this intent", e)
+            null
+        }
+    }
+
+    private fun handleLink(intent: Intent, sender: String?) {
         val link = intent.dataString ?: return
+        val fromSkiff = sentBySkiff(sender)
         // A newer link replaces one still being opened: its dialogs close and its result is dropped,
         // rather than a second set of dialogs stacking on top of the first.
         opening?.cancel()
@@ -158,8 +179,8 @@ class MainActivity : Activity() {
                     request = OpenRequest.of(intent.action, link, container.store.profiles.first())
                 }
             }
-            Log.i(TAG, "open ${request.javaClass.simpleName}")
-            val opened = OpenFlow(this@MainActivity, container).open(link, request) ?: return@launch
+            Log.i(TAG, "open ${request.javaClass.simpleName} from ${sender ?: "an app that did not say"}")
+            val opened = OpenFlow(this@MainActivity, container).open(link, request, fromSkiff) ?: return@launch
             Log.i(TAG, "opened ${opened.name}: ${opened.result.javaClass.simpleName}")
             document = documentState(opened)
             bridge.notify("documentChanged", JSONObject())

@@ -3,6 +3,7 @@
     <string name="action_connect">연결</string>
     <string name="action_trust">신뢰</string>
     <string name="action_open_settings">설정 열기</string>
+    <string name="action_open">열기</string>
 
     <string name="field_user">사용자</string>
     <string name="field_password">비밀번호</string>
@@ -10,6 +11,10 @@
     <string name="unknown_server_title">등록되지 않은 서버의 파일을 열까요?</string>
     <string name="unknown_server_body">링크가 가리키는 %1$s 은(는) 등록된 서버가 아닙니다.\n\n%2$s</string>
     <string name="save_as_profile">서버로 저장</string>
+
+    <string name="link_path_title">이 파일을 열까요?</string>
+    <string name="link_path_body">Skiff가 보낸 것이 아닌 링크가 다음 파일을 열려고 합니다.\n\n%1$s\n%2$s</string>
+    <string name="link_path_device">이 기기</string>
 
     <string name="password_title">비밀번호</string>
     <string name="password_body">%1$s 의 비밀번호를 입력하세요.</string>

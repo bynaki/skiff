@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
+import com.naki.skiff.code.intent.SKIFF_PACKAGE
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.link.SharedProfiles
@@ -52,8 +53,6 @@ private fun read(resolver: ContentResolver): Pair<List<ServerProfile>, List<Know
     }
     return if (profiles == null || knownHosts == null) null else profiles to knownHosts
 }
-
-private const val SKIFF_PACKAGE = "com.naki.skiff"
 
 private fun <T> ContentResolver.rows(path: String, row: Cursor.() -> T): List<T>? {
     val uri = Uri.parse("content://${SharedProfiles.AUTHORITY}/$path")
