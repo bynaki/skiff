@@ -12,9 +12,8 @@
 ## 마지막 세션 (2026-09-20 낮): 레이어 구조를 정하고 **M3 첫 항목(editor 레이어) 완료**
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 지난 인수인계에 "push 안 한 커밋 3개"라고 적혀 있었지만
-  **이미 전부 push돼 있었다.** 지금은 **이번 작업이 커밋되지 않은 채 워킹 트리에 있다**(아래 "바뀐 것").
-  커밋할지, main에 합칠지(`main` 대비 47커밋 앞) 아직 답을 못 받았다.
+- 브랜치 `plan/skiffcode`(git worktree). **이번 작업은 커밋 4개로 나뉘어 push까지 끝났다**(아래 "바뀐 것").
+  워킹 트리는 깨끗하다. **main에는 아직 합치지 않았다**(`main` 대비 51커밋 앞). 합칠지는 못 물어봤다.
 - **M3 첫 항목이 끝났다. 다음은 `DocumentSaver`다**(`plan.md`의 첫 `- [ ]`).
 - 테스트: `:core` 35개, `:app` 24개, `:code` 92개. 실패 없음. lint 경고 `:app` 4개, `:code` 11개.
   **전부 지난 세션과 같은 수다.** 웹은 `npx tsc --noEmit` 통과.
@@ -86,22 +85,26 @@
   **스와이프 직후에는 관성이 남아 탭이 먹지 않는다.** 확인할 때는 스와이프 대신
   `.cm-scroller`의 `scrollTop`을 직접 주는 편이 재현이 정확하다.
 
-### 바뀐 것 (커밋되지 않았다)
+### 바뀐 것 (커밋 4개, push 완료)
 ```
-새 파일  code/web/src/layers/pane.ts
-지움    code/web/src/layers/viewer.ts
-고침    code/web/index.html  (상단 메뉴 불투명 막대)
-고침    code/web/src/{main.ts, markdown.ts, zoom.ts, chrome/topbar.ts, package.json, package-lock.json}
-고침    code/src/main/java/com/naki/skiff/code/ui/MainActivity.kt
-고침    code/src/main/res/values{,-ko}/strings.xml
-고침    plan.md, AGENTS.md, HANDOFF.md
+eaa5c19  Give a pane one view and make each layer a compartment
+           새 파일 code/web/src/layers/pane.ts, 지움 layers/viewer.ts,
+           고침 {main,markdown,zoom,chrome/topbar}.ts, strings.xml 둘, MainActivity의 labels
+8215db9  Let the soft keyboard shrink the WebView instead of covering the caret  (MainActivity 인셋)
+9c31cc9  Make the top menu an opaque bar  (code/web/index.html)
+e09c7fd  Record what CodeMirror needed, and rewrite the hand-off  (plan.md, AGENTS.md, HANDOFF.md)
 ```
 `@codemirror/commands` 6.11.1을 새로 넣었다(`history()`와 기본 키맵).
+
+**핀치 수정과 마크다운 겹침 수정은 따로 떨어진 커밋이 없다.** 둘 다 이번에 처음 쓴 코드를 같은
+세션 안에서 고친 것이라, 떼어 내려면 일부러 깨진 중간 상태를 커밋해야 했다. 대신 `eaa5c19`의
+커밋 메시지와 `AGENTS.md`에 무엇을 왜 고쳤는지 적었다. 네 커밋 모두 `tsc --noEmit`이 통과한다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다. 특히 툴체인 제약, Before committing(**커밋마다, push마다 사용자에게 먼저 묻는다**),
    보고와 알림 규칙.
-2. **이번 변경을 커밋할지 먼저 묻는다.**
+2. 지난 세션 것은 커밋·push가 끝났으니 바로 일을 시작해도 된다. 다만 **`main`에 합칠지는 아직
+   못 물어봤다**(51커밋 앞). 물어볼 만한 시점이다.
 3. `plan.md`의 첫 `- [ ]`인 **`DocumentSaver`**를 한다. 시작하기 전에 아래를 먼저 다룬다:
    - **`링크가 아는 alias의 임의 경로를 연다`는 문제를 저장 기능보다 먼저 본다.** 읽기만 할 때는 문제가
      아니었지만 쓰기가 생기면 열린다. alias가 맞으면 host는 프로필 것을 쓰지만 **경로는 링크의 것**이다.
