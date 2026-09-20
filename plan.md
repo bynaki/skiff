@@ -89,6 +89,7 @@ method로 구독한다(M0에서 확인).
 - 경로는 퍼센트 인코딩한다. 선택 쿼리는 `alias`, `line`, `col`, `layer`(viewer|editor|diff)다.
 - **`user:password@`는 거부한다.**
 - 프로필은 `alias` 일치 → `(user, host, port)` 일치 순으로 찾는다. 없으면 "알 수 없는 서버" 확인창에서 열기 여부, 필요한 정보(비밀번호), 프로필로 저장할지를 묻는다.
+- **보낸 앱이 Skiff가 아니면 서버와 경로를 보여주고 묻는다**(2026-09-20). alias가 맞아도 정하는 것은 *어느 서버*뿐이고 경로는 링크의 것이라, 이름만 맞히면 저장된 자격증명으로 그 서버의 아무 파일이나 열렸다. 보낸 앱은 `ComponentCaller`로 알아낸다(`getReferrer()`는 호출자가 위조한다). 자세한 것은 `AGENTS.md`의 "Links that arrive from outside".
 - 호스트키는 `HostKeyGate`(TOFU)를 그대로 쓴다. **PromiscuousVerifier는 쓰지 않는다.**
 - 다른 앱에서 띄우기:
   - 노트나 터미널 앱의 링크를 누르면 커스텀 스킴이 열린다.
@@ -333,6 +334,13 @@ method로 구독한다(M0에서 확인).
   - 레이어는 **뷰를 나누지 않는다.** `EditorView` 하나와 파일당 `EditorState` 하나를 두고, 레이어는 `Compartment`가 나르는 확장 묶음이다(`code/web/src/layers/pane.ts`). 근거는 `AGENTS.md`의 CM6 관찰.
   - 스크롤은 "레이어별로 따로 기억"이 아니라 **보던 줄을 잇는다**(2026-09-20 사용자 결정). 코드 파일은 같은 뷰라 저절로 그렇게 되고, 마크다운은 렌더된 블록의 `data-line`과 소스 줄을 서로 옮긴다.
   - ③ 순환에 diff는 아직 없다. 확장 묶음 자리(`BUNDLES.diff`)만 있고 M5에서 채운다.
+- [x] 링크가 준 경로 확인: 보낸 앱이 Skiff가 아니면 서버와 경로를 보여주고 묻는다 (저장 기능보다 먼저 막았다)
+  - alias가 맞아도 정하는 것은 어느 서버뿐이고 경로는 링크의 것이었다. `skiffcode://`가 `BROWSABLE`이라 웹 페이지도 보낼 수 있어, 프로필 이름만 맞히면 저장된 자격증명으로 그 서버의 아무 파일이나 대화상자 없이 열렸다. 읽기만 할 때는 화면에 뜰 뿐이지만, 저장이 생기면 **사용자의 타이핑이 어느 파일에 떨어지는지를 링크가 고르게 된다.**
+  - 보낸 앱은 `ComponentCaller.getPackage()`로 알아낸다. `getReferrer()`는 호출자가 `EXTRA_REFERRER`를 직접 채워 위조되고, `ComponentCaller`는 프레임워크가 답한다 — 호출자는 밝힐지 여부만 고르고(`ActivityOptions.setShareIdentityEnabled`, Skiff가 보낼 때 켠다) 무엇인지는 못 고른다. `onNewIntent`는 `getCurrentCaller()`를 읽는다(`getInitialCaller()`면 Skiff가 띄운 앱이 뒤에 온 악성 링크에 신뢰를 물려준다). Android 15 미만은 전부 묻는다.
+  - `UnknownServer`는 이미 같은 경로를 보여주며 묻고, `content://`는 보낸 앱이 준 권한이라 대상이 아니다. `else` 없이 종류를 하나씩 적어 새 `OpenRequest`가 생기면 빌드가 깨진다.
+  - 실기기: Skiff 탭은 대화상자 없이(`from com.naki.skiff`), adb 링크는 확인창, **Skiff가 띄운 앱에 들어온 adb 링크도 확인창**, 그리고 `attacker@192.0.2.1/etc/shadow?alias=<실제 이름>`이 링크의 주소가 아닌 프로필의 주소와 `/etc/shadow`를 보여주며 **연결·비밀번호·호스트키 전에** 멈췄다.
+- [x] 확대할 때 줄 번호 간격이 따라오지 않던 것(화면보다 짧은 파일)
+  - 거터만이 아니라 CM6의 높이 맵이 통째로 낡아 있었다. `.cm-content`의 `min-height: 100%` 때문에 짧은 문서는 글꼴이 커져도 박스 높이가 그대로라, 측정 관문(`theme facet 변경 || refresh || contentDOMHeight != rect`)이 하나도 걸리지 않는다. 본문 줄은 CSS로 그려져 멀쩡해 보이고, 높이 맵에서 인라인 px로 쓰이는 거터만 낡은 채 남았다. 그래서 글꼴 크기를 `--code-font-size`가 아니라 `Compartment`가 나른다(`codeFontSize`). 자세한 것은 `AGENTS.md`의 CM6 관찰.
 - [ ] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
 - [ ] `FileWatcher`: 원격 폴링(별도 연결), `FileObserver`, `content://` 폴링. 깨끗한 버퍼는 병합하고 수정 중이면 배너
 - [ ] 사이드바(①): 슬라이드 인/아웃, 열린 파일 목록과 전환

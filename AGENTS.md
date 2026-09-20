@@ -211,6 +211,25 @@ doomed filesystems are collected under it and closed outside.
 too, which renders a cancelled load's cancellation message as a user-facing error. Catch
 `CancellationException` and rethrow before the general handler.
 
+### Links that arrive from outside
+
+`skiffcode://` is `BROWSABLE`, so any app — and any web page — can send one. **A link's path is
+never opened without the user seeing it, unless the sender is Skiff.** Matching an `alias` decides
+only *which server*; the path stays the link's own, so a link that guesses a profile's name would
+otherwise reach any file on that server with the stored credentials. `OpenFlow.confirmPath` is the
+gate, and it lists the `OpenRequest` kinds one by one rather than falling through an `else`, so a
+new kind has to answer the question. `content://` is not in scope: it is a grant the sending app
+handed us, not a path we chose.
+
+**Identify the sender with `ComponentCaller`, never `getReferrer()`.** The caller fills in
+`EXTRA_REFERRER` itself, so any app can claim to be Skiff; `ComponentCaller.getPackage()` and
+`getLaunchedFromPackage()` are answered by the framework, and a caller chooses only *whether* to
+reveal itself (`ActivityOptions.setShareIdentityEnabled`), never *what* it is — which is why Skiff
+passes those options when it starts Skiff Code, and why the check still ends in `checkSignatures`.
+`onNewIntent` must read `getCurrentCaller()`, not `getInitialCaller()`: a link arriving in a
+running instance is exactly where the two differ, and the launcher's trust must not carry over to
+it. Below Android 15 there is no `ComponentCaller` and every link is confirmed.
+
 ## Toolchain constraints
 
 These are non-obvious and each one has already broken the build or the app:
@@ -270,6 +289,18 @@ These apply to `:code` only:
   sees the gesture start and the pinch is dead in the editor layer but fine in the viewer.
   `installPinchZoom` therefore listens on the document, and a pane installs exactly one, asking its
   `hold` which surface is showing.
+- **A document shorter than the screen never re-measures when only CSS changes the font size.** The
+  measure pass re-reads line heights when the theme facet changed, when a refresh was asked for, or
+  when `.cm-content`'s box changed height — and the base theme gives that box `min-height: 100%`
+  inside a flex scroller, so a short document holds the scroller's height at every size and none of
+  the three fires (`contentDOMHeight` and the rect both stayed 675 across a zoom on the tablet). The
+  height map then keeps the old line heights while the DOM grows: content lines are laid out by CSS
+  and look right, but anything written from the height map does not. The line-number gutter writes
+  its element heights as inline pixels, so it kept the old spacing under numbers that had grown.
+  `requestMeasure()` does not help. A long file hides this, since its box does track the font.
+  **A font size therefore rides a `Compartment` (`codeFontSize`), not `--code-font-size`** — the
+  variable stays for the markdown surface and the menu — and anything else read from the height map
+  (folding, the M5 diff gutter) inherits the fix rather than meeting it again.
 - **`@codemirror/lsp-client` converts positions as UTF-16 code units and never negotiates
   `positionEncoding`.** It advertises no `general.positionEncodings`, which by the spec obliges the
   server to use UTF-16, and pyright does. A server that counts UTF-8 bytes anyway would put every
