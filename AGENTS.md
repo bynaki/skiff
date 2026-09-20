@@ -249,6 +249,27 @@ These apply to `:code` only:
   patches the prototype at runtime for the spike; M5 does it with `patch-package`. Check
   `HeightMapBranch.forEachLine` for a clamp when raising the CodeMirror version, and drop the patch
   once it is there.
+- **A layer is an extension bundle in a `Compartment`, never its own `EditorView`.** Swapping one
+  keeps every state field that stays in the configuration (`StateField.slot(...).reconfigure` hands
+  the old value over) and creates only what the layer being entered adds, so the document, the parse
+  tree, the height map and the undo history are shared — `history()` therefore lives outside the
+  compartment. `unifiedMergeView` is a plain extension array whose `ChunkField.init` builds against
+  `state.doc`, so the diff layer joins the same view and compares against the buffer being edited.
+  Measured on the tablet with a 2 MB file: switching layers leaves the JS heap at 23.1 MB, unchanged
+  within `performance.memory`'s 0.1 MB resolution. Separate views would mean a parse tree and height
+  map per layer, multiplied again by M3's LRU of open files.
+- **`display: none` does not hide a CodeMirror editor.** Its base theme sets
+  `display: flex !important` on `.cm-editor` (and on `.cm-scroller`), so an inline `display: none`
+  loses and the editor keeps its height. In the markdown pane, where the rendered document and the
+  editor are two DOMs, that left the code standing below the rendered document, reachable by
+  scrolling past its end. Hiding one needs
+  `dom.style.setProperty('display', 'none', 'important')`, and showing it again `removeProperty`.
+- **A focused editor breaks a pinch that listens below the document.** While the caret is in the
+  contenteditable, Chrome gives the second finger's `touchstart` to `<html>` instead of the element
+  it landed on (the `touchmove`s that follow arrive normally), so a listener on the scroller never
+  sees the gesture start and the pinch is dead in the editor layer but fine in the viewer.
+  `installPinchZoom` therefore listens on the document, and a pane installs exactly one, asking its
+  `hold` which surface is showing.
 - **`@codemirror/lsp-client` converts positions as UTF-16 code units and never negotiates
   `positionEncoding`.** It advertises no `general.positionEncodings`, which by the spec obliges the
   server to use UTF-16, and pyright does. A server that counts UTF-8 bytes anyway would put every
@@ -337,7 +358,8 @@ added:
 - Page: `markdown-it` 15.0.2 (ships its own types), `@codemirror/language-data` 6.5.2 (every
   language's parser as its own chunk, loaded by file name when first needed)
 - `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,
-  `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7
+  `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7, and `commands` 6.11.1, which M3 added for
+  `history()` and the default keymap
 
 The bridge's shape is settled too, and the security rules on it are in `plan.md`: one
 `WebViewCompat.addWebMessageListener` named `skiffBridge`, `https://appassets.androidplatform.net`

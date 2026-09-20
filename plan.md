@@ -127,6 +127,7 @@ method로 구독한다(M0에서 확인).
 ### 레이어
 
 - `pane`은 파일과 1:1이고 전체화면이다. viewer, editor, diff가 레이어로 겹쳐 있다.
+- **레이어는 뷰가 아니라 확장 묶음이다.** `pane` 하나에 `EditorView` 하나와 `EditorState` 하나를 두고, 레이어를 바꾸는 것은 `Compartment`에 든 확장 묶음을 바꾸는 것이다. 그래서 문서, 파싱 트리, 높이맵, undo 기록이 세 레이어에 하나씩만 있고, 나간 레이어의 state field는 CM6가 알아서 버린다(2026-09-20에 정했다. 근거는 `AGENTS.md`의 CM6 관찰). 마크다운 viewer만 CM6가 아닌 별도 DOM이라 예외다.
 - **viewer:**
   - 읽기 전용 CM6에 하이라이팅, 줄 번호, git 거터를 보여준다.
   - 마크다운은 `markdown-it`(`html: false`)으로 렌더링하고 테마를 적용한다.
@@ -307,7 +308,7 @@ method로 구독한다(M0에서 확인).
   - 실기기에서 DevTools로 확인: 외부 fetch, 외부 이미지, 인라인 스크립트, iframe이 CSP로 막히고, `web/` 밖의 자산은 403이다. `location.href`로 https에 가면 페이지는 그대로이고 Chrome이 열린다. `intent:` 링크는 버려진다.
   - DevTools에서 만든 `<a>`의 `click()`으로는 https 이동이 일어나지 않았다. 원인은 확인하지 않았다. viewer에서 마크다운 링크를 실제로 탭해 다시 볼 것.
 - [x] viewer 레이어: 읽기 전용 CM6(하이라이팅, 줄 번호), 핀치 줌, 마크다운 렌더링(`html: false`)
-  - `web/src/layers/viewer.ts`, `markdown.ts`, `zoom.ts`, `main.ts`. 하이라이팅은 `@codemirror/language-data` 6.5.2로 파일 이름에서 언어를 찾고, 파서는 언어마다 따로 된 청크를 처음 필요할 때 불러온다. 마크다운은 `markdown-it` 15.0.2이고, 이름이 마크다운이면 렌더링해서 보여 준다(원문은 M3의 editor에서).
+  - `web/src/layers/pane.ts`(M3에서 `layers/viewer.ts`를 흡수했다), `markdown.ts`, `zoom.ts`, `main.ts`. 하이라이팅은 `@codemirror/language-data` 6.5.2로 파일 이름에서 언어를 찾고, 파서는 언어마다 따로 된 청크를 처음 필요할 때 불러온다. 마크다운은 `markdown-it` 15.0.2이고, 이름이 마크다운이면 렌더링해서 보여 준다(원문은 M3의 editor에서).
   - 흐름: `OpenFlow`가 여는 데서 그치지 않고 `TextLoader`로 읽는다(원격은 세션의 `SftpFileSystem`, 로컬은 `LocalFileSystem`, `content://`는 새 `TextLoader.load(Source)`). `MainActivity`가 결과를 들고 있고, 페이지는 `document` RPC로 가져간다. 새 문서가 열리면 `documentChanged` 알림을 받고 다시 묻는다. 페이지를 다시 불러와도 같은 길이다.
   - 읽기 중의 실패(연결, 권한)는 지금처럼 네이티브 대화상자다. 읽었지만 보여 줄 수 없는 것(`TooLarge`, `Binary`, `UnknownEncoding`)은 페이지에 문서 대신 안내로 나온다. 페이지의 글은 전부 Kotlin의 문자열 리소스(영어, 한국어)에서 온다.
   - `?line=`은 코드에서는 그 줄을 맨 위로, 마크다운에서는 그 줄 이전에서 시작하는 마지막 블록을 맨 위로 둔다(`markdown-it`의 `map`으로 블록마다 `data-line`).
@@ -328,7 +329,10 @@ method로 구독한다(M0에서 확인).
   - 탭(갤럭시탭 S10 FE)에서 확인: adb로 원격 링크(`?alias=`와 `line=300`, 그 줄 근처 블록이 맨 위)와 로컬 링크(`skiffcode:///…/hello.py`, 하이라이팅). Skiff에서 원격 파일 탭(서명 확인과 프로필 가져오기를 거쳐 대화상자 없이 열림). 삼성 "내 파일"의 "다른 앱에서 열기" → 연결 앱 목록에 Skiff Code → "한 번만"으로 `content://` 마크다운이 열림.
 
 ### M3. editor, 저장, 실시간 반영, 열린 파일
-- [ ] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어별 스크롤 보존, ③ 토글 순환과 아이콘 연결
+- [x] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어를 바꿔도 보던 줄을 잇기, ③ 토글 순환과 아이콘 연결
+  - 레이어는 **뷰를 나누지 않는다.** `EditorView` 하나와 파일당 `EditorState` 하나를 두고, 레이어는 `Compartment`가 나르는 확장 묶음이다(`code/web/src/layers/pane.ts`). 근거는 `AGENTS.md`의 CM6 관찰.
+  - 스크롤은 "레이어별로 따로 기억"이 아니라 **보던 줄을 잇는다**(2026-09-20 사용자 결정). 코드 파일은 같은 뷰라 저절로 그렇게 되고, 마크다운은 렌더된 블록의 `data-line`과 소스 줄을 서로 옮긴다.
+  - ③ 순환에 diff는 아직 없다. 확장 묶음 자리(`BUNDLES.diff`)만 있고 M5에서 채운다.
 - [ ] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
 - [ ] `FileWatcher`: 원격 폴링(별도 연결), `FileObserver`, `content://` 폴링. 깨끗한 버퍼는 병합하고 수정 중이면 배너
 - [ ] 사이드바(①): 슬라이드 인/아웃, 열린 파일 목록과 전환
