@@ -111,7 +111,12 @@ class MainActivity : Activity() {
         frame.setBackgroundColor(Color.WHITE)
         frame.addView(webView)
         frame.setOnApplyWindowInsetsListener { view, insets ->
-            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            // ime() as well, so the editor layer shrinks instead of letting the soft keyboard cover
+            // the caret. The WebView getting smaller is what makes CodeMirror scroll the caret back
+            // into view; padding the WebView's own content would not.
+            val bars = insets.getInsets(
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime(),
+            )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsets.CONSUMED
         }
