@@ -33,19 +33,16 @@
     .markdown table { border-collapse: collapse; display: block; overflow: auto; }
     .markdown th, .markdown td { border: 1px solid #d1d9e0; padding: 4px 12px; }
     .markdown img { max-width: 100%; }
-    /* Floats over the layer; pointer-events pass through the gap between the two ends. */
+    /* An opaque bar across the top. The layers keep --topbar-space clear so their first line is
+       never under it, and it slides away when a layer is scrolled down. */
     #topbar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 10; box-sizing: border-box;
-      height: var(--topbar-space); padding: 8px; display: flex; justify-content: space-between; align-items: flex-start;
-      pointer-events: none; transition: transform 0.2s ease;
+      height: var(--topbar-space); padding: 8px; display: flex; justify-content: space-between; align-items: center;
+      background: #fff; border-bottom: 1px solid #d1d9e0; transition: transform 0.2s ease;
     }
     #topbar.hidden { transform: translateY(-100%); }
-    #topbar > button, #topbar .group {
-      display: flex; pointer-events: auto; background: rgba(255, 255, 255, 0.92);
-      border: 1px solid #d1d9e0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    }
-    #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; }
-    #topbar .group button { border: 0; background: none; }
+    #topbar .group { display: flex; }
+    #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
     #topbar button:disabled { color: #afb8c1; }
     #topbar svg { display: block; width: 22px; height: 22px; }
   </style>
