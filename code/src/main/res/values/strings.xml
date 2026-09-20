@@ -42,6 +42,8 @@
     <string name="refused_encoding">The file is neither UTF-8 nor EUC-KR, so it was not opened rather than shown with broken characters.</string>
     <string name="menu_sidebar">Sidebar</string>
     <string name="menu_reset_zoom">Original size</string>
-    <string name="menu_layer">Switch layer</string>
+    <string name="menu_layer_viewer">Reading layer</string>
+    <string name="menu_layer_editor">Editing layer</string>
+    <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
 </resources>

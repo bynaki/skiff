@@ -42,6 +42,8 @@
     <string name="refused_encoding">UTF-8도 EUC-KR도 아닌 파일이라, 글자가 깨진 채로 보여 주지 않고 열지 않았습니다.</string>
     <string name="menu_sidebar">사이드바</string>
     <string name="menu_reset_zoom">원래 크기</string>
-    <string name="menu_layer">레이어 전환</string>
+    <string name="menu_layer_viewer">읽기 레이어</string>
+    <string name="menu_layer_editor">편집 레이어</string>
+    <string name="menu_layer_diff">비교 레이어</string>
     <string name="menu_more">더보기</string>
 </resources>

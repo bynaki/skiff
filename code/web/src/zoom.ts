@@ -102,7 +102,14 @@ export function holdBlock(scroller: HTMLElement, content: HTMLElement): Hold {
   }
 }
 
-export function installPinchZoom(scroller: HTMLElement, hold: Hold): void {
+/**
+ * Listens for the pinch on the document, not on the scroller under the fingers: while a focused
+ * editor holds the caret, Chrome hands the second finger's `touchstart` to `<html>` instead of the
+ * element it landed on, so a listener further in never sees the gesture begin (the moves that
+ * follow do arrive). One pane shows one surface at a time, so [hold] decides what is being zoomed.
+ * Returns the function that takes the listeners off again.
+ */
+export function installPinchZoom(hold: Hold): () => void {
   let apply: ((size: number, clientY: number) => void) | null = null
   let gesture: { distance: number; size: number } | null = null
   let frame = 0
@@ -111,13 +118,13 @@ export function installPinchZoom(scroller: HTMLElement, hold: Hold): void {
     Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
   const midY = (touches: TouchList) => (touches[0].clientY + touches[1].clientY) / 2
 
-  scroller.addEventListener('touchstart', (event) => {
+  const start = (event: TouchEvent) => {
     if (event.touches.length !== 2) return
     gesture = { distance: distance(event.touches), size: fontSize }
     apply = hold(midY(event.touches))
-  }, { passive: true })
+  }
 
-  scroller.addEventListener('touchmove', (event) => {
+  const move = (event: TouchEvent) => {
     if (!gesture || !apply || event.touches.length !== 2) return
     event.preventDefault()
     const size = gesture.size * (distance(event.touches) / gesture.distance)
@@ -125,11 +132,22 @@ export function installPinchZoom(scroller: HTMLElement, hold: Hold): void {
     const zoom = apply
     cancelAnimationFrame(frame)
     frame = requestAnimationFrame(() => zoom(size, y))
-  }, { passive: false })
+  }
 
   const end = (event: TouchEvent) => {
     if (event.touches.length < 2) gesture = null
   }
-  scroller.addEventListener('touchend', end, { passive: true })
-  scroller.addEventListener('touchcancel', end, { passive: true })
+
+  document.addEventListener('touchstart', start, { passive: true })
+  document.addEventListener('touchmove', move, { passive: false })
+  document.addEventListener('touchend', end, { passive: true })
+  document.addEventListener('touchcancel', end, { passive: true })
+
+  return () => {
+    document.removeEventListener('touchstart', start)
+    document.removeEventListener('touchmove', move)
+    document.removeEventListener('touchend', end)
+    document.removeEventListener('touchcancel', end)
+    cancelAnimationFrame(frame)
+  }
 }

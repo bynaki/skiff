@@ -2,7 +2,7 @@
 // changes and the page asks for it, so a reloaded page and a new link take the same path.
 import { onNotify, rpc } from './bridge'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
-import { type Shown, showDocument } from './layers/viewer'
+import { type Pane, openPane } from './layers/pane'
 import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
@@ -12,26 +12,30 @@ type DocumentState =
   | { state: 'refused'; name: string; title: string; message: string }
 
 const root = document.getElementById('viewer')!
-let shown: Shown | null = null
+let pane: Pane | null = null
 
 const topbar = createTopbar({
   // Keeps the line at the middle of the screen where it is.
   resetZoom() {
     const middle = root.getBoundingClientRect().top + root.clientHeight / 2
-    if (shown) shown.hold(middle)(DEFAULT_FONT_SIZE, middle)
+    if (pane) pane.hold(middle)(DEFAULT_FONT_SIZE, middle)
     else setFontSize(DEFAULT_FONT_SIZE)
+  },
+  toggleLayer() {
+    pane?.toggle()
+    topbar.setLayer(pane?.layer ?? null)
   },
 })
 
 function show(doc: DocumentState) {
-  shown?.close()
-  shown = null
+  pane?.close()
+  pane = null
   root.replaceChildren()
   topbar.show()
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
-      shown = showDocument(root, doc)
+      pane = openPane(root, doc)
       break
     case 'refused':
       root.append(notice(doc.title, doc.message))
@@ -40,6 +44,7 @@ function show(doc: DocumentState) {
       root.append(notice(null, doc.message))
       break
   }
+  topbar.setLayer(pane?.layer ?? null)
 }
 
 function notice(title: string | null, message: string): HTMLElement {

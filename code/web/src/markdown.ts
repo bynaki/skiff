@@ -1,8 +1,10 @@
-// Markdown rendered for the viewer. The document is a remote file shown in the same page as the
-// bridge, so raw HTML stays text (`html: false`) and markdown-it's own link check keeps
-// `javascript:` and friends out of href. The CSP and the asset loader stop anything that still
-// tries to load.
+// Markdown rendered for the viewer, and the surface that shows it. The document is a remote file
+// shown in the same page as the bridge, so raw HTML stays text (`html: false`) and markdown-it's
+// own link check keeps `javascript:` and friends out of href. The CSP and the asset loader stop
+// anything that still tries to load.
 import MarkdownIt from 'markdown-it'
+import { TOPBAR_SPACE } from './chrome/topbar'
+import { type Hold, holdBlock } from './zoom'
 
 const md = new MarkdownIt({ html: false })
 
@@ -29,11 +31,68 @@ export function renderMarkdown(source: string): HTMLElement {
 }
 
 /** The last block starting at or before [line], for scrolling a link's `?line=` into view. */
-export function blockAtLine(body: HTMLElement, line: number): HTMLElement | null {
+function blockAtLine(body: HTMLElement, line: number): HTMLElement | null {
   let found: HTMLElement | null = null
   for (const block of body.querySelectorAll<HTMLElement>(':scope > [data-line]')) {
     if (Number(block.dataset.line) > line) break
     found = block
   }
   return found
+}
+
+/**
+ * The viewer layer of a markdown file: the one place where a layer really is its own DOM, since
+ * the editor beside it is CodeMirror on the source. Both speak in source lines, so switching
+ * between them keeps the same part of the document on screen.
+ */
+export interface MarkdownSurface {
+  /** Hides the rendered document while the editor has the screen, keeping where it was scrolled to. */
+  visible(on: boolean): void
+  /** Renders [source] again, for coming back from an editor that changed it. */
+  update(source: string): void
+  /** The source line of the block at the top of the screen. */
+  topLine(): number
+  scrollToLine(line: number): void
+  /** What a pinch holds on to, as the code layers' `holdLine` is for CodeMirror. */
+  hold: Hold
+  remove(): void
+}
+
+export function showMarkdown(parent: HTMLElement, source: string): MarkdownSurface {
+  const scroller = document.createElement('div')
+  scroller.className = 'markdown-scroller'
+  let body = renderMarkdown(source)
+  let rendered = source
+  scroller.append(body)
+  parent.append(scroller)
+
+  // Reads `body` when the gesture starts, so a re-render does not leave a stale one behind.
+  const hold: Hold = (clientY) => holdBlock(scroller, body)(clientY)
+
+  return {
+    hold,
+    visible: (on) => { scroller.style.display = on ? '' : 'none' },
+    update(text) {
+      if (text === rendered) return
+      const next = renderMarkdown(text)
+      body.replaceWith(next)
+      body = next
+      rendered = text
+    },
+    topLine() {
+      const top = scroller.getBoundingClientRect().top + TOPBAR_SPACE
+      let line = 1
+      for (const block of body.querySelectorAll<HTMLElement>(':scope > [data-line]')) {
+        line = Number(block.dataset.line)
+        if (block.getBoundingClientRect().bottom > top) break
+      }
+      return line
+    },
+    scrollToLine(line) {
+      // The scroller is positioned (see index.html), so offsetTop is measured from it.
+      const block = blockAtLine(body, line)
+      if (block) scroller.scrollTop = block.offsetTop - TOPBAR_SPACE
+    },
+    remove: () => scroller.remove(),
+  }
 }

@@ -98,7 +98,9 @@ class MainActivity : Activity() {
             JSONObject()
                 .put("sidebar", getString(R.string.menu_sidebar))
                 .put("resetZoom", getString(R.string.menu_reset_zoom))
-                .put("layer", getString(R.string.menu_layer))
+                .put("layerViewer", getString(R.string.menu_layer_viewer))
+                .put("layerEditor", getString(R.string.menu_layer_editor))
+                .put("layerDiff", getString(R.string.menu_layer_diff))
                 .put("more", getString(R.string.menu_more))
         }
         bridge.attach(webView)
