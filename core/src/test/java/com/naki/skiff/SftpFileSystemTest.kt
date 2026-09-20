@@ -16,6 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.security.PublicKey
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Drives the production SFTP code against a live SFTP server over a real socket. */
 class SftpFileSystemTest {
@@ -262,9 +263,14 @@ class SftpFileSystemTest {
     }
 
     @Test
-    fun `a rejected host key stops the connection`() = runTest {
+    fun `a rejected host key stops the connection and is not asked again`() = runTest {
+        val asked = AtomicInteger()
         val rejecting = object : HostKeyVerifier {
-            override fun verify(hostname: String, port: Int, key: PublicKey) = false
+            override fun verify(hostname: String, port: Int, key: PublicKey): Boolean {
+                asked.incrementAndGet()
+                return false
+            }
+
             override fun findExistingAlgorithms(hostname: String, port: Int) = emptyList<String>()
         }
         val guarded = SftpFileSystem(
@@ -282,7 +288,11 @@ class SftpFileSystemTest {
             transferConnection = connection("transfer"),
         )
         try {
-            assertTrue(runCatching { guarded.list("/") }.isFailure)
+            val failure = runCatching { guarded.list("/") }.exceptionOrNull()
+
+            assertTrue("expected a host key refusal, got $failure", failure is FsError.HostKeyRejected)
+            // Reconnecting cannot change the answer: retrying only puts the dialog up again.
+            assertEquals(1, asked.get())
         } finally {
             guarded.close()
         }

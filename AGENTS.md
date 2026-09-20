@@ -267,6 +267,19 @@ These are non-obvious and each one has already broken the build or the app:
   keyboard-interactive on the same connection, which macOS's sshd never answers, so a mistyped
   password waited out the 30 second read timeout. `SshClientFactory` uses keyboard-interactive only
   when the server does not offer the password method at all.
+- **sshj bounds the key exchange with the transport's timeout, not the socket's.**
+  `SSHClient.setTimeout` (the `timeout` property) is `SocketClient`'s and reaches only
+  `SO_TIMEOUT`; `KeyExchanger.waitForDone` asks `TransportImpl.getTimeoutMs()`, which defaults
+  to 30 seconds no matter what the socket was given. Since `HostKeyGate` holds the transport
+  thread while the user answers, that default is also how long the host key dialog has to live:
+  past it the connection dies, the dialog disappears and the user is told the connection was
+  lost. `SshClientFactory` therefore raises `client.transport.timeoutMs` for the connect and
+  puts it back to the read timeout once the key exchange is through.
+- **A refused host key arrives as a plain `TransportException`,** whose message is
+  "Could not verify `<type>` host key with fingerprint ... ". `SshConnection.withSftp` must
+  translate before it decides whether to reconnect — a check written against the raw
+  `IOException` never matches `FsError.HostKeyRejected`, and the retry then puts the same
+  dialog up a second time.
 
 These apply to `:code` only:
 

@@ -67,7 +67,11 @@ class SshConnection(
                 // churn the session on every ordinary error and mask it as "connection lost".
                 throw e
             } catch (e: IOException) {
-                if (isFatalAuth(e)) throw e.toFsError()
+                // Translate before deciding. A rejected host key reaches us as a plain
+                // TransportException, so a check against the raw exception never matches it and
+                // the retry below asks the user the same question a second time.
+                val failure = e.toFsError()
+                if (isFatalAuth(failure)) throw failure
                 disconnectQuietly()
                 try {
                     block(ensureConnected(secret))
@@ -117,8 +121,9 @@ class SshConnection(
         client = null
     }
 
+    /** Asking again cannot change either answer, so neither is worth a reconnect. */
     private fun isFatalAuth(e: Throwable): Boolean =
-        e is UserAuthException || e is FsError.AuthFailed || e is FsError.HostKeyRejected
+        e is FsError.AuthFailed || e is FsError.HostKeyRejected
 
     private fun IOException.toFsError(): Throwable = when {
         this is UserAuthException -> FsError.AuthFailed(this)
