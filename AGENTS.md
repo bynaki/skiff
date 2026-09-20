@@ -63,6 +63,21 @@ adb -s <serial> shell pm grant com.naki.skiff android.permission.POST_NOTIFICATI
 Screenshots on a foldable need an explicit display id, otherwise `screencap` writes a warning
 to stdout instead of a PNG:
 `adb -s <serial> shell dumpsys SurfaceFlinger --display-id`, then `screencap -d <id> -p`.
+Only the display that is on answers; the other returns a uniform image of a few hundred bytes, so
+check the file size rather than trusting the capture.
+
+**On the foldable's cover display, `screencap` does not capture the WebView.** It returns a blank
+or half-drawn frame often enough that a screenshot cannot be used to tell what the page is showing,
+while the inner display captures normally. Read the DOM over DevTools instead. To tap something
+there, native views (dialogs) come from `adb shell uiautomator dump /sdcard/ui.xml`, which prints
+screen bounds; the page's own buttons do not appear in that dump, so take their
+`getBoundingClientRect()`, multiply by `devicePixelRatio`, and add the WebView's y offset on screen
+(the `android.webkit.WebView` node's bounds in the same dump — 110 on the cover display, since the
+page's coordinates start below the status bar).
+
+**A fold or unfold re-enumerates the device over USB**, so adb drops for a second or two and every
+command in flight fails with "device not found". Wrap device work in a retry rather than reading
+one failure as a result.
 
 ### Skiff Code (`:code`)
 
@@ -314,6 +329,37 @@ These apply to `:code` only:
   the JVM says nothing about what the device's charsets accept.
 - **`org.json` writes `/` escaped as `\/`.** Valid JSON, but it means a message carrying an LSP
   method name cannot be matched as a substring — parse it.
+- **`Configuration.keyboard` does not see every hardware keyboard.** On the tablet it stayed
+  `nokeys` with a Bluetooth keyboard connected and typing (`am get-config` said
+  `keysexposed-nokeys` while `dumpsys input` listed the keyboard enabled), so a check written
+  against it answers no to a keyboard that is right there. Ask `InputDevice` instead — a device
+  that is not `isVirtual`, whose `keyboardType` is `KEYBOARD_TYPE_ALPHABETIC`, and that supports
+  `SOURCE_KEYBOARD` — and follow changes with `InputManager.InputDeviceListener`, not
+  `onConfigurationChanged`.
+- **Connecting a keyboard moves `navigation` as well as `keyboard`**, because the keyboard reports
+  a d-pad: `keysexposed-nokeys-navhidden-nonav` became `keysexposed-qwerty-navexposed-dpad`. Both
+  are in `configChanges` for that reason.
+- **A configuration change the activity does not handle re-opens the link.** The activity is
+  destroyed and rebuilt with the same intent, and `onCreate` runs `handleLink` against it again:
+  the file opens a second time, reconnecting and asking about the path, and the caller identity
+  does not survive, so even a file Skiff sent comes back with the confirmation dialog.
+  `onRetainNonConfigurationInstance` now carries the open document across and `onCreate` skips the
+  link when it arrives, which makes a recreation survivable — but **only the document is carried,
+  not the layer or the scroll**, so `uiMode`, locale and font scale (none of them listed) still
+  drop the reader back into the viewer. `fontScale` is the way to trigger one on purpose:
+  `adb shell settings put system font_scale 1.3`, then put it back.
+- **The WebView multiplies the system font scale into the page.** At the phone's `font_scale` 1.5
+  the editor's 14px default computed to 21px, so `MIN_FONT_SIZE`/`MAX_FONT_SIZE` (8–40) are really
+  12–60 there. `--code-font-size` still reads 14: the multiplier is `WebSettings.textZoom`, applied
+  below the page, and nothing in the page can see it.
+- **Entering the editor layer must not focus the view unless a hardware keyboard is attached.**
+  Focus is what raises the soft keyboard, and on a phone it covers half the document before the
+  user has asked to type. The first tap on the text focuses it. A tablet with an external keyboard
+  hides this, which is why it was not found until the foldable.
+- **The soft keyboard shrinks the WebView, and CodeMirror does not chase the caret.** The ime inset
+  goes into the frame (`MainActivity`), so the viewport gets shorter without the selection moving,
+  and CodeMirror only scrolls the caret into view when the selection changes. `pane.ts` listens for
+  `resize` and asks with `y: 'nearest'`.
 
 ## Testing
 

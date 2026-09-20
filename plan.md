@@ -169,6 +169,8 @@ method로 구독한다(M0에서 확인).
 ### 설정과 테마
 
 - `settings.toml`: 폰트, 폰트 크기, 탭 크기, 줄바꿈, 테마, diff 투명도, 크기 상한, 열린 파일 상한, 폴링 주기, LSP 명령.
+  - **줄바꿈의 기본값은 폴더블이 생기면서 실제 문제가 됐다.** 지금은 `lineWrapping`이 아예 없어 가로로 스크롤하는데, 커버 화면(475dp)에서는 마크다운 본문 한 줄이 오른쪽으로 사라진다. 넓은 화면에서는 보이지 않던 것이다.
+  - 폰트 크기에는 **기기의 시스템 글꼴 배율이 그대로 곱해진다.** `font_scale` 1.5인 폰에서 기본 14px이 21px로 나왔다(WebView의 `textZoom`, 페이지 아래에서 적용되어 페이지가 볼 수 없다). 설정의 상한 8~40도 그만큼 달라진다. 배율을 따를지 지울지 정해야 한다.
 - `themes/*.toml`: `[ui]`(메뉴, 사이드바, 팔레트), `[editor]`, `[syntax]`, `[diff]`. Web에서 CSS 변수로 바꾸고 **메뉴와 레이어에 똑같이** 적용한다. 다크와 라이트를 기본 번들한다. 잘못된 값은 기본값으로 폴백하고 오류를 알린다.
 - 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다.
 - TOML 파싱은 Kotlin의 ktoml(`com.akuleshov7:ktoml-core` 0.7.1)로 한다. M0에서 확인했다.
@@ -341,6 +343,19 @@ method로 구독한다(M0에서 확인).
   - 실기기: Skiff 탭은 대화상자 없이(`from com.naki.skiff`), adb 링크는 확인창, **Skiff가 띄운 앱에 들어온 adb 링크도 확인창**, 그리고 `attacker@192.0.2.1/etc/shadow?alias=<실제 이름>`이 링크의 주소가 아닌 프로필의 주소와 `/etc/shadow`를 보여주며 **연결·비밀번호·호스트키 전에** 멈췄다.
 - [x] 확대할 때 줄 번호 간격이 따라오지 않던 것(화면보다 짧은 파일)
   - 거터만이 아니라 CM6의 높이 맵이 통째로 낡아 있었다. `.cm-content`의 `min-height: 100%` 때문에 짧은 문서는 글꼴이 커져도 박스 높이가 그대로라, 측정 관문(`theme facet 변경 || refresh || contentDOMHeight != rect`)이 하나도 걸리지 않는다. 본문 줄은 CSS로 그려져 멀쩡해 보이고, 높이 맵에서 인라인 px로 쓰이는 거터만 낡은 채 남았다. 그래서 글꼴 크기를 `--code-font-size`가 아니라 `Compartment`가 나른다(`codeFontSize`). 자세한 것은 `AGENTS.md`의 CM6 관찰.
+- [x] 에디터 레이어에 들어갈 때 화면 키보드가 문서를 가리던 것 (폴더블에서 드러났다)
+  - ③으로 에디터에 들어가면 `view.focus()`가 곧바로 화면 키보드를 올려 문서의 절반을 가렸다. 탭에는 외장 키보드가 붙어 있어 화면 키보드가 아예 뜨지 않아 보이지 않던 문제다.
+  - **하드웨어 키보드가 있을 때만 포커스한다.** 없으면 본문을 처음 탭할 때 포커스가 잡히고 캐럿도 탭한 자리에 선다. 있을 때는 예전 동작 그대로다 — 거기서는 포커스가 곧 타이핑 시작이고 가리는 것도 없다.
+  - 키보드 유무는 `Configuration.keyboard`가 아니라 **`InputDevice`에 묻는다.** 탭에서 블루투스 키보드가 붙어 타이핑이 되는데도 그 필드는 `nokeys`였다. 변화는 `InputManager.InputDeviceListener`로 따라간다(`onConfigurationChanged`가 아니다).
+  - 페이지는 스스로 알 수 없으므로 브리지의 `hardwareKeyboard` 호출과 `hardwareKeyboardChanged` 알림으로 받아 `web/src/keyboard.ts`가 캐시한다.
+- [x] 설정이 바뀌면 링크를 다시 열던 것
+  - `configChanges`에 없는 설정이 바뀌면 액티비티가 재생성되고 `onCreate`가 **같은 intent로 `handleLink`를 다시 돌렸다.** 파일이 두 번 열리고, 다시 연결하고 경로를 다시 묻고, 화면에 있던 것을 갈아치웠다. 보낸 앱 정보도 살아남지 않아 **Skiff가 보낸 파일인데도 확인창이 다시 떴다.**
+  - 방아쇠는 키보드였다. 키보드를 켜면 `keyboard`뿐 아니라 `navigation`까지 움직인다(키보드가 d-pad로도 등록된다). 둘 다 `configChanges`에 넣었다.
+  - 그것과 별개로 `onRetainNonConfigurationInstance`로 **열린 문서를 넘겨** 재생성 자체를 견디게 했다. 대화상자를 기다리던 중이면(문서가 아직 비어 있으면) 넘기지 않고 링크를 다시 돌린다 — 그게 원래 복구 경로다.
+  - **남은 것: 문서만 넘기고 레이어와 스크롤은 넘기지 않는다.** `uiMode`(다크 모드), 언어, 글꼴 크기는 아직 목록에 없어서, 그것들을 바꾸면 보던 레이어가 뷰어로 돌아간다. 무엇까지 넘길지는 M3 저장과 같이 정한다.
+- [x] 화면 하단을 탭해 키보드를 올리면 캐럿이 가려지던 것
+  - 화면 키보드가 WebView를 줄이는 것(`MainActivity`가 ime inset을 프레임에 더한다)까지는 되는데, **선택이 움직이지 않았으므로 CM6가 캐럿을 다시 불러오지 않았다.** 1601줄 파일에서 하단을 탭하니 뷰포트가 675→337로 줄고 캐럿은 y 590에 남았다.
+  - `pane.ts`가 `resize`에서 `scrollIntoView(..., { y: 'nearest', yMargin: TOPBAR_SPACE })`를 건다. `nearest`라 키보드가 닫히거나 회전으로 자리가 넓어질 때는 아무 일도 하지 않는다.
 - [ ] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
 - [ ] `FileWatcher`: 원격 폴링(별도 연결), `FileObserver`, `content://` 폴링. 깨끗한 버퍼는 병합하고 수정 중이면 배너
 - [ ] 사이드바(①): 슬라이드 인/아웃, 열린 파일 목록과 전환
