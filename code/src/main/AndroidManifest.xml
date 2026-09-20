@@ -31,13 +31,19 @@
           singleTask: a second link goes to the running instance's onNewIntent, where the open
           files live, instead of stacking another editor into the calling app's task.
           configChanges: a rotation or fold must not recreate the activity and cancel an open
-          that is waiting on a dialog.
+          that is waiting on a dialog. `keyboard` and `navigation` are in the list for the same
+          reason: connecting a keyboard moves both. Measured on the tablet with a Bluetooth
+          keyboard, `am get-config` went from `keysexposed-nokeys-navhidden-nonav` to
+          `keysexposed-qwerty-navexposed-dpad` — the keyboard reports a d-pad as well, so leaving
+          `navigation` out recreated the activity every time it was switched on.
+          The recreation itself is survivable either way, since onCreate carries the open document
+          over (onRetainNonConfigurationInstance); this only spares the WebView and the reparse.
         -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -14,6 +14,7 @@ import { LanguageDescription, defaultHighlightStyle, syntaxHighlighting } from '
 import { languages } from '@codemirror/language-data'
 import { type MarkdownSurface, showMarkdown } from '../markdown'
 import { TOPBAR_SPACE } from '../chrome/topbar'
+import { hardwareKeyboard } from '../keyboard'
 import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinchZoom } from '../zoom'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
@@ -131,9 +132,12 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     // A view made just now was built with the new bundle already. An existing one swaps it, which
     // changes no line heights between viewer and editor, so its scroll stays where it was.
     if (showing) showing.dispatch({ effects: layerBundle.reconfigure(BUNDLES[next]) })
-    if (next === 'editor' && view) {
-      // The caret goes to the line at the top of the screen first: focusing on its own would leave
-      // it at the start of the document and take the screen there with the first keystroke.
+    // Only with a hardware keyboard, where focus is what lets typing start. Without one it would
+    // raise the soft keyboard over a document the user has not asked to type in; the first tap on
+    // the text focuses it and puts the caret where it landed. The caret goes to the line at the top
+    // of the screen first: focusing on its own would leave it at the start of the document and take
+    // the screen there with the first keystroke.
+    if (next === 'editor' && view && hardwareKeyboard()) {
       view.dispatch({ selection: { anchor: lineStart(view, line) } })
       view.focus()
     }
@@ -146,6 +150,22 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     if (doc.line) scrollViewToLine(view, doc.line)
   }
 
+  /**
+   * The soft keyboard shrinks the WebView — `MainActivity` adds the ime inset to the frame — which
+   * leaves the caret under the keyboard without the selection having moved. CodeMirror brings the
+   * caret back into view when the selection changes, not when the viewport does, so the resize has
+   * to ask for it. Measured on the tablet: tapping near the bottom of a 1601 line file put the caret
+   * at y 590 in a viewport that had just become 337 tall. `nearest` scrolls only when the caret is
+   * outside, so a keyboard closing or a rotation that makes room costs nothing.
+   */
+  function keepCaretVisible(): void {
+    if (!view || document.activeElement !== view.contentDOM) return
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'nearest', yMargin: TOPBAR_SPACE }),
+    })
+  }
+  window.addEventListener('resize', keepCaretVisible)
+
   // One for the pane, not one per surface: it asks `hold` which layer is showing when a pinch starts.
   const hold: Hold = (clientY) => (markdown && layer === 'viewer' ? markdown.hold : holdLine(view!))(clientY)
   const uninstallPinchZoom = installPinchZoom(hold)
@@ -157,6 +177,7 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     },
     toggle: () => setLayer(layer === 'viewer' ? 'editor' : 'viewer'),
     close() {
+      window.removeEventListener('resize', keepCaretVisible)
       uninstallPinchZoom()
       view?.destroy()
       markdown?.remove()

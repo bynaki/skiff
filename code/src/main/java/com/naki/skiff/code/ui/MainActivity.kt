@@ -7,10 +7,12 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.hardware.input.InputManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.InputDevice
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.webkit.ConsoleMessage
@@ -92,7 +94,13 @@ class MainActivity : Activity() {
             }
         }
 
-        document = JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
+        // A configuration change this activity does not handle destroys it and builds another with
+        // the same intent. Re-running the link there opens it a second time — reconnecting, asking
+        // about the path again, and replacing what was on screen — so the open document is carried
+        // across instead. Only a document that is actually open is carried: an open still waiting on
+        // a dialog was cancelled with the old scope, and re-running the link is how it comes back.
+        val carried = lastNonConfigurationInstance as? JSONObject
+        document = carried ?: JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
         // Answered without suspending, so replies leave in the order the calls came in and the
         // page's last answer is always the current document.
         bridge.method("document") { document }
@@ -105,6 +113,8 @@ class MainActivity : Activity() {
                 .put("layerDiff", getString(R.string.menu_layer_diff))
                 .put("more", getString(R.string.menu_more))
         }
+        bridge.method("hardwareKeyboard") { hardwareKeyboard() }
+        getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
         bridge.attach(webView)
 
         // Android 15 draws the app under the system bars. The page is kept inside them by the frame
@@ -136,7 +146,37 @@ class MainActivity : Activity() {
                 hostKeyDialog = prompt?.let { hostKeyDialog(it, container.hostKeyPrompter::respond).apply { show() } }
             }
         }
-        handleLink(intent, senderOf(initial = true))
+        if (carried == null) handleLink(intent, senderOf(initial = true))
+    }
+
+    override fun onRetainNonConfigurationInstance(): Any? =
+        document.takeIf { it.optString("state") != "empty" }
+
+    /**
+     * Whether keys can arrive without the soft keyboard. The page cannot tell on its own and needs
+     * it to decide whether entering the editor layer takes focus, so it is answered on request and
+     * pushed again whenever a device comes or goes.
+     *
+     * The devices are asked, not `Configuration.keyboard`: on the tablet that stays `nokeys` with a
+     * Bluetooth keyboard connected and typing (`am get-config` said `keysexposed-nokeys` while
+     * `dumpsys input` listed the keyboard as enabled), so reading the configuration answered no to
+     * a keyboard that was right there. The virtual device every Android has is excluded by
+     * [InputDevice.isVirtual], and a keyboard with no letters — a remote's d-pad, a volume rocker —
+     * by [InputDevice.KEYBOARD_TYPE_ALPHABETIC].
+     */
+    private fun hardwareKeyboard(): JSONObject = JSONObject().put(
+        "present",
+        InputDevice.getDeviceIds().any { id ->
+            val device = InputDevice.getDevice(id) ?: return@any false
+            !device.isVirtual && device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC &&
+                device.supportsSource(InputDevice.SOURCE_KEYBOARD)
+        },
+    )
+
+    private val keyboards = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) = bridge.notify("hardwareKeyboardChanged", hardwareKeyboard())
+        override fun onInputDeviceRemoved(deviceId: Int) = bridge.notify("hardwareKeyboardChanged", hardwareKeyboard())
+        override fun onInputDeviceChanged(deviceId: Int) = bridge.notify("hardwareKeyboardChanged", hardwareKeyboard())
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -227,6 +267,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        getSystemService(InputManager::class.java).unregisterInputDeviceListener(keyboards)
         hostKeyDialog?.dismiss()
         scope.cancel()
     }
