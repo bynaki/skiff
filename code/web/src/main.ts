@@ -1,6 +1,7 @@
 // The page: shows whichever document Kotlin has open. Kotlin says `documentChanged` when that
 // changes and the page asks for it, so a reloaded page and a new link take the same path.
 import { onNotify, rpc } from './bridge'
+import { type BannerLabels, createBanner } from './chrome/banner'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type Pane, openPane } from './layers/pane'
 import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
@@ -11,8 +12,17 @@ type DocumentState =
   | { state: 'text'; name: string; text: string; line?: number }
   | { state: 'refused'; name: string; title: string; message: string }
 
+/** What the file did while it was open, from Kotlin's `FileWatcher`. */
+type FileChange =
+  | { change: 'text'; text: string; message: string }
+  | { change: 'notice'; message: string }
+
+type Labels = TopbarLabels & BannerLabels
+
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
+
+const banner = createBanner()
 
 const topbar = createTopbar({
   // Keeps the line at the middle of the screen where it is.
@@ -30,6 +40,7 @@ const topbar = createTopbar({
 function show(doc: DocumentState) {
   pane?.close()
   pane = null
+  banner.hide()
   root.replaceChildren()
   topbar.show()
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
@@ -58,7 +69,22 @@ function notice(title: string | null, message: string): HTMLElement {
 // Replies come back in the order they were asked, so the last one asked is the current document.
 const refresh = () => rpc<DocumentState>('document').then(show).catch((error) => console.log(`document: ${error}`))
 
+/**
+ * The file changed under the document. A buffer nobody has typed in takes it silently — that is
+ * what "실시간 반영" means — and one that has been typed in is asked, because only this side knows
+ * which it is.
+ */
+onNotify<FileChange>('fileChanged', (change) => {
+  if (change.change === 'notice' || !pane) return banner.tell(change.message)
+  if (pane.dirty) return banner.ask(change.message, () => pane?.adopt(change.text))
+  pane.adopt(change.text)
+  banner.hide()
+})
+
 setFontSize(currentFontSize())
-rpc<TopbarLabels>('labels').then(topbar.label).catch((error) => console.log(`labels: ${error}`))
+rpc<Labels>('labels').then((labels) => {
+  topbar.label(labels)
+  banner.label(labels)
+}).catch((error) => console.log(`labels: ${error}`))
 onNotify('documentChanged', refresh)
 refresh()

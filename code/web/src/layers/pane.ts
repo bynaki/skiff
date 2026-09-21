@@ -7,7 +7,8 @@
 // undo history are shared and nothing of a layer outlives it. That is also why the diff layer can
 // join later without a second view: `unifiedMergeView` is a plain extension array that compares
 // against `state.doc`, which is the buffer being edited.
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { Annotation, Compartment, EditorState, type Extension } from '@codemirror/state'
+import { diff } from '@codemirror/merge'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { LanguageDescription, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
@@ -27,6 +28,15 @@ export interface TextDocument {
   line?: number
 }
 
+/** Marks the transaction that takes a change made outside, so it does not count as the user typing. */
+const External = Annotation.define<boolean>()
+
+/**
+ * How long the diff may spend being precise before it falls back to the coarser algorithm. The
+ * result is a correct merge either way; past this it is a bigger one.
+ */
+const DIFF_TIMEOUT = 250
+
 const BUNDLES: Record<LayerName, Extension> = {
   viewer: [EditorState.readOnly.of(true), EditorView.editable.of(false)],
   // Typing arrives through the DOM on its own; the keymap is what a hardware keyboard needs.
@@ -36,6 +46,10 @@ const BUNDLES: Record<LayerName, Extension> = {
 
 export interface Pane {
   readonly layer: LayerName
+  /** Whether the buffer has been typed in since it was loaded or last took the file's text. */
+  readonly dirty: boolean
+  /** Puts the file's new text into the buffer, keeping the cursor, the selection and the scroll. */
+  adopt(text: string): void
   /** To the next layer. */
   toggle(): void
   /** What ② original size zooms around, on whichever layer is showing. */
@@ -51,13 +65,17 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
   const layerBundle = new Compartment()
   let layer: LayerName = 'viewer'
   let view: EditorView | null = null
+  // The document's text while no view holds it, which is the markdown viewer before its first trip
+  // to the editor. Once there is a view, the view is the buffer.
+  let source = doc.text
+  let dirty = false
 
   function createView(): EditorView {
     const syntax = new Compartment()
     const created = new EditorView({
       parent,
       state: EditorState.create({
-        doc: doc.text,
+        doc: source,
         extensions: [
           lineNumbers(),
           // Outside the compartment, so undo still reaches an edit made before a trip to the viewer.
@@ -66,6 +84,9 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
           syntaxHighlighting(defaultHighlightStyle),
           layerBundle.of(BUNDLES[layer]),
           codeFontSize(),
+          EditorView.updateListener.of((update) => {
+            if (update.transactions.some((tr) => tr.docChanged && !tr.annotation(External))) dirty = true
+          }),
           EditorView.theme({
             '&': { height: '100%' },
             '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
@@ -123,6 +144,32 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     scrollViewToLine(view, line)
   }
 
+  /**
+   * Takes the file's new text into the buffer as one transaction, so the cursor, the selection and
+   * the scroll come through it. Only the ranges that differ are replaced: handing CodeMirror a
+   * whole new document would move every one of those to the end of it.
+   */
+  function adopt(text: string): void {
+    dirty = false
+    source = text
+    const current = view ? view.state.doc.toString() : text
+    if (view && current !== text) {
+      const changes = diff(current, text, { timeout: DIFF_TIMEOUT }).map((change) => ({
+        from: change.fromA,
+        to: change.toA,
+        insert: text.slice(change.fromB, change.toB),
+      }))
+      view.dispatch({ changes, annotations: External.of(true) })
+    }
+    // The rendered markdown is its own DOM and does not follow the buffer, so it is re-rendered
+    // and put back on the line it was showing.
+    if (markdown && layer === 'viewer') {
+      const line = markdown.topLine()
+      markdown.update(text)
+      markdown.scrollToLine(line)
+    }
+  }
+
   function setLayer(next: LayerName): void {
     if (next === layer) return
     const line = topLine()
@@ -172,8 +219,12 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
 
   return {
     hold,
+    adopt,
     get layer() {
       return layer
+    },
+    get dirty() {
+      return dirty
     },
     toggle: () => setLayer(layer === 'viewer' ? 'editor' : 'viewer'),
     close() {

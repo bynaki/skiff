@@ -51,4 +51,11 @@
     <string name="menu_layer_editor">Editing layer</string>
     <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
+
+    <string name="watch_changed">This file changed somewhere else.</string>
+    <string name="watch_gone">This file is no longer there.</string>
+    <string name="watch_unreadable">This file changed into something that cannot be shown here.</string>
+    <string name="watch_reload">Reload</string>
+    <string name="watch_keep">Keep mine</string>
+    <string name="watch_dismiss">Dismiss</string>
 </resources>

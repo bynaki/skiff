@@ -9,7 +9,13 @@ import android.util.Log
 import com.naki.skiff.code.R
 import com.naki.skiff.code.SkiffCodeContainer
 import com.naki.skiff.code.doc.LoadResult
+import com.naki.skiff.code.doc.Stamp
+import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.TextLoader
+import com.naki.skiff.code.doc.WatchedContent
+import com.naki.skiff.code.doc.WatchedFile
+import com.naki.skiff.code.doc.WatchedLocalPath
+import com.naki.skiff.code.doc.WatchedPath
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
@@ -36,8 +42,20 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
 
     private val loader = TextLoader()
 
-    /** A file that was read, how to name it, and the line the link asked for. */
-    data class Opened(val link: String, val name: String, val request: OpenRequest, val result: LoadResult, val line: Int?)
+    /**
+     * A file that was read, how to name it, and the line the link asked for — with the file it
+     * came from and how it looked when it was read, which is what `FileWatcher` measures a change
+     * made somewhere else against.
+     */
+    data class Opened(
+        val link: String,
+        val name: String,
+        val request: OpenRequest,
+        val result: LoadResult,
+        val line: Int?,
+        val watched: WatchedFile,
+        val stamp: Stamped,
+    )
 
     /**
      * Null when the user backed out or the file could not be opened; either way they have been
@@ -109,7 +127,12 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
             }
         }
         if (problem != null) return fail(R.string.error_open, describe(problem))
-        return Opened(link, file.name, request, loader.load(LocalFileSystem(file.name), request.path), request.at.line)
+        val fs = LocalFileSystem(file.name)
+        val result = loader.load(fs, request.path)
+        return Opened(
+            link, file.name, request, result, request.at.line,
+            WatchedLocalPath(fs, request.path, loader), stampOf(result),
+        )
     }
 
     private suspend fun openContent(link: String, request: OpenRequest.Content): Opened {
@@ -121,7 +144,10 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         }
         val stream = withContext(Dispatchers.IO) { activity.contentResolver.openInputStream(uri) } ?: throw FsError.NotFound(request.uri)
         val result = stream.use { loader.load(it.source()) }
-        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, line = null)
+        // The application's resolver, not this activity's: the watcher outlives a configuration
+        // change. And the provider's own stamp, since the loader's `stat` here is of a stream.
+        val watched = WatchedContent(activity.applicationContext.contentResolver, uri, loader)
+        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp())
     }
 
     /**
@@ -160,7 +186,16 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
             return when {
                 node == null -> fail(R.string.error_open, describe(FsError.NotFound(request.path)))
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
-                else -> Opened(link, node.name, request.copy(profile = profile), loader.load(fs, request.path), request.at.line)
+                else -> {
+                    val result = loader.load(fs, request.path)
+                    Opened(
+                        link, node.name, request.copy(profile = profile), result, request.at.line,
+                        // The same filesystem the file was read through: `stat` goes over the browse
+                        // connection while reading and saving go over transfer, so a poll every two
+                        // seconds never waits behind either of them.
+                        WatchedPath(fs, request.path, loader), stampOf(result),
+                    )
+                }
             }
         }
     }
@@ -179,6 +214,13 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         if (!withContext(Dispatchers.IO) { LocalNetworkAccess.isLocalHost(host) }) return true
         return activity.requestPermissionAndWait(permission)
     }
+
+    /**
+     * The `stat` [TextLoader] took before reading. Nothing else is watched: a file too large,
+     * binary or in an encoding we cannot name has no text on screen for a change to be merged into.
+     */
+    private fun stampOf(result: LoadResult): Stamped =
+        if (result is LoadResult.Text) Stamped.At(Stamp(result.size, result.modifiedEpochSeconds)) else Stamped.Unknown
 
     private suspend fun fail(title: Int, message: String): Nothing? {
         activity.showError(activity.getString(title), message)

@@ -51,4 +51,11 @@
     <string name="menu_layer_editor">편집 레이어</string>
     <string name="menu_layer_diff">비교 레이어</string>
     <string name="menu_more">더보기</string>
+
+    <string name="watch_changed">이 파일이 다른 곳에서 바뀌었습니다.</string>
+    <string name="watch_gone">이 파일이 사라졌습니다.</string>
+    <string name="watch_unreadable">이 파일이 여기서 보여 줄 수 없는 것으로 바뀌었습니다.</string>
+    <string name="watch_reload">다시 불러오기</string>
+    <string name="watch_keep">내 것 유지</string>
+    <string name="watch_dismiss">닫기</string>
 </resources>

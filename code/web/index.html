@@ -45,6 +45,21 @@
     #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
     #topbar button:disabled { color: #afb8c1; }
     #topbar svg { display: block; width: 22px; height: 22px; }
+    /* What happened to the file while it was open, along the bottom: the menu above slides away
+       with the scroll and would carry the message off with it. */
+    #banner {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; box-sizing: border-box;
+      padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between;
+      background: #1f2328; color: #fff;
+    }
+    /* display: flex would otherwise win over the hidden attribute. */
+    #banner[hidden] { display: none; }
+    #banner p { margin: 0; font-size: 14px; }
+    #banner .actions { display: flex; gap: 8px; flex: none; }
+    #banner button {
+      padding: 8px 12px; color: #fff; background: none;
+      border: 1px solid #59636e; border-radius: 6px; font-size: 14px;
+    }
   </style>
 </head>
 <body>

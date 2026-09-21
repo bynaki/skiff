@@ -26,6 +26,8 @@ import androidx.webkit.WebViewAssetLoader
 import com.naki.skiff.code.R
 import com.naki.skiff.code.bridge.WebBridge
 import com.naki.skiff.code.data.readSkiffProfiles
+import com.naki.skiff.code.doc.FileChange
+import com.naki.skiff.code.doc.FileWatcher
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
@@ -59,6 +61,9 @@ class MainActivity : Activity() {
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
     private var opening: Job? = null
+    private var watcher: FileWatcher? = null
+    private var watching: Job? = null
+    private var inFront = false
 
     /** What the page's `document` call answers, in the shape `main.ts`'s `DocumentState` expects. */
     private lateinit var document: JSONObject
@@ -99,8 +104,10 @@ class MainActivity : Activity() {
         // about the path again, and replacing what was on screen — so the open document is carried
         // across instead. Only a document that is actually open is carried: an open still waiting on
         // a dialog was cancelled with the old scope, and re-running the link is how it comes back.
-        val carried = lastNonConfigurationInstance as? JSONObject
-        document = carried ?: JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
+        val carried = lastNonConfigurationInstance as? Retained
+        document = carried?.document ?: JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
+        // The watcher comes across too, with the stamp it last saw, so a rotation is not a change.
+        watcher = carried?.watcher
         // Answered without suspending, so replies leave in the order the calls came in and the
         // page's last answer is always the current document.
         bridge.method("document") { document }
@@ -112,6 +119,9 @@ class MainActivity : Activity() {
                 .put("layerEditor", getString(R.string.menu_layer_editor))
                 .put("layerDiff", getString(R.string.menu_layer_diff))
                 .put("more", getString(R.string.menu_more))
+                .put("reload", getString(R.string.watch_reload))
+                .put("keepMine", getString(R.string.watch_keep))
+                .put("dismiss", getString(R.string.watch_dismiss))
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
@@ -149,8 +159,62 @@ class MainActivity : Activity() {
         if (carried == null) handleLink(intent, senderOf(initial = true))
     }
 
+    /** What a configuration change carries across: the open document and the watch on its file. */
+    private class Retained(val document: JSONObject, val watcher: FileWatcher?)
+
     override fun onRetainNonConfigurationInstance(): Any? =
-        document.takeIf { it.optString("state") != "empty" }
+        if (document.optString("state") == "empty") null else Retained(document, watcher)
+
+    override fun onStart() {
+        super.onStart()
+        inFront = true
+        startWatching()
+    }
+
+    /**
+     * Nothing is polled while the app is away — a file changed meanwhile is caught by the
+     * [FileWatcher.recheck] that [startWatching] opens with, rather than by asking a server every
+     * two seconds for a screen nobody is looking at.
+     */
+    override fun onStop() {
+        super.onStop()
+        inFront = false
+        watching?.cancel()
+        watching = null
+    }
+
+    private fun startWatching() {
+        val watch = watcher ?: return
+        if (!inFront || watching != null) return
+        watching = scope.launch {
+            watch.recheck(document.optString("text"), ::fileChanged)
+            watch.watch(::fileChanged)
+        }
+    }
+
+    /**
+     * A change made somewhere else, on its way to the page. Only the new text is pushed: whether
+     * to take it or to ask first is the page's to decide, because the page is the only side that
+     * knows whether the user has typed since the file was read.
+     */
+    private suspend fun fileChanged(change: FileChange) {
+        val result = (change as? FileChange.Changed)?.result
+        if (result is LoadResult.Text) {
+            // What the file says now, so that a page which reloads — or an activity rebuilt by a
+            // configuration change — shows the file rather than the text from before the change.
+            document.put("text", result.text)
+            bridge.notify(
+                "fileChanged",
+                JSONObject().put("change", "text").put("text", result.text)
+                    .put("message", getString(R.string.watch_changed)),
+            )
+            return
+        }
+        // Nothing to merge: the file is gone, or is no longer text this page can show. What is on
+        // screen stays there, with a banner saying it is no longer what the file holds.
+        val message = if (change is FileChange.Gone) R.string.watch_gone else R.string.watch_unreadable
+        bridge.notify("fileChanged", JSONObject().put("change", "notice").put("message", getString(message)))
+    }
 
     /**
      * Whether keys can arrive without the soft keyboard. The page cannot tell on its own and needs
@@ -224,6 +288,15 @@ class MainActivity : Activity() {
             Log.i(TAG, "opened ${opened.name}: ${opened.result.javaClass.simpleName}")
             document = documentState(opened)
             bridge.notify("documentChanged", JSONObject())
+            watching?.cancel()
+            watching = null
+            watcher = if (opened.result is LoadResult.Text) {
+                FileWatcher(opened.watched, opened.stamp, warn = { message, e -> Log.w(TAG, message, e) })
+            } else {
+                opened.watched.close()
+                null
+            }
+            startWatching()
         }
     }
 
