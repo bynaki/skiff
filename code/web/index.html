@@ -62,9 +62,13 @@
     }
     /* The command button in the bottom-right corner and what opens out of it. A is the button
        alone at half strength; open, the row stretches and the results stack above it. It sits
-       above the banner when there is one (--banner-space), so the answer there stays reachable. */
+       above the banner when there is one (--banner-space), so the answer there stays reachable.
+       It stops widening at 600px and stays in its corner: a line of it reaching across a tablet is
+       a long way from the button the thumb is on, and a name is nowhere near that long. A narrow
+       screen is under the cap and takes the whole width as before. */
     #palette {
-      position: fixed; left: 16px; right: 16px; bottom: calc(16px + var(--banner-space, 0px)); z-index: 16;
+      position: fixed; right: 16px; bottom: calc(16px + var(--banner-space, 0px)); z-index: 16;
+      width: calc(100% - 32px); max-width: 600px;
       display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none;
     }
     #palette > * { pointer-events: auto; }
@@ -76,10 +80,15 @@
       font: inherit; font-size: 16px; color: #1f2328; background: #fff;
       border: 1px solid #d1d9e0; border-radius: 24px;
     }
+    /* touch-action so the button keeps a finger drawn up or down it: left to itself the browser
+       takes such a gesture for a scroll after a few pixels and cancels the pointer, and the mode
+       never turns. */
     #palette .mode {
-      flex: none; width: 56px; height: 56px; padding: 0; font-size: 22px;
+      flex: none; width: 56px; height: 56px; padding: 0; font-size: 22px; touch-action: none;
+      display: grid; place-items: center;
       color: #fff; background: #1f2328; border: 0; border-radius: 28px; opacity: 0.5;
     }
+    #palette .mode svg { display: block; width: 24px; height: 24px; }
     #palette.open .mode { opacity: 1; }
     #palette .results {
       align-self: stretch; margin: 0; padding: 0; max-height: 40vh; overflow: auto; list-style: none;

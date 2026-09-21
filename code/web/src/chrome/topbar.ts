@@ -29,7 +29,8 @@ const ZOOM_SETTLE_MS = 250
 // Ignores the jitter of a finger resting on the screen.
 const MIN_SCROLL_DELTA = 4
 
-const svg = (body: string) =>
+/** How every icon on the page is drawn: one stroke of the current colour, no fill. */
+export const svg = (body: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`
 
 /** ①, which the drawer itself repeats in the same spot so that it is also the way back. */

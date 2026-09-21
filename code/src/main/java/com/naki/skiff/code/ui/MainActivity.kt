@@ -81,6 +81,11 @@ class MainActivity : Activity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
+        // Off by default, which leaves `localStorage` null in the page. The palette keeps the last
+        // things it ran there: a trace that gathers as the app is used rather than a setting anyone
+        // edits, so it belongs to the page and not to `settings.toml`. It is this app's own data,
+        // under this origin, and the page runs nothing but its own bundle.
+        webView.settings.domStorageEnabled = true
         webView.webViewClient = object : WebViewClient() {
             // The bundle is the only thing the page may load. Anything else — an image in a
             // rendered document, a stray fetch — gets an empty 403 instead of reaching the network.

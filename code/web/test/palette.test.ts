@@ -1,6 +1,6 @@
 // Where the command palette goes: the button, the open input, the results, and back.
 import { describe, expect, test } from 'vitest'
-import { type PaletteMode, createPalette } from '../src/palette'
+import { MODES, MOST_RECENT, type PaletteMode, createPalette } from '../src/palette'
 
 /** What each mode offers. Only the command mode has anything until the later items. */
 const ITEMS: Record<PaletteMode, string[]> = {
@@ -101,7 +101,7 @@ describe('the command palette', () => {
 
   test('keeps the mode across a run and a cancel', () => {
     const { machine } = palette()
-    machine.setMode('file')
+    machine.cycleMode(1)
     machine.open()
     machine.type('notes')
     machine.run()
@@ -115,9 +115,32 @@ describe('the command palette', () => {
     const { machine } = palette()
     machine.open()
     machine.type('o')
+    // All three have an `o` in the middle of a word and nothing else to tell them apart, so they
+    // come back in the order the mode offered them.
     expect(names(machine.results)).toEqual(['Toggle Layer', 'Reset Zoom', 'Toggle Sidebar'])
-    machine.setMode('file')
+    machine.cycleMode(1)
     expect(names(machine.results)).toEqual(['notes.md'])
+  })
+
+  test('goes round the modes, both ways', () => {
+    const { machine } = palette()
+    expect(MODES).toEqual(['command', 'file', 'symbol'])
+    machine.cycleMode(1)
+    expect(machine.mode).toBe('file')
+    machine.cycleMode(1)
+    expect(machine.mode).toBe('symbol')
+    machine.cycleMode(1)
+    expect(machine.mode).toBe('command')
+    machine.cycleMode(-1)
+    expect(machine.mode).toBe('symbol')
+  })
+
+  test('puts the results in the order the score gives them', () => {
+    const { machine } = palette()
+    machine.open()
+    machine.type('tl')
+    // Both have a `t` and a later `l`; only one of them has it where `Layer` starts.
+    expect(names(machine.results)).toEqual(['Toggle Layer', 'Toggle Sidebar'])
   })
 
   test('moves the selection around the ends', () => {
@@ -128,6 +151,65 @@ describe('the command palette', () => {
     expect(machine.selected).toBe(1)
     machine.move(1)
     expect(machine.selected).toBe(0)
+  })
+
+  test('offers what was run last when nothing is typed yet', () => {
+    const { machine, ran } = palette()
+    machine.open()
+    machine.type('reset')
+    machine.run()
+    expect(ran).toEqual(['Reset Zoom'])
+    machine.open()
+    expect(machine.stage).toBe('input')
+    expect(names(machine.results)).toEqual(['Reset Zoom'])
+    // And it can be run from there, without typing anything.
+    machine.run()
+    expect(ran).toEqual(['Reset Zoom', 'Reset Zoom'])
+  })
+
+  test('has nothing to offer until something has been run', () => {
+    const { machine } = palette()
+    machine.open()
+    expect(machine.results).toEqual([])
+  })
+
+  test('puts the newest first and counts each of them once', () => {
+    const { machine } = palette()
+    const run = (query: string) => { machine.open(); machine.type(query); machine.run() }
+    run('layer')
+    run('reset')
+    run('layer')
+    machine.open()
+    expect(names(machine.results)).toEqual(['Toggle Layer', 'Reset Zoom'])
+  })
+
+  test('remembers five and lets the sixth push the oldest out', () => {
+    const many = Array.from({ length: MOST_RECENT + 1 }, (_, index) => `Command ${index}`)
+    const machine = createPalette({ items: () => many.map((name) => ({ name, run: () => {} })) })
+    for (const name of many) {
+      machine.open()
+      machine.type(name)
+      machine.run()
+    }
+    machine.open()
+    expect(names(machine.results)).toEqual([...many].reverse().slice(0, MOST_RECENT))
+  })
+
+  test('keeps a list for each mode', () => {
+    const { machine } = palette()
+    machine.open()
+    machine.type('layer')
+    machine.run()
+    machine.cycleMode(1)
+    machine.open()
+    expect(machine.results).toEqual([])
+    machine.type('notes')
+    machine.run()
+    expect(names(machine.results)).toEqual([])
+    machine.open()
+    expect(names(machine.results)).toEqual(['notes.md'])
+    machine.cycleMode(-1)
+    expect(names(machine.results)).toEqual(['Toggle Layer'])
   })
 
   test('ignores typing while it is still the button', () => {

@@ -5,12 +5,22 @@
 // this file rather than arriving from Kotlin's string resources the way the rest of the page's text
 // does. It is the one surface that is not localised, so there is nothing for `values-ko` to hold.
 import { type Palette, type PaletteItem, type PaletteMode, createPalette } from '../palette'
+import { svg } from './topbar'
 
-/** What the button shows in each mode, which is also what the mode is called in the plan. */
+/**
+ * What the button wears in each mode. The plan names the modes by `>`, 🔍 and `@`, and these draw
+ * those three marks the way the menu's icons are drawn — one stroke, the colour of the text, no
+ * fill — rather than setting them as text. As characters they do not belong together: 🔍 is an
+ * emoji the system paints in its own colours and weight, and the other two are whatever weight the
+ * font has at 22px, sitting where the font's baseline puts them rather than in the middle of the
+ * button.
+ */
 const GLYPH: Record<PaletteMode, string> = {
-  command: '>',
-  file: '🔍',
-  symbol: '@',
+  // A prompt: the mark itself, over the line a command is typed on.
+  command: svg('<path d="M4 17l6-5-6-5"/><path d="M12 19h8"/>'),
+  file: svg('<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8L20 20"/>'),
+  // The `@`, drawn: the inner circle and the stroke that curls around it and stops.
+  symbol: svg('<circle cx="12" cy="12" r="3.6"/><path d="M15.6 8.4v5a2.9 2.9 0 0 0 5.8 0v-1.4a9.4 9.4 0 1 0-3.7 7.5"/>'),
 }
 
 const PLACEHOLDER: Record<PaletteMode, string> = {
@@ -22,8 +32,16 @@ const PLACEHOLDER: Record<PaletteMode, string> = {
 const NO_MATCHES = 'No matches'
 
 /**
- * [items] is asked every time the query changes, for the mode the palette is in. The fuzzy score
- * that will order what comes back, and the rest of what can come back, are the next two items.
+ * How far the finger travels up or down the button before it is a swipe rather than a tap. One
+ * gesture turns the mode once however far it goes on: three modes are few enough that a flick
+ * which lands on a different one each time would be a thing to aim, and this one cannot be missed.
+ */
+const SWIPE_STEP = 24
+
+/**
+ * [items] is asked every time the query changes, for the mode the palette is in, and `fuzzy.ts`
+ * decides which of what comes back comes first. The file and symbol modes have nothing to offer
+ * until the registry item builds them a source.
  */
 export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[]): void {
   const machine: Palette = createPalette({ items })
@@ -70,28 +88,29 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[]): 
    */
   const keepFocus = (event: Event) => event.preventDefault()
 
+  /** Set by a swipe that has just ended, for the click it leaves behind to be let go of. */
+  let swiped = false
+
   function render(): void {
     const open = machine.stage !== 'button'
     box.classList.toggle('open', open)
     scrim.classList.toggle('open', open)
-    button.textContent = GLYPH[machine.mode]
+    button.innerHTML = GLYPH[machine.mode]
     button.title = open ? 'Run' : 'Commands'
     button.setAttribute('aria-label', button.title)
     input.placeholder = PLACEHOLDER[machine.mode]
     if (input.value !== machine.query) input.value = machine.query
-    if (machine.stage !== 'results') {
-      results.replaceChildren()
-      results.hidden = true
-      return
-    }
-    results.hidden = false
+    // Before anything is typed the list is the last few things run, and there is nothing to show
+    // until something has been. Only a query that found nothing says so.
     if (machine.results.length === 0) {
       const none = document.createElement('li')
       none.className = 'none'
       none.textContent = NO_MATCHES
-      results.replaceChildren(none)
+      results.replaceChildren(...(machine.stage === 'results' ? [none] : []))
+      results.hidden = machine.stage !== 'results'
       return
     }
+    results.hidden = false
     results.replaceChildren(...machine.results.map((item, index) => {
       const entry = document.createElement('li')
       entry.textContent = item.name
@@ -123,8 +142,38 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[]): 
     render()
   }
 
-  button.addEventListener('pointerdown', keepFocus)
-  button.addEventListener('click', () => (machine.stage === 'button' ? open() : run()))
+  // Where the finger came down on the button, while it is still down, and whether it has moved far
+  // enough to have been a swipe rather than a tap. Only while the palette is open: the plan gives
+  // the swipe to the input button, and in the corner the button has the one thing to do.
+  let swipe: { from: number; turned: boolean } | null = null
+
+  button.addEventListener('pointerdown', (event) => {
+    keepFocus(event)
+    if (machine.stage === 'button') return
+    swipe = { from: event.clientY, turned: false }
+    button.setPointerCapture(event.pointerId)
+  })
+  button.addEventListener('pointermove', (event) => {
+    if (!swipe || swipe.turned) return
+    const moved = event.clientY - swipe.from
+    if (Math.abs(moved) < SWIPE_STEP) return
+    // Up the screen is forward through the modes, the way a list moves under a finger.
+    machine.cycleMode(moved < 0 ? 1 : -1)
+    swipe.turned = true
+    render()
+  })
+  const released = () => {
+    // The tap that ends a swipe is not a tap: it must not run what the palette is showing.
+    swiped = swipe?.turned ?? false
+    swipe = null
+  }
+  button.addEventListener('pointerup', released)
+  button.addEventListener('pointercancel', released)
+  button.addEventListener('click', () => {
+    if (swiped) return void (swiped = false)
+    if (machine.stage === 'button') open()
+    else run()
+  })
   scrim.addEventListener('pointerdown', keepFocus)
   scrim.addEventListener('click', cancel)
   input.addEventListener('input', () => {

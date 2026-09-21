@@ -195,6 +195,17 @@ carries the progress notification; the queue runs one job at a time on purpose.
 `HostKeyPrompter` is process-scoped for the same reason — a background transfer can meet an
 unknown key with no screen on top, and the answer arrives when the UI returns.
 
+**State the page keeps goes in `localStorage`** (user's decision, 2026-09-21). Anything the app
+gathers as it is used — what the palette ran last, the zoom, which layer and line a file was on,
+whether the sidebar was out — is written from the page under a namespaced key (`palette.recent`),
+not carried to Kotlin over the bridge. `settings.toml` is a different thing: the file a person
+opens and edits, holding what they chose, not what the app noticed. Three rules come with it:
+every read and write is wrapped, since `localStorage` is null wherever `domStorageEnabled` is off
+and absent entirely under vitest; what comes back is checked before it is believed, because the
+page wrote it and anything could be there now; and **nothing that identifies a server or a person
+goes in it** — profiles, passwords and host keys stay on the Kotlin side, in the store and the
+Keystore.
+
 ### UI
 
 `WorkspaceViewModel` holds two `PaneController`s (A and B). Split view is **the user's choice**,
@@ -370,6 +381,10 @@ These apply to `:code` only:
   Focus is what raises the soft keyboard, and on a phone it covers half the document before the
   user has asked to type. The first tap on the text focuses it. A tablet with an external keyboard
   hides this, which is why it was not found until the foldable.
+- **`WebSettings.domStorageEnabled` is off by default, and with it off `window.localStorage` is
+  `null`** — not a throwing object, so the failure reads as "Cannot read properties of null". It is
+  on for `:code` because the palette keeps the last things it ran there. Anything reading it still
+  has to survive its absence: the tests run on node, which has no storage at all.
 - **An app cannot set the soft keyboard's language, only hint at it — and the page's `lang` is not
   a hint the IME ever sees.** Chromium leaves `EditorInfo.hintLocales` null whatever the element
   says, so the only lever the page has is the input type: measured on the tablet (Samsung Keyboard,
@@ -382,6 +397,10 @@ These apply to `:code` only:
   com.samsung.android.honeyboard | grep currentLang` says which language it is on. The tablet has
   an external keyboard, so the soft one only appears with
   `settings put secure show_ime_with_hard_keyboard 1` — **put it back to 0 afterwards.**
+- **A page element that takes a drag needs `touch-action: none`.** Left at the default, the browser
+  claims a vertical drag for scrolling within a few pixels and sends `pointercancel`, so the
+  element sees one `pointermove` and never the rest. This is what kept the palette button's swipe
+  from turning the mode.
 - **A tap that changes the screen must act on `click`, not on `pointerdown`.** The click that
   follows lands on whatever is on the screen by then: a command run on the way down opened the
   sidebar, and the click behind it hit the sidebar's scrim and closed it again. `preventDefault` on
