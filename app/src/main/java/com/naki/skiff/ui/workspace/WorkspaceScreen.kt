@@ -326,6 +326,9 @@ private fun BrowseTopBar(
             IconButton(onClick = onNewFolder) {
                 Icon(Icons.Default.CreateNewFolder, stringResource(R.string.action_new_folder))
             }
+            IconButton(onClick = onNewFile) {
+                Icon(Icons.AutoMirrored.Filled.NoteAdd, stringResource(R.string.action_new_file))
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, stringResource(R.string.action_refresh))
             }
@@ -333,11 +336,6 @@ private fun BrowseTopBar(
                 Icon(Icons.Default.MoreVert, stringResource(R.string.action_more))
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.action_new_file)) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.NoteAdd, null) },
-                    onClick = { menuOpen = false; onNewFile() },
-                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.menu_show_hidden)) },
                     leadingIcon = { if (showHidden) Icon(Icons.Default.Check, null) },
