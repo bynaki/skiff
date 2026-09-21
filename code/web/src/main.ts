@@ -8,10 +8,12 @@
 // safe while a file is being typed in.
 import { onNotify, rpc } from './bridge'
 import { type BannerLabels, createBanner } from './chrome/banner'
+import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { forgetOldBuffers } from './memories'
+import type { PaletteItem, PaletteMode } from './palette'
 import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
@@ -58,19 +60,37 @@ const sidebar = createSidebar({
   dirty: (id) => (id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)),
 })
 
-const topbar = createTopbar({
-  toggleSidebar: () => sidebar.toggle(),
-  // Keeps the line at the middle of the screen where it is.
-  resetZoom() {
-    const middle = root.getBoundingClientRect().top + root.clientHeight / 2
-    if (pane) pane.hold(middle)(DEFAULT_FONT_SIZE, middle)
-    else setFontSize(DEFAULT_FONT_SIZE)
-  },
-  toggleLayer() {
-    pane?.toggle()
-    topbar.setLayer(pane?.layer ?? null)
-  },
-})
+// Keeps the line at the middle of the screen where it is.
+function resetZoom(): void {
+  const middle = root.getBoundingClientRect().top + root.clientHeight / 2
+  if (pane) pane.hold(middle)(DEFAULT_FONT_SIZE, middle)
+  else setFontSize(DEFAULT_FONT_SIZE)
+}
+
+function toggleLayer(): void {
+  pane?.toggle()
+  topbar.setLayer(pane?.layer ?? null)
+}
+
+const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer })
+
+/**
+ * What the palette can run. These three are the menu's own, which is what makes the palette
+ * something that runs rather than a shape on the screen; the registry that saves, opens the
+ * settings and the rest of it is the next item, and so are the file and symbol modes.
+ *
+ * Their names are English, like everything else in the palette (2026-09-21 사용자 결정).
+ */
+function commands(mode: PaletteMode): PaletteItem[] {
+  if (mode !== 'command') return []
+  return [
+    { name: 'Toggle Layer', run: toggleLayer },
+    { name: 'Reset Zoom', run: resetZoom },
+    { name: 'Toggle Sidebar', run: () => sidebar.toggle() },
+  ]
+}
+
+createPaletteView(commands)
 
 function dirtyInBackground(id: number): boolean {
   const memory = memories.get(id)

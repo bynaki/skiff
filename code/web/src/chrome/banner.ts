@@ -46,15 +46,19 @@ export function createBanner(): Banner {
     // The labels arrive from Kotlin after the page is up, so a banner that beats them waits here
     // rather than showing its buttons in whatever language this file happens to be written in.
     bar.hidden = showing === null || labels === null
-    if (!showing || !labels) return
-    message.textContent = showing.text
-    const reload = showing.reload
-    // Keeping what the user typed is the left, unhurried one; taking the change throws it away.
-    actions.replaceChildren(
-      ...(reload
-        ? [button(labels.keepMine, hide), button(labels.reload, () => { hide(); reload() })]
-        : [button(labels.dismiss, hide)]),
-    )
+    if (showing && labels) {
+      message.textContent = showing.text
+      const reload = showing.reload
+      // Keeping what the user typed is the left, unhurried one; taking the change throws it away.
+      actions.replaceChildren(
+        ...(reload
+          ? [button(labels.keepMine, hide), button(labels.reload, () => { hide(); reload() })]
+          : [button(labels.dismiss, hide)]),
+      )
+    }
+    // How much of the bottom this takes, for the command button to sit above it rather than on the
+    // answer it is asking for. Measured last: the height is the message's, which is now in.
+    document.documentElement.style.setProperty('--banner-space', bar.hidden ? '0px' : `${bar.offsetHeight}px`)
   }
 
   function hide() {

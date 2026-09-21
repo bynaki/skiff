@@ -370,6 +370,23 @@ These apply to `:code` only:
   Focus is what raises the soft keyboard, and on a phone it covers half the document before the
   user has asked to type. The first tap on the text focuses it. A tablet with an external keyboard
   hides this, which is why it was not found until the foldable.
+- **An app cannot set the soft keyboard's language, only hint at it — and the page's `lang` is not
+  a hint the IME ever sees.** Chromium leaves `EditorInfo.hintLocales` null whatever the element
+  says, so the only lever the page has is the input type: measured on the tablet (Samsung Keyboard,
+  Korean and English both added), `inputmode="email"` (`inputType=0xd1`) comes up English while
+  plain text and URL fields come up Korean. From Kotlin the lever is `EditorInfo.hintLocales` in a
+  WebView subclass's `onCreateInputConnection`, which is one place for the whole page, so it needs
+  the page to say which field has the focus and an `imm.restartInput` to be re-read.
+- **The keyboard's language cannot be read from a screenshot**: Samsung Keyboard's key area comes
+  back white from `screencap`, though its toolbar row draws. `adb shell dumpsys activity service
+  com.samsung.android.honeyboard | grep currentLang` says which language it is on. The tablet has
+  an external keyboard, so the soft one only appears with
+  `settings put secure show_ime_with_hard_keyboard 1` — **put it back to 0 afterwards.**
+- **A tap that changes the screen must act on `click`, not on `pointerdown`.** The click that
+  follows lands on whatever is on the screen by then: a command run on the way down opened the
+  sidebar, and the click behind it hit the sidebar's scrim and closed it again. `preventDefault` on
+  `pointerdown` is still worth having, to keep the focus (and so the keyboard, and so the page's
+  height) from moving under the finger mid-gesture.
 - **The soft keyboard shrinks the WebView, and CodeMirror does not chase the caret.** The ime inset
   goes into the frame (`MainActivity`), so the viewport gets shorter without the selection moving,
   and CodeMirror only scrolls the caret into view when the selection changes. `pane.ts` listens for

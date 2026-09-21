@@ -60,6 +60,38 @@
       padding: 8px 12px; color: #fff; background: none;
       border: 1px solid #59636e; border-radius: 6px; font-size: 14px;
     }
+    /* The command button in the bottom-right corner and what opens out of it. A is the button
+       alone at half strength; open, the row stretches and the results stack above it. It sits
+       above the banner when there is one (--banner-space), so the answer there stays reachable. */
+    #palette {
+      position: fixed; left: 16px; right: 16px; bottom: calc(16px + var(--banner-space, 0px)); z-index: 16;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none;
+    }
+    #palette > * { pointer-events: auto; }
+    #palette .row { display: flex; align-items: center; gap: 8px; }
+    #palette.open .row { align-self: stretch; }
+    #palette:not(.open) input { display: none; }
+    #palette input {
+      flex: 1; min-width: 0; box-sizing: border-box; height: 48px; padding: 0 16px;
+      font: inherit; font-size: 16px; color: #1f2328; background: #fff;
+      border: 1px solid #d1d9e0; border-radius: 24px;
+    }
+    #palette .mode {
+      flex: none; width: 56px; height: 56px; padding: 0; font-size: 22px;
+      color: #fff; background: #1f2328; border: 0; border-radius: 28px; opacity: 0.5;
+    }
+    #palette.open .mode { opacity: 1; }
+    #palette .results {
+      align-self: stretch; margin: 0; padding: 0; max-height: 40vh; overflow: auto; list-style: none;
+      background: #fff; border: 1px solid #d1d9e0; border-radius: 8px;
+    }
+    #palette .results li { padding: 12px 16px; font-size: 15px; border-bottom: 1px solid #eff1f3; }
+    #palette .results li:last-child { border-bottom: 0; }
+    #palette .results li.selected { background: #eff1f3; }
+    #palette .results li.none { color: #59636e; }
+    /* Transparent on purpose: what is being searched for is usually in the document behind it. */
+    #palette-scrim { position: fixed; inset: 0; z-index: 15; }
+    #palette-scrim:not(.open) { display: none; }
     /* The drawer behind ①: the files that are open, and in M5 the projects and their trees. It
        covers the menu while it is out, so the way back is the scrim over the layer. */
     #scrim {
