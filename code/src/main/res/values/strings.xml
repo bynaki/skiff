@@ -5,6 +5,9 @@
     <string name="action_open_settings">Open settings</string>
     <string name="action_open">Open</string>
 
+    <string name="action_close">Close</string>
+    <string name="action_cancel">Cancel</string>
+
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
 
@@ -51,6 +54,8 @@
     <string name="menu_layer_editor">Editing layer</string>
     <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
+
+    <string name="close_dirty">What you have typed in this file will be lost. Close it?</string>
 
     <string name="watch_changed">This file changed somewhere else.</string>
     <string name="watch_gone">This file is no longer there.</string>

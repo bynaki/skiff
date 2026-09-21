@@ -7,7 +7,14 @@
 // undo history are shared and nothing of a layer outlives it. That is also why the diff layer can
 // join later without a second view: `unifiedMergeView` is a plain extension array that compares
 // against `state.doc`, which is the buffer being edited.
-import { Annotation, Compartment, EditorState, type Extension } from '@codemirror/state'
+import {
+  Annotation,
+  Compartment,
+  EditorState,
+  type Extension,
+  StateField,
+  type TransactionSpec,
+} from '@codemirror/state'
 import { diff } from '@codemirror/merge'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -32,6 +39,55 @@ export interface TextDocument {
 const External = Annotation.define<boolean>()
 
 /**
+ * Whether the buffer has been typed in since it was read or last took the file's text.
+ *
+ * It rides in the state rather than in this module, so that it survives a file going to the
+ * background — where its state is all that is left of it — and comes back with it. A change made
+ * outside is what clears it: that transaction is the file and the buffer becoming the same thing
+ * again.
+ */
+const dirtyFlag = StateField.define<boolean>({
+  create: () => false,
+  update: (value, tr) => (tr.annotation(External) ? false : value || tr.docChanged),
+})
+
+export function isDirty(state: EditorState): boolean {
+  return state.field(dirtyFlag)
+}
+
+/**
+ * The transaction that takes [text] into a buffer, replacing only the ranges that differ so that
+ * the cursor, the selection and the scroll come through its mapping. Handing CodeMirror a whole
+ * new document would move every one of those to the end of it.
+ */
+function externalChanges(state: EditorState, text: string): TransactionSpec {
+  const current = state.doc.toString()
+  const changes = current === text
+    ? []
+    : diff(current, text, { timeout: DIFF_TIMEOUT }).map((change) => ({
+      from: change.fromA,
+      to: change.toA,
+      insert: text.slice(change.fromB, change.toB),
+    }))
+  // Even with nothing to change: the annotation is what says this buffer and the file agree again.
+  return { changes, annotations: External.of(true) }
+}
+
+/** The same, for a file in the background, whose state is all there is of it while it is not showing. */
+export function adoptInto(state: EditorState, text: string): EditorState {
+  return state.update(externalChanges(state, text)).state
+}
+
+/**
+ * The compartments are one per module, not one per pane: a file that comes back to the screen is a
+ * new pane around the state it left behind, and a compartment reconfigures only the states built
+ * with that same instance. The value inside one still belongs to each state, so every file keeps
+ * its own language and its own layer.
+ */
+const layerBundle = new Compartment()
+const syntax = new Compartment()
+
+/**
  * How long the diff may spend being precise before it falls back to the coarser algorithm. The
  * result is a correct merge either way; past this it is a bigger one.
  */
@@ -44,6 +100,17 @@ const BUNDLES: Record<LayerName, Extension> = {
   diff: EditorState.readOnly.of(true),
 }
 
+/** What a file leaves behind when it goes to the background, and comes back to the screen with. */
+export interface PaneMemory {
+  /** The buffer with its undo history, its selection and whether it has been typed in. */
+  state: EditorState | null
+  /** The text while no state holds it: a markdown file that has not been to the editor yet. */
+  source: string
+  layer: LayerName
+  /** The source line that was at the top of the screen. */
+  line: number
+}
+
 export interface Pane {
   readonly layer: LayerName
   /** Whether the buffer has been typed in since it was loaded or last took the file's text. */
@@ -52,50 +119,56 @@ export interface Pane {
   adopt(text: string): void
   /** To the next layer. */
   toggle(): void
+  /** Puts [line] at the top of the screen, for a link that asked for one. */
+  goToLine(line: number): void
   /** What ② original size zooms around, on whichever layer is showing. */
   hold: Hold
-  close(): void
+  /** Takes the pane off the screen and hands back what the file needs to come back to it. */
+  close(): PaneMemory
 }
 
-/** Shows [doc] in [parent], in the viewer layer. */
-export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
+/**
+ * Shows [doc] in [parent]. With [memory] it is a file coming back to the screen: the buffer it
+ * left, the layer it was on and the line it was showing, rather than the file as it was read.
+ */
+export function openPane(parent: HTMLElement, doc: TextDocument, memory?: PaneMemory): Pane {
   // By name, not content: language-data knows extensions and names such as Makefile.
   const language = LanguageDescription.matchFilename(languages, doc.name)
-  const markdown = language?.name === 'Markdown' ? showMarkdown(parent, doc.text) : null
-  const layerBundle = new Compartment()
-  let layer: LayerName = 'viewer'
-  let view: EditorView | null = null
   // The document's text while no view holds it, which is the markdown viewer before its first trip
   // to the editor. Once there is a view, the view is the buffer.
-  let source = doc.text
-  let dirty = false
+  let source = memory?.source ?? doc.text
+  const markdown = language?.name === 'Markdown' ? showMarkdown(parent, source) : null
+  let layer: LayerName = memory?.layer ?? 'viewer'
+  let view: EditorView | null = null
+  // Used once, by the first view this pane builds: after that the view holds it.
+  let restore = memory?.state ?? null
 
   function createView(): EditorView {
-    const syntax = new Compartment()
-    const created = new EditorView({
-      parent,
-      state: EditorState.create({
-        doc: source,
-        extensions: [
-          lineNumbers(),
-          // Outside the compartment, so undo still reaches an edit made before a trip to the viewer.
-          history(),
-          syntax.of([]),
-          syntaxHighlighting(defaultHighlightStyle),
-          layerBundle.of(BUNDLES[layer]),
-          codeFontSize(),
-          EditorView.updateListener.of((update) => {
-            if (update.transactions.some((tr) => tr.docChanged && !tr.annotation(External))) dirty = true
-          }),
-          EditorView.theme({
-            '&': { height: '100%' },
-            '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
-            // Gutters follow the content's padding, so the line numbers move down with it.
-            '.cm-content': { paddingTop: 'var(--topbar-space)' },
-          }),
-        ],
-      }),
+    const state = restore ?? EditorState.create({
+      doc: source,
+      extensions: [
+        lineNumbers(),
+        // Outside the compartment, so undo still reaches an edit made before a trip to the viewer.
+        history(),
+        dirtyFlag,
+        syntax.of([]),
+        syntaxHighlighting(defaultHighlightStyle),
+        layerBundle.of(BUNDLES[layer]),
+        codeFontSize(),
+        EditorView.theme({
+          '&': { height: '100%' },
+          '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
+          // Gutters follow the content's padding, so the line numbers move down with it.
+          '.cm-content': { paddingTop: 'var(--topbar-space)' },
+        }),
+      ],
     })
+    const restored = restore !== null
+    restore = null
+    const created = new EditorView({ parent, state })
+    // A state built before the last pinch carries that pinch's size; the font is one for the whole
+    // page, so the view is brought to it rather than the other way round.
+    if (restored) applyFontSize(created)
     // Each language's parser is its own chunk, fetched the first time a file needs it.
     language?.load().then((support) => {
       if (!created.dom.isConnected) return
@@ -150,17 +223,8 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
    * whole new document would move every one of those to the end of it.
    */
   function adopt(text: string): void {
-    dirty = false
     source = text
-    const current = view ? view.state.doc.toString() : text
-    if (view && current !== text) {
-      const changes = diff(current, text, { timeout: DIFF_TIMEOUT }).map((change) => ({
-        from: change.fromA,
-        to: change.toA,
-        insert: text.slice(change.fromB, change.toB),
-      }))
-      view.dispatch({ changes, annotations: External.of(true) })
-    }
+    if (view) view.dispatch(externalChanges(view.state, text))
     // The rendered markdown is its own DOM and does not follow the buffer, so it is re-rendered
     // and put back on the line it was showing.
     if (markdown && layer === 'viewer') {
@@ -190,11 +254,20 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
     }
   }
 
-  if (markdown) {
-    if (doc.line) markdown.scrollToLine(doc.line)
+  function goToLine(line: number): void {
+    if (markdown && layer === 'viewer') markdown.scrollToLine(line)
+    else if (view) scrollViewToLine(view, line)
+  }
+
+  // A file coming back shows the layer and the line it left; one being opened shows the viewer, at
+  // the line a link asked for.
+  const startLine = memory?.line ?? doc.line
+  if (markdown && layer === 'viewer') {
+    if (startLine) markdown.scrollToLine(startLine)
   } else {
+    markdown?.visible(false)
     view = createView()
-    if (doc.line) scrollViewToLine(view, doc.line)
+    if (startLine) scrollViewToLine(view, startLine)
   }
 
   /**
@@ -224,14 +297,19 @@ export function openPane(parent: HTMLElement, doc: TextDocument): Pane {
       return layer
     },
     get dirty() {
-      return dirty
+      return view !== null && isDirty(view.state)
     },
     toggle: () => setLayer(layer === 'viewer' ? 'editor' : 'viewer'),
+    goToLine,
     close() {
       window.removeEventListener('resize', keepCaretVisible)
       uninstallPinchZoom()
+      // Read while both surfaces are still on screen, since this is where the file comes back to.
+      const memory: PaneMemory = { state: view?.state ?? null, source, layer, line: topLine() }
+      if (memory.state) memory.source = memory.state.doc.toString()
       view?.destroy()
       markdown?.remove()
+      return memory
     },
   }
 }

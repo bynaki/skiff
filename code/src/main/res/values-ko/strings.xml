@@ -5,6 +5,9 @@
     <string name="action_open_settings">설정 열기</string>
     <string name="action_open">열기</string>
 
+    <string name="action_close">닫기</string>
+    <string name="action_cancel">취소</string>
+
     <string name="field_user">사용자</string>
     <string name="field_password">비밀번호</string>
 
@@ -51,6 +54,8 @@
     <string name="menu_layer_editor">편집 레이어</string>
     <string name="menu_layer_diff">비교 레이어</string>
     <string name="menu_more">더보기</string>
+
+    <string name="close_dirty">이 파일에 쓴 것이 사라집니다. 닫을까요?</string>
 
     <string name="watch_changed">이 파일이 다른 곳에서 바뀌었습니다.</string>
     <string name="watch_gone">이 파일이 사라졌습니다.</string>

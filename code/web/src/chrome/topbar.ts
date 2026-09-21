@@ -1,6 +1,6 @@
 // The menu along the top (plan.md "화면 메뉴"): ① sidebar on the left; ② original size, ③ layer and
 // ④ more on the right. It floats over the layer, slides away while the layer scrolls down and comes
-// back when it scrolls up. ① and ④ are placeholders for later steps.
+// back when it scrolls up. ④ is a placeholder for a later step.
 import type { LayerName } from '../layers/pane'
 import { lastZoomTime } from '../zoom'
 
@@ -32,8 +32,11 @@ const MIN_SCROLL_DELTA = 4
 const svg = (body: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`
 
+/** ①, which the drawer itself repeats in the same spot so that it is also the way back. */
+export const SIDEBAR_ICON = svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>')
+
 const ICONS = {
-  sidebar: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>'),
+  sidebar: SIDEBAR_ICON,
   // "1:1"
   resetZoom: svg('<path d="M5 8l2-2v12M17 8l2-2v12"/><circle cx="12" cy="10" r=".6"/><circle cx="12" cy="15" r=".6"/>'),
   viewer: svg('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
@@ -51,7 +54,7 @@ export interface Topbar {
   show(): void
 }
 
-export function createTopbar(actions: { resetZoom(): void; toggleLayer(): void }): Topbar {
+export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void; toggleLayer(): void }): Topbar {
   document.documentElement.style.setProperty('--topbar-space', `${TOPBAR_SPACE}px`)
   const bar = document.createElement('div')
   bar.id = 'topbar'
@@ -64,7 +67,7 @@ export function createTopbar(actions: { resetZoom(): void; toggleLayer(): void }
     else element.disabled = true
     return element
   }
-  const sidebar = button(ICONS.sidebar)
+  const sidebar = button(ICONS.sidebar, actions.toggleSidebar)
   const resetZoom = button(ICONS.resetZoom, actions.resetZoom)
   const layer = button(ICONS.viewer, actions.toggleLayer)
   const more = button(ICONS.more)

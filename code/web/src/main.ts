@@ -1,9 +1,16 @@
-// The page: shows whichever document Kotlin has open. Kotlin says `documentChanged` when that
-// changes and the page asks for it, so a reloaded page and a new link take the same path.
+// The page: shows whichever of the open files Kotlin has made active. Kotlin says
+// `documentsChanged` when the list or that choice moves — a link arrived, the sidebar switched
+// files, one was closed — and the page asks what it is now, so a reloaded page, a new link and a
+// tap in the sidebar all take the same path.
+//
+// One file is on the screen at a time and the rest are what they left behind (`PaneMemory`): their
+// buffer, the layer they were on and the line they were showing. That is also what makes switching
+// safe while a file is being typed in.
 import { onNotify, rpc } from './bridge'
 import { type BannerLabels, createBanner } from './chrome/banner'
+import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
-import { type Pane, openPane } from './layers/pane'
+import { type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
@@ -12,19 +19,42 @@ type DocumentState =
   | { state: 'text'; name: string; text: string; line?: number }
   | { state: 'refused'; name: string; title: string; message: string }
 
-/** What the file did while it was open, from Kotlin's `FileWatcher`. */
+/** What the file did while it was open, from Kotlin's `FileWatcher`, and which file it was. */
 type FileChange =
-  | { change: 'text'; text: string; message: string }
-  | { change: 'notice'; message: string }
+  | { id: number; change: 'text'; text: string; message: string }
+  | { id: number; change: 'notice'; message: string }
 
-type Labels = TopbarLabels & BannerLabels
+/** What is open and which one the screen is on. */
+interface Documents {
+  active: number | null
+  files: OpenFile[]
+}
+
+type Labels = TopbarLabels & BannerLabels & SidebarLabels
 
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
+let activeId: number | null = null
+/** What each open file that is not on the screen left behind. */
+const memories = new Map<number, PaneMemory>()
+/**
+ * A change that reached a file while it was in the background and its buffer could not take
+ * silently — it had been typed in, or there was nothing to merge. It is put to the user when that
+ * file comes to the screen.
+ */
+const waiting = new Map<number, { message: string; text?: string }>()
 
 const banner = createBanner()
 
+const sidebar = createSidebar({
+  activate: (id) => void rpc('activate', { id }).catch((error) => console.log(`activate: ${error}`)),
+  close: (id) => void rpc('close', { id }).catch((error) => console.log(`close: ${error}`)),
+  // Only this side knows: Kotlin is never told whether a buffer has been typed in.
+  dirty: (id) => (id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)),
+})
+
 const topbar = createTopbar({
+  toggleSidebar: () => sidebar.toggle(),
   // Keeps the line at the middle of the screen where it is.
   resetZoom() {
     const middle = root.getBoundingClientRect().top + root.clientHeight / 2
@@ -37,16 +67,51 @@ const topbar = createTopbar({
   },
 })
 
-function show(doc: DocumentState) {
-  pane?.close()
-  pane = null
+function dirtyInBackground(id: number): boolean {
+  const memory = memories.get(id)
+  return memory?.state ? isDirty(memory.state) : false
+}
+
+/**
+ * Brings the page to what Kotlin says is open. Everything that changes the list goes through here,
+ * whoever started it, so there is one way the page arrives at a state. [goToLine] comes with a link
+ * that named a file which was already open, since that file keeps the buffer it has rather than
+ * being read again.
+ */
+async function reconcile(goToLine?: number | null): Promise<void> {
+  const { active, files } = await rpc<Documents>('documents')
+  const open = (id: number) => files.some((file) => file.id === id)
+  for (const id of [...memories.keys()]) if (!open(id)) memories.delete(id)
+  for (const id of [...waiting.keys()]) if (!open(id)) waiting.delete(id)
+  if (active !== activeId) {
+    const leaving = pane?.close()
+    // Not for a file that has just been closed: what it left is not coming back.
+    if (leaving && activeId !== null && open(activeId)) memories.set(activeId, leaving)
+    pane = null
+    activeId = active
+    await show(files)
+  }
+  sidebar.show(files, active)
+  if (goToLine) pane?.goToLine(goToLine)
+}
+
+/** Puts the active file on the screen, from what it left behind if it has been there before. */
+async function show(files: OpenFile[]): Promise<void> {
+  const id = activeId
+  const file = id === null ? undefined : files.find((each) => each.id === id)
+  const memory = id === null ? undefined : memories.get(id)
+  // A file that has been on the screen is rebuilt from its own buffer, which may be ahead of the
+  // text Kotlin holds. Anything else — the first look at a file, a refusal, nothing open — is asked.
+  const doc: DocumentState = memory && file
+    ? { state: 'text', name: file.name, text: memory.source }
+    : await rpc<DocumentState>('document', id === null ? {} : { id })
   banner.hide()
   root.replaceChildren()
   topbar.show()
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
-      pane = openPane(root, doc)
+      pane = openPane(root, doc, memory)
       break
     case 'refused':
       root.append(notice(doc.title, doc.message))
@@ -56,6 +121,16 @@ function show(doc: DocumentState) {
       break
   }
   topbar.setLayer(pane?.layer ?? null)
+  if (id !== null) askWhatWaited(id)
+}
+
+/** What happened to this file while it was in the background, now that it can be answered. */
+function askWhatWaited(id: number): void {
+  const held = waiting.get(id)
+  if (!held) return
+  waiting.delete(id)
+  if (held.text === undefined || !pane) banner.tell(held.message)
+  else banner.ask(held.message, () => pane?.adopt(held.text as string))
 }
 
 function notice(title: string | null, message: string): HTMLElement {
@@ -66,25 +141,43 @@ function notice(title: string | null, message: string): HTMLElement {
   return box
 }
 
-// Replies come back in the order they were asked, so the last one asked is the current document.
-const refresh = () => rpc<DocumentState>('document').then(show).catch((error) => console.log(`document: ${error}`))
+// One at a time, in the order they were asked for: two of these overlapping would each close a pane
+// the other is still counting on.
+let queue: Promise<void> = Promise.resolve()
+const refresh = (goToLine?: number | null) => {
+  queue = queue.then(() => reconcile(goToLine)).catch((error) => console.log(`documents: ${error}`))
+}
 
 /**
- * The file changed under the document. A buffer nobody has typed in takes it silently — that is
- * what "실시간 반영" means — and one that has been typed in is asked, because only this side knows
- * which it is.
+ * The file changed under a document. A buffer nobody has typed in takes it silently — that is what
+ * "실시간 반영" means — and one that has been typed in is asked, because only this side knows which
+ * it is. A file that is not on the screen is merged where it lies, or waits to be asked.
  */
 onNotify<FileChange>('fileChanged', (change) => {
-  if (change.change === 'notice' || !pane) return banner.tell(change.message)
-  if (pane.dirty) return banner.ask(change.message, () => pane?.adopt(change.text))
-  pane.adopt(change.text)
-  banner.hide()
+  if (change.id === activeId) {
+    if (change.change === 'notice' || !pane) return banner.tell(change.message)
+    if (pane.dirty) return banner.ask(change.message, () => pane?.adopt(change.text))
+    pane.adopt(change.text)
+    banner.hide()
+    return
+  }
+  const memory = memories.get(change.id)
+  // Open but never shown: Kotlin keeps its text and hands over the current one when it is.
+  if (!memory) return
+  if (change.change === 'notice') return void waiting.set(change.id, { message: change.message })
+  if (memory.state && isDirty(memory.state)) {
+    return void waiting.set(change.id, { message: change.message, text: change.text })
+  }
+  if (memory.state) memory.state = adoptInto(memory.state, change.text)
+  memory.source = change.text
+  waiting.delete(change.id)
 })
 
 setFontSize(currentFontSize())
 rpc<Labels>('labels').then((labels) => {
   topbar.label(labels)
   banner.label(labels)
+  sidebar.label(labels)
 }).catch((error) => console.log(`labels: ${error}`))
-onNotify('documentChanged', refresh)
+onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
 refresh()

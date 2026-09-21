@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,9 +49,10 @@ private const val TAG = "SkiffCode"
 private const val ORIGIN = WebBridge.ORIGIN
 
 /**
- * One WebView served from assets, talking JSON-RPC over [WebBridge]. The page shows whatever
- * document this activity holds: it asks with `document`, and is told `documentChanged` when a link
- * (`skiffcode://…`, or `content://…` from another app) has run through [OpenFlow] to a new one.
+ * One WebView served from assets, talking JSON-RPC over [WebBridge]. The page shows whichever of
+ * the open files this activity has made active: it asks with `documents` and `document`, and is
+ * told `documentsChanged` when a link (`skiffcode://…`, or `content://…` from another app) has run
+ * through [OpenFlow] to another one, or when the sidebar has moved between them.
  */
 class MainActivity : Activity() {
 
@@ -61,12 +63,11 @@ class MainActivity : Activity() {
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
     private var opening: Job? = null
-    private var watcher: FileWatcher? = null
     private var watching: Job? = null
     private var inFront = false
 
-    /** What the page's `document` call answers, in the shape `main.ts`'s `DocumentState` expects. */
-    private lateinit var document: JSONObject
+    /** Every file that is open at once, and which of them the page is showing. */
+    private lateinit var docs: OpenDocuments
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,16 +102,30 @@ class MainActivity : Activity() {
 
         // A configuration change this activity does not handle destroys it and builds another with
         // the same intent. Re-running the link there opens it a second time — reconnecting, asking
-        // about the path again, and replacing what was on screen — so the open document is carried
-        // across instead. Only a document that is actually open is carried: an open still waiting on
-        // a dialog was cancelled with the old scope, and re-running the link is how it comes back.
-        val carried = lastNonConfigurationInstance as? Retained
-        document = carried?.document ?: JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
-        // The watcher comes across too, with the stamp it last saw, so a rotation is not a change.
-        watcher = carried?.watcher
+        // about the path again, and adding a second copy of what was already on screen — so the open
+        // files are carried across instead, with the watches on them, each holding the stamp it last
+        // saw, so that a rotation is not a change. Nothing is carried when nothing was open: an open
+        // still waiting on a dialog was cancelled with the old scope, and re-running the link is how
+        // it comes back.
+        docs = lastNonConfigurationInstance as? OpenDocuments ?: OpenDocuments()
         // Answered without suspending, so replies leave in the order the calls came in and the
         // page's last answer is always the current document.
-        bridge.method("document") { document }
+        bridge.method("document") { params ->
+            val entry = if (params.has("id")) docs.byId(params.getInt("id")) else docs.active
+            entry?.state ?: emptyDocument()
+        }
+        bridge.method("documents") { docs.listed() }
+        bridge.method("activate") { params ->
+            if (docs.activate(params.getInt("id"))) documentsChanged()
+            JSONObject()
+        }
+        // Whether the buffer had been typed in is the page's to know, so it is the page that asks
+        // before this is called on one.
+        bridge.method("close") { params ->
+            docs.close(params.getInt("id"))
+            documentsChanged()
+            JSONObject()
+        }
         bridge.method("labels") {
             JSONObject()
                 .put("sidebar", getString(R.string.menu_sidebar))
@@ -122,6 +137,10 @@ class MainActivity : Activity() {
                 .put("reload", getString(R.string.watch_reload))
                 .put("keepMine", getString(R.string.watch_keep))
                 .put("dismiss", getString(R.string.watch_dismiss))
+                .put("noFiles", getString(R.string.viewer_empty))
+                .put("close", getString(R.string.action_close))
+                .put("closeDirty", getString(R.string.close_dirty))
+                .put("cancel", getString(R.string.action_cancel))
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
@@ -156,19 +175,20 @@ class MainActivity : Activity() {
                 hostKeyDialog = prompt?.let { hostKeyDialog(it, container.hostKeyPrompter::respond).apply { show() } }
             }
         }
-        if (carried == null) handleLink(intent, senderOf(initial = true))
+        if (docs.all.isEmpty()) handleLink(intent, senderOf(initial = true))
     }
 
-    /** What a configuration change carries across: the open document and the watch on its file. */
-    private class Retained(val document: JSONObject, val watcher: FileWatcher?)
+    private fun emptyDocument() = JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
 
-    override fun onRetainNonConfigurationInstance(): Any? =
-        if (document.optString("state") == "empty") null else Retained(document, watcher)
+    /** What a configuration change carries across: the open files and the watches on them. */
+    override fun onRetainNonConfigurationInstance(): Any? = docs.takeIf { it.all.isNotEmpty() }
 
     override fun onStart() {
         super.onStart()
         inFront = true
-        startWatching()
+        // Every open file is looked at once here: the ones that are not showing are not polled, so
+        // this is where a change made while the app was away reaches them (plan.md "감시").
+        startWatching(recheckAll = true)
     }
 
     /**
@@ -183,13 +203,44 @@ class MainActivity : Activity() {
         watching = null
     }
 
-    private fun startWatching() {
-        val watch = watcher ?: return
-        if (!inFront || watching != null) return
-        watching = scope.launch {
-            watch.recheck(document.optString("text"), ::fileChanged)
-            watch.watch(::fileChanged)
+    /**
+     * Tells the page that the list of open files, or which one is on screen, has changed — and
+     * moves the watch to whichever file that is. [goToLine] is a line the link that brought a file
+     * back to the screen asked for; a file being opened for the first time carries its own.
+     */
+    private fun documentsChanged(goToLine: Int? = null) {
+        bridge.notify("documentsChanged", JSONObject().putOpt("goToLine", goToLine))
+        startWatching(recheckAll = false)
+    }
+
+    /**
+     * Polls the file on screen, after one look at it off the clock so that switching to a file
+     * shows what it says now rather than what it said two seconds ago. [recheckAll] adds that look
+     * for every other open file, which is what coming back to the front asks for.
+     */
+    private fun startWatching(recheckAll: Boolean) {
+        val previous = watching
+        watching = null
+        if (!inFront) {
+            previous?.cancel()
+            return
         }
+        val active = docs.active
+        watching = scope.launch {
+            // Waited out, not just cancelled: [FileWatcher.watch] releases the file it was watching
+            // on its way out, and switching away and straight back would otherwise have the old job
+            // close the watch the new one has just opened.
+            previous?.cancelAndJoin()
+            // A copy: closing a file while this is suspended would otherwise change the list underneath.
+            if (recheckAll) for (entry in docs.all.toList()) if (entry !== active) recheck(entry)
+            if (active == null) return@launch
+            recheck(active)
+            active.watcher?.watch { change -> fileChanged(active, change) }
+        }
+    }
+
+    private suspend fun recheck(entry: OpenDocuments.Entry) {
+        entry.watcher?.recheck(entry.text) { change -> fileChanged(entry, change) }
     }
 
     /**
@@ -197,15 +248,15 @@ class MainActivity : Activity() {
      * to take it or to ask first is the page's to decide, because the page is the only side that
      * knows whether the user has typed since the file was read.
      */
-    private suspend fun fileChanged(change: FileChange) {
+    private suspend fun fileChanged(entry: OpenDocuments.Entry, change: FileChange) {
         val result = (change as? FileChange.Changed)?.result
         if (result is LoadResult.Text) {
             // What the file says now, so that a page which reloads — or an activity rebuilt by a
             // configuration change — shows the file rather than the text from before the change.
-            document.put("text", result.text)
+            entry.state.put("text", result.text)
             bridge.notify(
                 "fileChanged",
-                JSONObject().put("change", "text").put("text", result.text)
+                JSONObject().put("id", entry.id).put("change", "text").put("text", result.text)
                     .put("message", getString(R.string.watch_changed)),
             )
             return
@@ -213,7 +264,10 @@ class MainActivity : Activity() {
         // Nothing to merge: the file is gone, or is no longer text this page can show. What is on
         // screen stays there, with a banner saying it is no longer what the file holds.
         val message = if (change is FileChange.Gone) R.string.watch_gone else R.string.watch_unreadable
-        bridge.notify("fileChanged", JSONObject().put("change", "notice").put("message", getString(message)))
+        bridge.notify(
+            "fileChanged",
+            JSONObject().put("id", entry.id).put("change", "notice").put("message", getString(message)),
+        )
     }
 
     /**
@@ -286,17 +340,26 @@ class MainActivity : Activity() {
             Log.i(TAG, "open ${request.javaClass.simpleName} from ${sender ?: "an app that did not say"}")
             val opened = OpenFlow(this@MainActivity, container).open(link, request, fromSkiff) ?: return@launch
             Log.i(TAG, "opened ${opened.name}: ${opened.result.javaClass.simpleName}")
-            document = documentState(opened)
-            bridge.notify("documentChanged", JSONObject())
-            watching?.cancel()
-            watching = null
-            watcher = if (opened.result is LoadResult.Text) {
+            val key = keyOf(opened.request)
+            val already = docs.byKey(key)
+            if (already != null) {
+                // The file is already open. What is in its buffer stays — it may have been typed in
+                // — and the link only brings it back to the screen, at the line it asked for.
+                opened.watched.close()
+                docs.activate(already.id)
+                documentsChanged(goToLine = opened.line)
+                return@launch
+            }
+            val watcher = if (opened.result is LoadResult.Text) {
                 FileWatcher(opened.watched, opened.stamp, warn = { message, e -> Log.w(TAG, message, e) })
             } else {
+                // Nothing on screen for a change to be merged into: too large, binary, or in an
+                // encoding we cannot name.
                 opened.watched.close()
                 null
             }
-            startWatching()
+            docs.add(key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher)
+            documentsChanged()
         }
     }
 
@@ -340,6 +403,9 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // The open files are handed to the next instance across a configuration change; anywhere
+        // else this is the end of them.
+        if (!isChangingConfigurations) docs.closeAll()
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(keyboards)
         hostKeyDialog?.dismiss()
         scope.cancel()
