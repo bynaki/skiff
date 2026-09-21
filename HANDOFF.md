@@ -12,7 +12,8 @@
 ## 마지막 세션 (2026-09-21): `FileWatcher`를 하고 탭에서 한 바퀴 다 확인했다
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 이번 세션 커밋은 `FileWatcher` 하나와 이 인수인계다.
+- 브랜치 `plan/skiffcode`(git worktree). 이번 세션 커밋은 둘이다 — `cf3185f`에 `FileWatcher`와 이
+  인수인계가 같이 들어갔고, 그 뒤 이 줄을 고친 것 하나. **push까지 끝냈다.**
 - **`plan.md`의 첫 `- [ ]`는 이제 사이드바(①)다.** `FileWatcher`는 체크했다.
 - **`main`에는 아직 합치지 않았다.** 사용자가 "내가 언급할 때 하자"고 했으므로 **먼저 꺼내지 않는다.**
 - 테스트: `:core` 37개, `:app` 24개, `:code` 109개(+6). 실패 없음. lint 경고 `:app` 4개, `:code` 11개로 지난 세션과 같다.
