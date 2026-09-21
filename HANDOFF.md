@@ -13,9 +13,9 @@
 ## 마지막 세션 (2026-09-21, 세 번째): 팔레트가 파일을 저장한다
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **이번 세션 커밋은 하나**다 — 이 문서가 함께 들어간
-  "Give the palette commands to run, and let one of them save"(커맨드 레지스트리 ①). **아직 push하지
-  않았다**(push는 따로 물어야 한다). 워킹 트리는 그 커밋 말고 깨끗하다.
+- 브랜치 `plan/skiffcode`(git worktree). **이번 세션 커밋은 하나**다 — `71781b8`
+  "Give the palette commands to run, and let one of them save"(커맨드 레지스트리 ①, 이 문서도 그 안에 있다).
+  **push했다** — origin도 `71781b8`이고, 워킹 트리는 이 문장을 고친 커밋 말고 깨끗하다.
 - **`plan.md`의 첫 `- [ ]`는 아직도 커맨드 레지스트리다.** 그 항목을 **셋으로 나눴고**(2026-09-21 사용자
   결정) 끝난 것은 ①(`>` 커맨드와 저장)뿐이다. **② 파일 모드(🔍)와 ③ 심볼 모드(`@`, lezer)가 남았다** —
   지금 `items(mode)`는 그 둘에 빈 목록을 준다.
