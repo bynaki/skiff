@@ -356,7 +356,14 @@ method로 구독한다(M0에서 확인).
 - [x] 화면 하단을 탭해 키보드를 올리면 캐럿이 가려지던 것
   - 화면 키보드가 WebView를 줄이는 것(`MainActivity`가 ime inset을 프레임에 더한다)까지는 되는데, **선택이 움직이지 않았으므로 CM6가 캐럿을 다시 불러오지 않았다.** 1601줄 파일에서 하단을 탭하니 뷰포트가 675→337로 줄고 캐럿은 y 590에 남았다.
   - `pane.ts`가 `resize`에서 `scrollIntoView(..., { y: 'nearest', yMargin: TOPBAR_SPACE })`를 건다. `nearest`라 키보드가 닫히거나 회전으로 자리가 넓어질 때는 아무 일도 하지 않는다.
-- [ ] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
+- [x] `DocumentSaver` + `DocumentSaverTest`(MINA: mtime 충돌 감지, 인코딩과 CRLF 왕복)
+  - 읽을 때의 크기·mtime과 다르면 **아무것도 쓰지 않고** `Conflict`를 돌려준다(지워졌으면 `current`가 null). 같으면 제자리 truncate 쓰기, 그리고 다시 `stat`해서 자기 쓰기를 남의 변경으로 오인하지 않게 한다.
+  - **mtime은 초 단위라, 같은 초에 크기까지 그대로인 변경은 보이지 않는다.** 그 창을 좁히는 것은 `FileWatcher`의 몫이고, 이 검사는 열어 둔 사이에 딴 데서 바뀐 파일 위에 저장이 떨어지는 것을 막는 쪽이다.
+  - **끝 줄바꿈은 버퍼가 정한다**(사용자 결정 2026-09-21). CM6는 끝 줄바꿈을 저절로 넣지도 빼지도 않으므로 화면에 보이는 것이 그대로 파일이 된다. `TextFormat.finalNewline`은 기록으로만 남는다.
+  - **인코딩은 엄격하게 한다**(사용자 결정 2026-09-21). EUC-KR 문서에 그 인코딩으로 못 쓰는 글자가 들어오면 `?`로 바꾸지 않고 `Unencodable`로 거부하고, 어떤 글자가 버퍼 어디에 있는지를 돌려준다. `TextLoader`가 대체 문자로 읽지 않는 것과 같은 이유다. 인코딩을 먼저 하므로 그런 버퍼는 `stat`에도 닿지 않는다.
+  - 임시 파일에 쓰고 rename하지 않는다(소유권·하드링크·심링크를 깬다). `openWrite(append = false)`가 양쪽 파일시스템에서 truncate다.
+  - `content://` 저장은 이번 항목에서 뺐다(사용자 결정 2026-09-21). `stat`이 없어 충돌 비교가 성립하지 않고 `ContentResolver`가 필요하다 — 지금은 읽기 전용이다.
+  - **아직 앱에서 부를 수 없다.** 저장을 거는 UI는 M4의 커맨드 레지스트리다.
 - [ ] `FileWatcher`: 원격 폴링(별도 연결), `FileObserver`, `content://` 폴링. 깨끗한 버퍼는 병합하고 수정 중이면 배너
 - [ ] 사이드바(①): 슬라이드 인/아웃, 열린 파일 목록과 전환
 - [ ] 열린 파일 `EditorState` LRU(기본 30, 수정 중인 파일은 제외) + vitest
