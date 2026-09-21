@@ -11,6 +11,7 @@ import { type BannerLabels, createBanner } from './chrome/banner'
 import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
+import { forgetOldBuffers } from './memories'
 import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
@@ -35,7 +36,11 @@ type Labels = TopbarLabels & BannerLabels & SidebarLabels
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
 let activeId: number | null = null
-/** What each open file that is not on the screen left behind. */
+/**
+ * What each open file that is not on the screen left behind, the one that left longest ago first:
+ * a file comes out of here when it goes to the screen and back in at the end when it leaves, which
+ * is the order [forgetOldBuffers] lets buffers go in.
+ */
 const memories = new Map<number, PaneMemory>()
 /**
  * A change that reached a file while it was in the background and its buffer could not take
@@ -89,17 +94,23 @@ async function reconcile(goToLine?: number | null): Promise<void> {
     if (leaving && activeId !== null && open(activeId)) memories.set(activeId, leaving)
     pane = null
     activeId = active
-    await show(files)
+    // The file arriving is the pane's from here, not the map's. Taking it out is also what puts it
+    // at the end of the order when it leaves again, and it has to happen before the buffers are
+    // counted: as the file that left the screen longest ago, it would otherwise be the first one
+    // to lose the buffer it is about to be built from.
+    const arriving = active === null ? undefined : memories.get(active)
+    if (active !== null) memories.delete(active)
+    forgetOldBuffers(memories)
+    await show(files, arriving)
   }
   sidebar.show(files, active)
   if (goToLine) pane?.goToLine(goToLine)
 }
 
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
-async function show(files: OpenFile[]): Promise<void> {
+async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   const id = activeId
   const file = id === null ? undefined : files.find((each) => each.id === id)
-  const memory = id === null ? undefined : memories.get(id)
   // A file that has been on the screen is rebuilt from its own buffer, which may be ahead of the
   // text Kotlin holds. Anything else — the first look at a file, a refusal, nothing open — is asked.
   const doc: DocumentState = memory && file

@@ -85,3 +85,15 @@ val buildWeb = tasks.register<Exec>("buildWeb") {
 tasks.named("preBuild") {
     dependsOn(buildWeb)
 }
+
+// The page's own tests (vitest, in web/test). No Kotlin test task reaches them, so `check` is
+// where they join everything else that has to pass.
+val testWeb = tasks.register<Exec>("testWeb") {
+    dependsOn(npmCi)
+    workingDir = file("web")
+    commandLine("npm", "test")
+}
+
+tasks.named("check") {
+    dependsOn(testWeb)
+}

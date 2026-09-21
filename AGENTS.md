@@ -84,6 +84,7 @@ one failure as a result.
 ```bash
 ./gradlew :code:installDebug                 # runs buildWeb first; needs npm on PATH
 ./gradlew :code:testDebugUnitTest
+./gradlew :code:testWeb                      # the page's own tests (vitest); :code:check runs them
 ./gradlew :code:lintDebug
 adb -s <serial> shell am start -n com.naki.skiff.code/.ui.MainActivity
 adb -s <serial> logcat -s SkiffCode:V        # bridge traffic and the page's console.log
@@ -384,6 +385,12 @@ assumption a mock would have agreed with. Prefer extending it over mocking sshj.
 
 `SourceRegistryTest` covers that registry contract on a plain JVM: what the picker offers,
 `get` resolves.
+
+The page has tests of its own, under `code/web/test` and run by vitest (`npm test` in `code/web`,
+or `:code:testWeb`, which `:code:check` depends on). They run on plain node with no DOM: what is
+tested there is what the page keeps — which open file still has its buffer — not what it draws.
+Every module that reaches Kotlin imports `bridge.ts`, which refuses to load outside the WebView, so
+`test/bridge.ts` puts that global there before anything else loads.
 
 `FakeFileSystem` is an in-memory `FileSystem` used to drive `CopyEngine`, including symlink
 cases (dereferenced file, followed directory, cycle that must terminate). It follows POSIX

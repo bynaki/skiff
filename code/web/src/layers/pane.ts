@@ -45,8 +45,10 @@ const External = Annotation.define<boolean>()
  * background — where its state is all that is left of it — and comes back with it. A change made
  * outside is what clears it: that transaction is the file and the buffer becoming the same thing
  * again.
+ *
+ * Exported so a buffer can be built without a view, which is how the tests make one.
  */
-const dirtyFlag = StateField.define<boolean>({
+export const dirtyFlag = StateField.define<boolean>({
   create: () => false,
   update: (value, tr) => (tr.annotation(External) ? false : value || tr.docChanged),
 })
