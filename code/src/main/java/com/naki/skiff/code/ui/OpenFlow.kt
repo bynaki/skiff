@@ -9,6 +9,7 @@ import android.util.Log
 import com.naki.skiff.code.R
 import com.naki.skiff.code.SkiffCodeContainer
 import com.naki.skiff.code.doc.LoadResult
+import com.naki.skiff.code.doc.SaveTarget
 import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.TextLoader
@@ -20,6 +21,7 @@ import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.ServerProfile
+import com.naki.skiff.fs.FileSystem
 import com.naki.skiff.fs.FsError
 import com.naki.skiff.fs.LocalNetworkAccess
 import com.naki.skiff.fs.local.LocalFileSystem
@@ -55,6 +57,8 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         val line: Int?,
         val watched: WatchedFile,
         val stamp: Stamped,
+        /** Where a save goes, or null for a document that cannot take one; see [SaveTarget]. */
+        val save: SaveTarget?,
     )
 
     /**
@@ -131,7 +135,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         val result = loader.load(fs, request.path)
         return Opened(
             link, file.name, request, result, request.at.line,
-            WatchedLocalPath(fs, request.path, loader), stampOf(result),
+            WatchedLocalPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
         )
     }
 
@@ -147,7 +151,8 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         // The application's resolver, not this activity's: the watcher outlives a configuration
         // change. And the provider's own stamp, since the loader's `stat` here is of a stream.
         val watched = WatchedContent(activity.applicationContext.contentResolver, uri, loader)
-        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp())
+        // No save target: a `content://` document is read-only here (plan.md M3).
+        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp(), null)
     }
 
     /**
@@ -193,7 +198,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
                         // The same filesystem the file was read through: `stat` goes over the browse
                         // connection while reading and saving go over transfer, so a poll every two
                         // seconds never waits behind either of them.
-                        WatchedPath(fs, request.path, loader), stampOf(result),
+                        WatchedPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
                     )
                 }
             }
@@ -214,6 +219,13 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         if (!withContext(Dispatchers.IO) { LocalNetworkAccess.isLocalHost(host) }) return true
         return activity.requestPermissionAndWait(permission)
     }
+
+    /**
+     * How the file is written back: the same filesystem it was read through, and the encoding, byte
+     * order mark and line ending it was read with. Only a file that became text has any of that.
+     */
+    private fun saveTo(fs: FileSystem, path: String, result: LoadResult): SaveTarget? =
+        (result as? LoadResult.Text)?.let { SaveTarget(fs, path, it.format) }
 
     /**
      * The `stat` [TextLoader] took before reading. Nothing else is watched: a file too large,

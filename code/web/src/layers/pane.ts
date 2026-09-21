@@ -17,7 +17,7 @@ import {
 } from '@codemirror/state'
 import { diff } from '@codemirror/merge'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/commands'
 import { LanguageDescription, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { type MarkdownSurface, showMarkdown } from '../markdown'
@@ -117,10 +117,19 @@ export interface Pane {
   readonly layer: LayerName
   /** Whether the buffer has been typed in since it was loaded or last took the file's text. */
   readonly dirty: boolean
+  /** What is in the buffer now, which is what a save writes. */
+  readonly text: string
   /** Puts the file's new text into the buffer, keeping the cursor, the selection and the scroll. */
   adopt(text: string): void
+  /** The buffer has just been written to the file, so the two are the same thing again. */
+  saved(): void
   /** To the next layer. */
   toggle(): void
+  /** To a named layer, which is what the palette's Show Viewer and Show Editor run. */
+  show(layer: LayerName): void
+  /** Undo and redo for a finger: without a keyboard there is nothing else that reaches them. */
+  undo(): void
+  redo(): void
   /** Puts [line] at the top of the screen, for a link that asked for one. */
   goToLine(line: number): void
   /** What ② original size zooms around, on whichever layer is showing. */
@@ -301,7 +310,16 @@ export function openPane(parent: HTMLElement, doc: TextDocument, memory?: PaneMe
     get dirty() {
       return view !== null && isDirty(view.state)
     },
+    get text() {
+      return view ? view.state.doc.toString() : source
+    },
+    // The same annotation a change from outside carries, and for the same reason: the buffer and
+    // the file agree again, so nothing here has been typed since.
+    saved: () => view?.dispatch({ annotations: External.of(true) }),
     toggle: () => setLayer(layer === 'viewer' ? 'editor' : 'viewer'),
+    show: setLayer,
+    undo: () => void (view && undo(view)),
+    redo: () => void (view && redo(view)),
     goToLine,
     close() {
       window.removeEventListener('resize', keepCaretVisible)

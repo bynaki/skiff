@@ -17,9 +17,14 @@ export interface Banner {
   ask(message: string, reload: () => void): void
   /** Says something there is nothing to decide about. */
   tell(message: string): void
+  /** The same, for something that went right — it takes itself away again. */
+  flash(message: string): void
   hide(): void
   label(labels: BannerLabels): void
 }
+
+/** How long a [Banner.flash] stays. Long enough to read six words, short enough not to be answered. */
+const FLASH_MILLIS = 2500
 
 export function createBanner(): Banner {
   const bar = document.createElement('div')
@@ -33,6 +38,7 @@ export function createBanner(): Banner {
 
   let labels: BannerLabels | null = null
   let showing: { text: string; reload: (() => void) | null } | null = null
+  let fading = 0
 
   const button = (text: string, onClick: () => void) => {
     const element = document.createElement('button')
@@ -62,18 +68,28 @@ export function createBanner(): Banner {
   }
 
   function hide() {
+    clearTimeout(fading)
     showing = null
     render()
   }
 
+  /** Whatever is on the bar now stays until it is answered, unless it says otherwise. */
+  function show(text: string, reload: (() => void) | null, millis?: number) {
+    clearTimeout(fading)
+    showing = { text, reload }
+    render()
+    if (millis) fading = setTimeout(hide, millis)
+  }
+
   return {
     ask(text, reload) {
-      showing = { text, reload }
-      render()
+      show(text, reload)
     },
     tell(text) {
-      showing = { text, reload: null }
-      render()
+      show(text, null)
+    },
+    flash(text) {
+      show(text, null, FLASH_MILLIS)
     },
     hide,
     label(next) {

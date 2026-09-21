@@ -3,9 +3,16 @@
 // reason [codeFontSize] gives.
 import { Compartment, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
+import { read, write } from './storage'
 
 export const MIN_FONT_SIZE = 8
 export const MAX_FONT_SIZE = 40
+
+/**
+ * What one Zoom In or Zoom Out is worth. A pinch is how the size is usually found; the commands
+ * are for arriving at one exactly, so the step is small enough to aim with and large enough to see.
+ */
+export const ZOOM_STEP = 2
 
 /**
  * A line held in place while the font size changes. `fraction` is where the finger midpoint sits
@@ -30,9 +37,31 @@ export type Hold = (clientY: number) => (size: number, clientY: number) => void
 /** What ② original size returns to, until settings.toml gives the user's own. */
 export const DEFAULT_FONT_SIZE = 14
 
+/** Where the size the user is reading at is kept (plan.md "상태 저장"). */
+const KEY = 'zoom.size'
+
+/**
+ * How long after the last change the size is written down. A pinch changes it on every frame, and
+ * what is worth keeping is where the fingers left it.
+ */
+const WRITE_DELAY = 400
+
+/**
+ * The size this page opens at: the one it was left at, if that is still a size. It is the page's
+ * own storage and not `settings.toml`, which holds the size the user *chose* to read at — this is
+ * the one they pinched to, and it has to survive the activity being rebuilt by a dark mode or a
+ * font scale change, which is where it used to go back to [DEFAULT_FONT_SIZE].
+ */
+export function storedFontSize(): number {
+  const size = Number(read(KEY))
+  if (!Number.isFinite(size) || size === 0) return DEFAULT_FONT_SIZE
+  return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
+}
+
 // One size for every document, so opening another file keeps the zoom.
-let fontSize = DEFAULT_FONT_SIZE
+let fontSize = storedFontSize()
 let zoomedAt = -Infinity
+let writing = 0
 
 export function currentFontSize(): number {
   return fontSize
@@ -47,6 +76,9 @@ export function setFontSize(size: number): void {
   fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
   zoomedAt = performance.now()
   document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
+  // Once the fingers have settled, not sixty times a second on the way there.
+  clearTimeout(writing)
+  writing = setTimeout(() => write(KEY, String(fontSize)), WRITE_DELAY)
 }
 
 /**

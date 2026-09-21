@@ -1,6 +1,8 @@
 package com.naki.skiff.code.ui
 
 import com.naki.skiff.code.doc.FileWatcher
+import com.naki.skiff.code.doc.SaveTarget
+import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.WatchedFile
 import com.naki.skiff.code.intent.OpenRequest
 import org.json.JSONArray
@@ -36,7 +38,33 @@ class OpenDocuments {
         private val watched: WatchedFile,
         /** Null for a file with no text on screen — too large, binary, an encoding we cannot name. */
         val watcher: FileWatcher?,
+        /** Where a save goes, or null for a document that cannot take one; see [SaveTarget]. */
+        val save: SaveTarget?,
+        /** How the file looked when it was read, which is where [base] starts. */
+        base: Stamp?,
     ) {
+
+        /**
+         * The file as the buffer knows it: what a save has to still find there, or it is writing
+         * over somebody else's change ([DocumentSaver]).
+         *
+         * It is not the watch's own baseline. That one moves the moment a change is *seen*; this
+         * one moves when the buffer *takes* it, which is the page saying `adopted`, and when we
+         * write. Keeping them apart is what makes "내 것 유지" mean what it says: the buffer stayed
+         * where it was, so the next save is refused rather than landing on top of the change that
+         * was kept out of it (2026-09-21 사용자 결정).
+         */
+        var base: Stamp? = base
+
+        /**
+         * The stamp of the text last pushed to the page, which is what [base] becomes when the page
+         * says it took it. Two changes inside one round trip would leave this at the second while
+         * the buffer holds the first; that needs the file to change twice in a few milliseconds and
+         * the user to have typed in between, and what it costs is one save going through that
+         * should have been refused.
+         */
+        var offered: Stamp? = null
+
 
         /** What the page was last told this file holds, which is what a recheck compares against. */
         val text: String get() = state.optString("text")
@@ -63,8 +91,17 @@ class OpenDocuments {
     fun byKey(key: String): Entry? = entries.firstOrNull { it.key == key }
 
     /** Adds a newly opened file at the end of the list and makes it the one on screen. */
-    fun add(key: String, name: String, where: String, state: JSONObject, watched: WatchedFile, watcher: FileWatcher?): Entry {
-        val entry = Entry(nextId++, key, name, where, state, watched, watcher)
+    fun add(
+        key: String,
+        name: String,
+        where: String,
+        state: JSONObject,
+        watched: WatchedFile,
+        watcher: FileWatcher?,
+        save: SaveTarget?,
+        base: Stamp?,
+    ): Entry {
+        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base)
         entries.add(entry)
         active = entry
         return entry

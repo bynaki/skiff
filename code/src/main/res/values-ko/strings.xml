@@ -57,6 +57,14 @@
 
     <string name="close_dirty">이 파일에 쓴 것이 사라집니다. 닫을까요?</string>
 
+    <string name="save_done">저장했습니다.</string>
+    <string name="save_conflict">이 파일이 열려 있는 동안 다른 곳에서 바뀌어서 저장하지 않았습니다. 다시 불러온 뒤에 고쳐 주세요.</string>
+    <string name="save_gone">이 파일이 사라져서 저장하지 않았습니다.</string>
+    <string name="save_unencodable">이 파일은 %1$s이라 %2$d번째 줄의 \"%3$s\" 을(를) 쓸 수 없어 저장하지 않았습니다.</string>
+    <string name="save_readonly">다른 앱이 건네준 문서라 저장할 수 없습니다.</string>
+    <string name="save_failed">파일을 저장하지 못했습니다.</string>
+    <string name="reload_failed">파일을 다시 읽지 못했습니다.</string>
+
     <string name="watch_changed">이 파일이 다른 곳에서 바뀌었습니다.</string>
     <string name="watch_gone">이 파일이 사라졌습니다.</string>
     <string name="watch_unreadable">이 파일이 여기서 보여 줄 수 없는 것으로 바뀌었습니다.</string>

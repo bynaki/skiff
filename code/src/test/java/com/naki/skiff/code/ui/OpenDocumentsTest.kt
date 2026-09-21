@@ -100,7 +100,7 @@ class OpenDocumentsTest {
     fun `closing a file releases what its watch held open`() {
         val docs = OpenDocuments()
         val watched = CountingWatchedFile()
-        val entry = docs.add("k", "a.py", "/sdcard/a.py", JSONObject(), watched, watcher = null)
+        val entry = docs.add("k", "a.py", "/sdcard/a.py", JSONObject(), watched, watcher = null, save = null, base = null)
 
         docs.close(entry.id)
         assertEquals(1, watched.closed)
@@ -110,7 +110,7 @@ class OpenDocumentsTest {
     fun `closeAll releases every file`() {
         val docs = OpenDocuments()
         val watched = listOf(CountingWatchedFile(), CountingWatchedFile())
-        watched.forEachIndexed { i, file -> docs.add("k$i", "a$i.py", "/sdcard/a$i.py", JSONObject(), file, null) }
+        watched.forEachIndexed { i, file -> docs.add("k$i", "a$i.py", "/sdcard/a$i.py", JSONObject(), file, null, null, null) }
 
         docs.closeAll()
         assertEquals(listOf(1, 1), watched.map { it.closed })
@@ -132,6 +132,6 @@ private class CountingWatchedFile : WatchedFile {
 }
 
 private fun OpenDocuments.open(name: String, key: String = "key:$name") =
-    add(key, name, "/sdcard/$name", JSONObject().put("state", "text").put("name", name), CountingWatchedFile(), null)
+    add(key, name, "/sdcard/$name", JSONObject().put("state", "text").put("name", name), CountingWatchedFile(), null, null, null)
 
 private fun OpenDocuments.ids() = all.map { it.id }

@@ -73,6 +73,34 @@ class FileWatcher(
     private var gone = from is Stamped.Gone
 
     /**
+     * Our own write, so that the next look does not read it as somebody else's change. What a save
+     * is *allowed* against is not this: [known] moves as soon as a change is seen, whether or not
+     * the buffer took it, and the baseline a save is checked against only moves when it did.
+     */
+    fun saved(now: Stamp) {
+        known = now
+        gone = false
+    }
+
+    /**
+     * Reads the file again because the user asked, whatever its stamp says — the reload command.
+     * Nothing is swallowed here: a reload that quietly did nothing would look like a file that has
+     * not changed.
+     */
+    suspend fun reread(onChange: suspend (FileChange) -> Unit) {
+        val now = file.stamp()
+        if (now is Stamped.Gone) {
+            gone = true
+            known = null
+            return onChange(FileChange.Gone)
+        }
+        val result = file.read()
+        known = (now as? Stamped.At)?.stamp
+        gone = false
+        onChange(FileChange.Changed(result, known))
+    }
+
+    /**
      * Watches until the coroutine is cancelled — or returns early when there is nothing to
      * compare, since a document whose provider offers neither a size nor a modification time is
      * only ever looked at by [recheck].

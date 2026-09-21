@@ -6,15 +6,15 @@
 // One file is on the screen at a time and the rest are what they left behind (`PaneMemory`): their
 // buffer, the layer they were on and the line they were showing. That is also what makes switching
 // safe while a file is being typed in.
-import { onNotify, rpc } from './bridge'
+import { notify, onNotify, rpc } from './bridge'
 import { type BannerLabels, createBanner } from './chrome/banner'
 import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
-import { type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
+import { type CommandSource, commands } from './commands'
+import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { forgetOldBuffers } from './memories'
-import type { PaletteItem, PaletteMode } from './palette'
-import { DEFAULT_FONT_SIZE, currentFontSize, setFontSize } from './zoom'
+import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
@@ -33,7 +33,19 @@ interface Documents {
   files: OpenFile[]
 }
 
-type Labels = TopbarLabels & BannerLabels & SidebarLabels
+/** What Kotlin answers a save with: what happened, and how to say so in the user's language. */
+interface SaveAnswer {
+  result: 'saved' | 'conflict' | 'unencodable' | 'readonly'
+  message: string
+}
+
+/** The two messages this file puts on the banner itself, for a call that did not come back. */
+interface DocumentLabels {
+  saveFailed: string
+  reloadFailed: string
+}
+
+type Labels = TopbarLabels & BannerLabels & SidebarLabels & DocumentLabels
 
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
@@ -50,6 +62,8 @@ const memories = new Map<number, PaneMemory>()
  * file comes to the screen.
  */
 const waiting = new Map<number, { message: string; text?: string }>()
+/** Null until Kotlin has answered `labels`, which is before anything in here can be asked for. */
+let labels: Labels | null = null
 
 const banner = createBanner()
 
@@ -61,36 +75,92 @@ const sidebar = createSidebar({
 })
 
 // Keeps the line at the middle of the screen where it is.
-function resetZoom(): void {
+function zoomTo(size: number): void {
   const middle = root.getBoundingClientRect().top + root.clientHeight / 2
-  if (pane) pane.hold(middle)(DEFAULT_FONT_SIZE, middle)
-  else setFontSize(DEFAULT_FONT_SIZE)
+  if (pane) pane.hold(middle)(size, middle)
+  else setFontSize(size)
 }
+
+const resetZoom = () => zoomTo(DEFAULT_FONT_SIZE)
 
 function toggleLayer(): void {
   pane?.toggle()
   topbar.setLayer(pane?.layer ?? null)
 }
 
+function showLayer(layer: LayerName): void {
+  pane?.show(layer)
+  topbar.setLayer(pane?.layer ?? null)
+}
+
 const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer })
 
 /**
- * What the palette can run. These three are the menu's own, which is what makes the palette
- * something that runs rather than a shape on the screen; the registry that saves, opens the
- * settings and the rest of it is the next item, and so are the file and symbol modes.
- *
- * Their names are English, like everything else in the palette (2026-09-21 사용자 결정).
+ * Writes the buffer back to the file. Whether it may is Kotlin's to say — the file has to still be
+ * the one that was read — and so is what to call what happened, in the language the rest of the
+ * page is in. What this side knows is that a buffer which has been written is a clean one again.
  */
-function commands(mode: PaletteMode): PaletteItem[] {
-  if (mode !== 'command') return []
-  return [
-    { name: 'Toggle Layer', run: toggleLayer },
-    { name: 'Reset Zoom', run: resetZoom },
-    { name: 'Toggle Sidebar', run: () => sidebar.toggle() },
-  ]
+async function saveFile(): Promise<void> {
+  const id = activeId
+  const saving = pane
+  if (id === null || !saving) return
+  try {
+    const answer = await rpc<SaveAnswer>('save', { id, text: saving.text })
+    // The file may have been left while the write was going on. Its buffer stays marked as typed
+    // in, which only means it will be asked about once more; nothing is said about a screen the
+    // user has moved on from.
+    if (pane !== saving || activeId !== id) return
+    if (answer.result !== 'saved') return banner.tell(answer.message)
+    saving.saved()
+    banner.flash(answer.message)
+  } catch (error) {
+    console.log(`save: ${error}`)
+    if (labels) banner.tell(labels.saveFailed)
+  }
 }
 
-createPaletteView(commands)
+/**
+ * Reads the file again now instead of waiting for the watch to notice. What comes back arrives as
+ * a `fileChanged` like any other change, so a clean buffer takes it and a dirty one is asked.
+ */
+function reloadFile(): void {
+  const id = activeId
+  if (id === null) return
+  rpc('reload', { id }).catch((error) => {
+    console.log(`reload: ${error}`)
+    if (labels) banner.tell(labels.reloadFailed)
+  })
+}
+
+/** A file that has been typed in is asked about in the sidebar, where the same question is asked. */
+function closeFile(): void {
+  const id = activeId
+  if (id === null) return
+  if (pane?.dirty) return sidebar.askClose(id)
+  void rpc('close', { id }).catch((error) => console.log(`close: ${error}`))
+}
+
+/**
+ * What the palette's commands act on. The list of them is `commands.ts`; here is where the pane,
+ * the sidebar and the bridge are. The file and symbol modes are the next items and offer nothing
+ * yet.
+ */
+const palette: CommandSource = {
+  open: () => activeId !== null,
+  layer: () => pane?.layer ?? null,
+  save: saveFile,
+  reload: reloadFile,
+  close: closeFile,
+  toggleLayer,
+  show: showLayer,
+  zoom: (by) => zoomTo(currentFontSize() + by * ZOOM_STEP),
+  resetZoom,
+  toggleSidebar: () => sidebar.toggle(),
+  undo: () => pane?.undo(),
+  redo: () => pane?.redo(),
+}
+
+createPaletteView((mode) => (mode === 'command' ? commands(palette) : []))
 
 function dirtyInBackground(id: number): boolean {
   const memory = memories.get(id)
@@ -161,7 +231,18 @@ function askWhatWaited(id: number): void {
   if (!held) return
   waiting.delete(id)
   if (held.text === undefined || !pane) banner.tell(held.message)
-  else banner.ask(held.message, () => pane?.adopt(held.text as string))
+  else banner.ask(held.message, () => took(id, () => pane?.adopt(held.text as string)))
+}
+
+/**
+ * Takes the file's text into the buffer and says so. Kotlin measures the next save against the
+ * file as the buffer knows it, and the only side that knows whether the buffer took a change is
+ * this one: keeping what was typed instead leaves that baseline where it was, so saving over the
+ * change that was kept out is refused rather than done quietly.
+ */
+function took(id: number, adopt: () => void): void {
+  adopt()
+  notify('adopted', { id })
 }
 
 function notice(title: string | null, message: string): HTMLElement {
@@ -187,8 +268,8 @@ const refresh = (goToLine?: number | null) => {
 onNotify<FileChange>('fileChanged', (change) => {
   if (change.id === activeId) {
     if (change.change === 'notice' || !pane) return banner.tell(change.message)
-    if (pane.dirty) return banner.ask(change.message, () => pane?.adopt(change.text))
-    pane.adopt(change.text)
+    if (pane.dirty) return banner.ask(change.message, () => took(change.id, () => pane?.adopt(change.text)))
+    took(change.id, () => pane?.adopt(change.text))
     banner.hide()
     return
   }
@@ -199,16 +280,19 @@ onNotify<FileChange>('fileChanged', (change) => {
   if (memory.state && isDirty(memory.state)) {
     return void waiting.set(change.id, { message: change.message, text: change.text })
   }
-  if (memory.state) memory.state = adoptInto(memory.state, change.text)
-  memory.source = change.text
+  took(change.id, () => {
+    if (memory.state) memory.state = adoptInto(memory.state, change.text)
+    memory.source = change.text
+  })
   waiting.delete(change.id)
 })
 
 setFontSize(currentFontSize())
-rpc<Labels>('labels').then((labels) => {
-  topbar.label(labels)
-  banner.label(labels)
-  sidebar.label(labels)
+rpc<Labels>('labels').then((answer) => {
+  labels = answer
+  topbar.label(answer)
+  banner.label(answer)
+  sidebar.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
 refresh()

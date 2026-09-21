@@ -57,6 +57,14 @@
 
     <string name="close_dirty">What you have typed in this file will be lost. Close it?</string>
 
+    <string name="save_done">Saved.</string>
+    <string name="save_conflict">This file changed somewhere else while it was open, so nothing was written. Reload it, then make the change again.</string>
+    <string name="save_gone">This file is no longer there, so nothing was written.</string>
+    <string name="save_unencodable">This file is %1$s, which cannot write \"%3$s\" on line %2$d, so nothing was written.</string>
+    <string name="save_readonly">This document was handed over by another app and cannot be saved.</string>
+    <string name="save_failed">The file could not be saved.</string>
+    <string name="reload_failed">The file could not be read again.</string>
+
     <string name="watch_changed">This file changed somewhere else.</string>
     <string name="watch_gone">This file is no longer there.</string>
     <string name="watch_unreadable">This file changed into something that cannot be shown here.</string>

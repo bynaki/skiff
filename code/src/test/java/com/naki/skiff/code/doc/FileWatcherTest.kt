@@ -167,6 +167,44 @@ class FileWatcherTest {
     }
 
     @Test
+    fun `our own save is not reported as somebody else's change`() {
+        server.writeFile("mine.txt", "before\n".toByteArray())
+        val opened = runBlocking { load("/mine.txt") }
+        val watcher = watcherFor("/mine.txt", opened)
+
+        // What saving does: write the file, then tell the watch what it left there.
+        server.writeFile("mine.txt", "what I typed\n".toByteArray())
+        val now = runBlocking { fs.stat("/mine.txt") }!!
+        watcher.saved(Stamp(now.size, now.modifiedEpochSeconds))
+
+        watching(watcher) { changes ->
+            assertNull("our own write came back as somebody else's change", changes.nextWithin(QUIET))
+        }
+    }
+
+    @Test
+    fun `a reload reads the file again although its stamp has not moved`() = runBlocking {
+        // The same size in the same second, which is the change no `stat` can see — the blind spot
+        // the reload command is there for.
+        var onDisk = "before\n"
+        val file = object : WatchedFile {
+            override suspend fun stamp() = Stamped.At(Stamp(7, 100))
+            override suspend fun read() = loader.decode(onDisk.toByteArray(), 7, 100)
+        }
+        val watcher = FileWatcher(file, Stamped.At(Stamp(7, 100)), pollMillis = POLL)
+        val seen = mutableListOf<FileChange>()
+
+        onDisk = "after!\n"
+        val job = launch(Dispatchers.Default) { watcher.watch { seen.add(it) } }
+        delay(QUIET)
+        job.cancelAndJoin()
+        assertTrue("polling saw a change it cannot see: $seen", seen.isEmpty())
+
+        watcher.reread { seen.add(it) }
+        assertEquals("after!\n", textOf(seen.singleOrNull()))
+    }
+
+    @Test
     fun `a stat that fails is not a change`() = runBlocking {
         var looks = 0
         val file = object : WatchedFile {

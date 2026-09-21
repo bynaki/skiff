@@ -10,6 +10,15 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 
+/**
+ * Where a document is written back and the way it was written, kept from when it was read.
+ *
+ * Null on an open file that cannot take a save: a `content://` document, which has no `stat`
+ * behind it to compare against and is read-only here (2026-09-21 사용자 결정), and a file that was
+ * never shown as text — too large, binary, an encoding we cannot name.
+ */
+data class SaveTarget(val fs: FileSystem, val path: String, val format: TextFormat)
+
 sealed interface SaveResult {
     /** Written. The `stat` taken afterwards, which the next save compares against. */
     data class Saved(val size: Long, val modifiedEpochSeconds: Long) : SaveResult

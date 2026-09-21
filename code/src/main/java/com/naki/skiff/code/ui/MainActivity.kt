@@ -26,9 +26,13 @@ import androidx.webkit.WebViewAssetLoader
 import com.naki.skiff.code.R
 import com.naki.skiff.code.bridge.WebBridge
 import com.naki.skiff.code.data.readSkiffProfiles
+import com.naki.skiff.code.doc.DocumentSaver
 import com.naki.skiff.code.doc.FileChange
 import com.naki.skiff.code.doc.FileWatcher
 import com.naki.skiff.code.doc.LoadResult
+import com.naki.skiff.code.doc.SaveResult
+import com.naki.skiff.code.doc.Stamp
+import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.skiffCode
@@ -59,6 +63,7 @@ class MainActivity : Activity() {
     private val container by lazy { application.skiffCode }
     private val scope = MainScope()
     private val bridge = WebBridge(scope)
+    private val saver = DocumentSaver()
     private var hostKeyDialog: AlertDialog? = null
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
@@ -131,6 +136,60 @@ class MainActivity : Activity() {
             documentsChanged()
             JSONObject()
         }
+        // Writes the buffer back to the file it came from. The text comes from the page, which is
+        // where the buffer lives; where it goes does not — that is the file this entry was opened
+        // with, through the dialog that confirmed its path, and the page never names one. What is
+        // checked here is that the file is still the one the buffer knows (DocumentSaver, against
+        // Entry.base). Whether the buffer counts as clean again is the page's to decide, and this
+        // answer is what it decides it from.
+        bridge.method("save") { params ->
+            val entry = docs.byId(params.getInt("id")) ?: error("no open file to save")
+            val target = entry.save ?: return@method saved("readonly", getString(R.string.save_readonly))
+            // A file with somewhere to save has text on screen, and text on screen is watched.
+            val watcher = entry.watcher ?: error("${entry.name} can be saved but is not watched")
+            val text = params.getString("text")
+            val base = entry.base
+            val result = saver.save(
+                target.fs, target.path, text, target.format,
+                expectedSize = base?.size ?: -1,
+                expectedModifiedEpochSeconds = base?.modifiedEpochSeconds ?: -1,
+            )
+            when (result) {
+                is SaveResult.Saved -> {
+                    val now = Stamp(result.size, result.modifiedEpochSeconds)
+                    entry.base = now
+                    watcher.saved(now)
+                    // What the file holds now, so a page that reloads shows what was written.
+                    entry.state.put("text", text)
+                    saved("saved", getString(R.string.save_done))
+                }
+                // Told, not offered: the watch is what brings the other change in, and it asks.
+                is SaveResult.Conflict ->
+                    saved("conflict", getString(if (result.current == null) R.string.save_gone else R.string.save_conflict))
+                is SaveResult.Unencodable -> saved(
+                    "unencodable",
+                    getString(
+                        R.string.save_unencodable,
+                        target.format.encoding.charset.name(),
+                        text.take(result.index).count { it == '\n' } + 1,
+                        result.text,
+                    ),
+                )
+            }
+        }
+        // The buffer has taken what the file says, so the file as it was pushed is what the next
+        // save is measured against. Only the page can say this: it is the only side that knows
+        // whether the user kept what they had typed instead.
+        bridge.onNotify("adopted") { params ->
+            docs.byId(params.getInt("id"))?.let { it.base = it.offered }
+        }
+        // Reads the file again now rather than at the next tick. What it finds goes to the page as
+        // the change it is, so a clean buffer takes it and one that has been typed in is asked.
+        bridge.method("reload") { params ->
+            val entry = docs.byId(params.getInt("id")) ?: error("no open file to reload")
+            entry.watcher?.reread { change -> fileChanged(entry, change) }
+            JSONObject()
+        }
         bridge.method("labels") {
             JSONObject()
                 .put("sidebar", getString(R.string.menu_sidebar))
@@ -146,6 +205,8 @@ class MainActivity : Activity() {
                 .put("close", getString(R.string.action_close))
                 .put("closeDirty", getString(R.string.close_dirty))
                 .put("cancel", getString(R.string.action_cancel))
+                .put("saveFailed", getString(R.string.save_failed))
+                .put("reloadFailed", getString(R.string.reload_failed))
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
@@ -182,6 +243,9 @@ class MainActivity : Activity() {
         }
         if (docs.all.isEmpty()) handleLink(intent, senderOf(initial = true))
     }
+
+    /** What a save answers with: what happened, and how to say it on the page's banner. */
+    private fun saved(result: String, message: String) = JSONObject().put("result", result).put("message", message)
 
     private fun emptyDocument() = JSONObject().put("state", "empty").put("message", getString(R.string.viewer_empty))
 
@@ -254,6 +318,8 @@ class MainActivity : Activity() {
      * knows whether the user has typed since the file was read.
      */
     private suspend fun fileChanged(entry: OpenDocuments.Entry, change: FileChange) {
+        // What the page is being offered, which becomes the save baseline if it takes it.
+        entry.offered = (change as? FileChange.Changed)?.stamp
         val result = (change as? FileChange.Changed)?.result
         if (result is LoadResult.Text) {
             // What the file says now, so that a page which reloads — or an activity rebuilt by a
@@ -363,7 +429,10 @@ class MainActivity : Activity() {
                 opened.watched.close()
                 null
             }
-            docs.add(key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher)
+            docs.add(
+                key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher,
+                opened.save, (opened.stamp as? Stamped.At)?.stamp,
+            )
             documentsChanged()
         }
     }

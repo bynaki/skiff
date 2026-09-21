@@ -30,6 +30,12 @@ export interface Sidebar {
   label(labels: SidebarLabels): void
   toggle(): void
   hide(): void
+  /**
+   * Opens the drawer with that file's row asking whether to close it, which is where the palette's
+   * Close File sends a buffer that has been typed in: the question belongs with the file it is
+   * about, and the row is where it is already asked.
+   */
+  askClose(id: number): void
   /** Draws the list again: after a file is opened, switched to or closed. */
   show(files: OpenFile[], active: number | null): void
 }
@@ -114,8 +120,8 @@ export function createSidebar(actions: {
     })
     row.append(open)
     if (labels) {
-      // A buffer that has been typed in cannot be saved yet (the command palette is M4), so
-      // closing it is asked about where it is rather than carried out.
+      // What has been typed is only in the buffer until Save File writes it, so closing it is
+      // asked about where the file is rather than carried out.
       const close = button('×', 'close', () => {
         if (actions.dirty(file.id)) {
           confirming = file.id
@@ -155,20 +161,27 @@ export function createSidebar(actions: {
   scrim.addEventListener('click', hide)
   handle.addEventListener('click', hide)
 
+  function open() {
+    render()
+    scrim.classList.add('open')
+    panel.classList.add('open')
+  }
+
   return {
     label(next) {
       labels = next
       render()
     },
     toggle() {
-      const opening = !panel.classList.contains('open')
-      if (!opening) return hide()
+      if (panel.classList.contains('open')) return hide()
       confirming = null
-      render()
-      scrim.classList.add('open')
-      panel.classList.add('open')
+      open()
     },
     hide,
+    askClose(id) {
+      confirming = id
+      open()
+    },
     show(next, current) {
       files = next
       active = current
