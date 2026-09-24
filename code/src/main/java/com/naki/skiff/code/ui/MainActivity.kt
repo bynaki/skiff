@@ -398,7 +398,8 @@ class MainActivity : Activity() {
         // A newer link replaces one still being opened: its dialogs close and its result is dropped,
         // rather than a second set of dialogs stacking on top of the first.
         opening?.cancel()
-        opening = scope.launch {
+        tellOpening(true)
+        val job = scope.launch {
             var request = OpenRequest.of(intent.action, link, container.store.profiles.first())
             if (request is OpenRequest.Remote || request is OpenRequest.UnknownServer) {
                 // Skiff may know this server, or know it better than we do: take its profiles first.
@@ -435,7 +436,20 @@ class MainActivity : Activity() {
             )
             documentsChanged()
         }
+        opening = job
+        // However it ended — opened, refused, or cancelled by a newer link. A link that was
+        // replaced leaves the wait to the one that replaced it, whose own start has already been
+        // sent: taking the line away here would take that one's too.
+        job.invokeOnCompletion { if (opening === job) tellOpening(false) }
     }
+
+    /**
+     * Whether a link is on its way to the screen, which is the whole of what the page's loading
+     * line follows. Everything between the intent and the document happens over here — the
+     * dialogs, connecting, `stat`, the read — and until this the page had no way to know.
+     */
+    private fun tellOpening(opening: Boolean) =
+        bridge.notify("openingChanged", JSONObject().put("opening", opening))
 
     private fun documentState(opened: OpenFlow.Opened): JSONObject {
         val state = JSONObject().put("name", opened.name)

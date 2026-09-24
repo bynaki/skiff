@@ -12,6 +12,8 @@ import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type CommandSource, commands } from './commands'
+import { createLoadingView } from './chrome/loading'
+import { createLoading } from './loading'
 import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { forgetOldBuffers } from './memories'
 import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize } from './zoom'
@@ -94,6 +96,17 @@ function showLayer(layer: LayerName): void {
 }
 
 const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer })
+
+const loadingView = createLoadingView()
+/**
+ * The wait between a link and the file on the screen, which happens entirely on Kotlin's side:
+ * connecting, `stat`, reading. The shape of a document is only for a screen that has none — with a
+ * file up, replacing it with grey lines would say less than leaving it where it is.
+ */
+const loading = createLoading((on) => {
+  loadingView.line(on)
+  loadingView.skeleton(on && pane === null)
+})
 
 /**
  * Writes the buffer back to the file. Whether it may is Kotlin's to say — the file has to still be
@@ -209,6 +222,8 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   banner.hide()
   root.replaceChildren()
   topbar.show()
+  // The line may still be seeing out its minimum, but the shape has been answered by the document.
+  loadingView.skeleton(false)
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
@@ -294,5 +309,6 @@ rpc<Labels>('labels').then((answer) => {
   banner.label(answer)
   sidebar.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
+onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
 refresh()
