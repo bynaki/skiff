@@ -132,6 +132,8 @@ method로 구독한다(M0에서 확인).
 - **레이어는 뷰가 아니라 확장 묶음이다.** `pane` 하나에 `EditorView` 하나와 `EditorState` 하나를 두고, 레이어를 바꾸는 것은 `Compartment`에 든 확장 묶음을 바꾸는 것이다. 그래서 문서, 파싱 트리, 높이맵, undo 기록이 세 레이어에 하나씩만 있고, 나간 레이어의 state field는 CM6가 알아서 버린다(2026-09-20에 정했다. 근거는 `AGENTS.md`의 CM6 관찰). 마크다운 viewer만 CM6가 아닌 별도 DOM이라 예외다.
 - **viewer:**
   - 읽기 전용 CM6에 하이라이팅, 줄 번호, git 거터를 보여준다.
+  - **문법은 이름으로 고른다** — `LanguageDescription.matchFilename`이 `Makefile` 같은 이름과 확장자를 함께 안다. 내용은 보지 않는다.
+    - **`.jsonl`은 language-data가 모른다**(JSON 항목이 `json`과 `map`만 claim한다). 한 줄에 하나씩 든 JSON이라 같은 문법이 맞고, 이름의 끝 `l`을 떼어 JSON 항목이 답하게 한다(2026-09-23 사용자 요청). 문서 전체로는 값이 여러 개라 파서가 오류를 내지만 **줄바꿈마다 복구해서 모든 줄이 그대로 강조된다**(파서를 직접 돌려 확인: 3줄 중 3줄이 Object, 최상위 오류 노드 2개). 뷰어에 JSON 린터가 없어 그 오류가 화면으로 새지도 않는다.
   - 마크다운은 `markdown-it`(`html: false`)으로 렌더링하고 테마를 적용한다.
   - 스크롤과 확대/축소를 가장 먼저 잘 만든다. 핀치 줌은 CSS 변수 `--code-font-size`를 바꾸고, 손가락 사이의 줄이 제자리에 있게 한다.
   - 줌 중심 줄 고정은 CM6의 `EditorView.scrollIntoView(pos, {y: 'start', yMargin})` 효과로 한다. CM6가 줄 높이를 다시 잰 뒤 적용하기 때문이다. `requestMeasure`에서 `scrollTop`을 직접 쓰면 CM6의 스크롤 앵커와 싸워서 수만 px씩 어긋난다(M0에서 확인).
@@ -483,6 +485,8 @@ method로 구독한다(M0에서 확인).
 - [ ] `settings.toml` 로드와 적용 + `SettingsTomlTest`(왕복, 없는 키는 기본값, 잘못된 값)
 - [ ] `themes/*.toml` → CSS 변수 매핑(메뉴와 레이어 전체), 다크/라이트 번들, 폴백 + vitest
 - [ ] 설정과 테마 import/export(SAF)
+- [x] `.jsonl`을 JSON 문법으로 연다 (2026-09-23 사용자 요청) + vitest
+  - `FileKind`는 건드리지 않기로 했다(2026-09-23 사용자 결정). Skiff 목록에서 `.jsonl`을 탭하면 여전히 밖으로 나가고, 강조는 링크로 연 Skiff Code 안에서만이다.
 - [ ] **확인:** 실기기에서 팔레트 흐름을 녹화하고, 테마를 바꾸면 메뉴, 사이드바, 팔레트, 세 레이어가 한 번에 바뀐다
 
 ### M5. 프로젝트 모드 + git

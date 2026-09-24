@@ -138,13 +138,20 @@ export interface Pane {
   close(): PaneMemory
 }
 
+/** The name a .jsonl file is matched under, so language-data's JSON entry answers for it. */
+export const jsonLinesAsJson = (name: string): string =>
+  name.endsWith('.jsonl') ? name.slice(0, -1) : name
+
 /**
  * Shows [doc] in [parent]. With [memory] it is a file coming back to the screen: the buffer it
  * left, the layer it was on and the line it was showing, rather than the file as it was read.
  */
 export function openPane(parent: HTMLElement, doc: TextDocument, memory?: PaneMemory): Pane {
   // By name, not content: language-data knows extensions and names such as Makefile.
-  const language = LanguageDescription.matchFilename(languages, doc.name)
+  // Its JSON entry claims .json and .map but not .jsonl, and every line of a .jsonl file is JSON,
+  // so that name is matched as if it were one. The parser recovers at each line break, which
+  // leaves the whole file highlighted rather than only its first record.
+  const language = LanguageDescription.matchFilename(languages, jsonLinesAsJson(doc.name))
   // The document's text while no view holds it, which is the markdown viewer before its first trip
   // to the editor. Once there is a view, the view is the buffer.
   let source = memory?.source ?? doc.text
