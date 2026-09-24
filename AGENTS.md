@@ -8,7 +8,7 @@ so moving things between them is direct. A code/markdown preview viewer comes la
 constraint that shapes every decision below is **nothing may be installed on the server**.
 
 That constraint is what keeps a remote daemon out of Skiff Code too, and the reasoning is in
-`plan.md`: these apps are distributed to other people, so auto-installing a resident process on
+`docs/skiffcode.spec.md`: these apps are distributed to other people, so auto-installing a resident process on
 their servers is the thing the constraint forbids — while running a `git` the server already has
 installs nothing. A daemon would not even replace `exec`, since SFTP cannot start one.
 
@@ -482,7 +482,7 @@ and never `:app`'s.
 holds 86–91 fps, a pinch-zoom step costs 3 ms to dispatch and 8 ms to measure, a line-level
 unified diff takes about 240 ms, and `@codemirror/lsp-client` runs over the Kotlin bridge with
 diagnostics 252 ms after `didOpen`. The measurements and what they changed in the design are in
-`plan.md`. What is left of the spike under `:code/` is `web/src/diff.ts` and `web/src/lsp.ts`,
+`docs/skiffcode.spec.md` and `docs/skiffcode.plan.md`. What is left of the spike under `:code/` is `web/src/diff.ts` and `web/src/lsp.ts`,
 kept for M5 and M6 and no longer loaded by the page. The versions it pinned stand, with what M2
 added:
 
@@ -494,7 +494,7 @@ added:
   `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7, and `commands` 6.11.1, which M3 added for
   `history()` and the default keymap
 
-The bridge's shape is settled too, and the security rules on it are in `plan.md`: one
+The bridge's shape is settled too, and the security rules on it are in `docs/skiffcode.spec.md`: one
 `WebViewCompat.addWebMessageListener` named `skiffBridge`, `https://appassets.androidplatform.net`
 as the only allowed origin, no `addJavascriptInterface`, the bundle served only through
 `WebViewAssetLoader`, and JSON-RPC both ways — a message without an `id` is a notification, which
@@ -507,22 +507,26 @@ anything sent earlier until then. `WebBridgeTest` runs on a plain JVM, which is 
 `org.json:json` as a test dependency and `WebBridge` takes its logger as a parameter — `Log` is a
 stub that throws there too.
 
-`plan.md` holds the next round of work in more detail, in Korean. Its top section, `# Skiff
-Code`, is the design and a checklist split into session-sized items — **a new session picks up at
-the first unchecked `- [ ]`**, ticks it in the same commit as the work, and follows the
-hand-off rules written there. The original brief is `skiff.code.plan.md`, and the hand-drawn
-menu layout is `menu.layout.jpg` (transcribed in `plan.md`). The rest of `plan.md` is the
-remaining Skiff work.
+`docs/` holds the next round of work in more detail, in Korean, as a spec and a plan per app.
+`docs/skiffcode.spec.md` is Skiff Code's design, and `docs/skiffcode.plan.md` is a checklist split
+into session-sized items — **a new session picks up at the first unchecked `- [ ]`**, ticks it in
+the same commit as the work, and follows the hand-off rules written there. The original brief is
+`docs/my.skiffcode.spec.md`, and the hand-drawn menu layout is `docs/menu.layout.jpg` (transcribed in
+`docs/skiffcode.spec.md`). The remaining Skiff work is in `docs/skiff.spec.md` and
+`docs/skiff.plan.md`.
 
 **Report and notify after every piece of work.** Each time a checklist item or other requested task
 is finished (or blocked), report the result to the user in Korean — what was done, what was
 verified and how, what is left — and send a push notification with a one-line summary. The user
 often steps away while work runs, so the notification is not optional.
 
-**Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries what the
-checklist cannot: what the last session did, why the decisions went the way they did, which
-assumptions the user has not confirmed yet, and what is still unverified. It is a snapshot of
-the current state, not a log — the history lives in git. **When the user says they are starting a new
-session, do this before anything else:** overwrite `HANDOFF.md` (and check `plan.md`'s
-checklist) so both describe the state as it is, down to what is and is not pushed; ask before
-committing it; then ask whether to push.
+**Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries only
+the last session: what it did, where it left things, and what comes next. It is a snapshot of the
+current state, not a log — the history lives in git. **Keep it small:** anything that outlasts a
+session goes where it belongs instead — decisions and their reasons in `docs/skiffcode.spec.md`,
+what is still unverified and the known issues in `docs/skiffcode.plan.md`, device and environment
+notes in `docs/devices.md`. Values that must not enter the repo (device addresses, pairing names)
+stay in a local note outside it, with a placeholder in the docs. **When the user says they are
+starting a new session, do this before anything else:** overwrite `HANDOFF.md` (and check
+`docs/skiffcode.plan.md`'s checklist) so both describe the state as it is, down to what is and is
+not pushed; ask before committing it; then ask whether to push.

@@ -174,7 +174,7 @@ class FileWatcher(
     }
 
     companion object {
-        /** plan.md's "약 2초". A setting once `settings.toml` exists (M4). */
+        /** docs/skiffcode.spec.md's "약 2초". A setting once `settings.toml` exists (M4). */
         const val DEFAULT_POLL_MILLIS = 2000L
     }
 }

@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 17 drops, rather than refuses, connections to private-range addresses without it. -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
-    <!-- skiffcode:///path from Skiff names a local file by its path; plan.md, decision 5. -->
+    <!-- skiffcode:///path from Skiff names a local file by its path; docs/skiffcode.spec.md, decision 5. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!--

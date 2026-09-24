@@ -37,7 +37,7 @@ export type Hold = (clientY: number) => (size: number, clientY: number) => void
 /** What ② original size returns to, until settings.toml gives the user's own. */
 export const DEFAULT_FONT_SIZE = 14
 
-/** Where the size the user is reading at is kept (plan.md "상태 저장"). */
+/** Where the size the user is reading at is kept (docs/skiffcode.spec.md "상태 저장"). */
 const KEY = 'zoom.size'
 
 /**

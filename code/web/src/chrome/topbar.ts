@@ -1,4 +1,4 @@
-// The menu along the top (plan.md "화면 메뉴"): ① sidebar on the left; ② original size, ③ layer and
+// The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left; ② original size, ③ layer and
 // ④ more on the right. It floats over the layer, slides away while the layer scrolls down and comes
 // back when it scrolls up. ④ is a placeholder for a later step.
 import type { LayerName } from '../layers/pane'

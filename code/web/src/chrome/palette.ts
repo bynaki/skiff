@@ -1,4 +1,4 @@
-// The button in the bottom-right corner and what opens out of it (plan.md "커맨드 버튼과 팔레트").
+// The button in the bottom-right corner and what opens out of it (docs/skiffcode.spec.md "커맨드 버튼과 팔레트").
 // `palette.ts` holds which of A, B and C it is in; this draws that and hands the taps back.
 //
 // **Everything a person reads in here is English** (2026-09-21 사용자 결정), and it is written in
@@ -69,7 +69,7 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[]): 
   // not an email address, but the shape an email field asks for is the shape a command name has:
   // Latin letters, no autocorrect, no capital at the front, and `@` on the keyboard, which is the
   // symbol mode's own glyph. Another keyboard may ignore it; `EditorInfo.hintLocales` from Kotlin
-  // is the way further (plan.md M4).
+  // is the way further (docs/skiffcode.plan.md M4).
   input.inputMode = 'email'
   const button = document.createElement('button')
   button.type = 'button'

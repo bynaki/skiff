@@ -79,7 +79,7 @@ Working and used, but young. Not yet built:
   reachable from the UI.
 - Search, drag-and-drop between panes, archive extraction.
 
-`plan.md` describes the next round in detail (in Korean). `AGENTS.md` is the architecture and
+`docs/` describes the next round in detail (in Korean): a spec and a plan for each app. `AGENTS.md` is the architecture and
 contributor guide.
 
 ## License

@@ -16,7 +16,7 @@ import org.json.JSONObject
  * the page, which is where CodeMirror's `EditorState` lives. Kotlin keeps only what it alone can:
  * the text as the file last said it, and the watch on the file behind it.
  *
- * Only the active file is polled (plan.md "감시"). The others are looked at once when they are
+ * Only the active file is polled (docs/skiffcode.spec.md "감시"). The others are looked at once when they are
  * activated and once when the app comes back to the front, which is [MainActivity]'s to arrange;
  * this class just says which one is active.
  */

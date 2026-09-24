@@ -1,5 +1,5 @@
 // The page's own storage: what gathers as the app is used, rather than what a person sets
-// (plan.md "상태 저장"). The last things the palette ran are in here, and so is the zoom.
+// (docs/skiffcode.spec.md "상태 저장"). The last things the palette ran are in here, and so is the zoom.
 //
 // It is the WebView's `localStorage`, per origin, under the app's own data — no other app and no
 // server sees it, and clearing the app's data clears it. Everything that reads it survives it

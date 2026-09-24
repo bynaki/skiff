@@ -1,4 +1,4 @@
-// What the command palette is doing, with nothing of the screen in it (plan.md "커맨드 버튼과 팔레트").
+// What the command palette is doing, with nothing of the screen in it (docs/skiffcode.spec.md "커맨드 버튼과 팔레트").
 //
 // Three states. **A** is the button alone in the corner, out of the way. **B** is that button
 // tapped: the input is open and empty, and the button has become the one that runs what is typed.

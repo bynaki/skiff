@@ -1,4 +1,4 @@
-// How well a query fits a name, for the palette's results (plan.md "커맨드 버튼과 팔레트").
+// How well a query fits a name, for the palette's results (docs/skiffcode.spec.md "커맨드 버튼과 팔레트").
 //
 // The query's letters have to appear in the name in order, but not together: `tl` finds
 // `Toggle Layer`. What is left to decide is which of the names that match comes first, and the

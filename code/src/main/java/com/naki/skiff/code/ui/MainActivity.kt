@@ -256,7 +256,7 @@ class MainActivity : Activity() {
         super.onStart()
         inFront = true
         // Every open file is looked at once here: the ones that are not showing are not polled, so
-        // this is where a change made while the app was away reaches them (plan.md "감시").
+        // this is where a change made while the app was away reaches them (docs/skiffcode.spec.md "감시").
         startWatching(recheckAll = true)
     }
 

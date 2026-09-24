@@ -3,7 +3,7 @@
 // which slides away with the scroll and would take the message with it.
 //
 // It only ever appears for a buffer the user has typed in. A clean one takes the change without
-// being asked, which is the whole point of watching the file (plan.md "감시").
+// being asked, which is the whole point of watching the file (docs/skiffcode.spec.md "감시").
 
 /** Accessible names, from Kotlin's string resources like every other text on the page. */
 export interface BannerLabels {

@@ -151,7 +151,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         // The application's resolver, not this activity's: the watcher outlives a configuration
         // change. And the provider's own stamp, since the loader's `stat` here is of a stream.
         val watched = WatchedContent(activity.applicationContext.contentResolver, uri, loader)
-        // No save target: a `content://` document is read-only here (plan.md M3).
+        // No save target: a `content://` document is read-only here (docs/skiffcode.plan.md M3).
         return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp(), null)
     }
 

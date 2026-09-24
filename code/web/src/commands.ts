@@ -1,4 +1,4 @@
-// What the `>` mode of the palette can run (plan.md "커맨드 레지스트리").
+// What the `>` mode of the palette can run (docs/skiffcode.plan.md "커맨드 레지스트리").
 //
 // The list is made fresh every time the palette asks, because what a command would do depends on
 // what is on the screen: with nothing open there is nothing to save, close or undo, and a file
