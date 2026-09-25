@@ -72,7 +72,13 @@ class CopyEngine {
             }
         }
 
-        return TransferPlan(directories, files, files.sumOf { it.size })
+        val totalBytes = files.sumOf { it.size }
+        // Fail before a byte moves rather than at 90%. Only a local destination can answer:
+        // SFTP has no call for free space, so a server returns null and is not checked.
+        val free = destination.freeSpace(destinationDir)
+        if (free != null && totalBytes > free) throw FsError.NoSpace(destinationDir)
+
+        return TransferPlan(directories, files, totalBytes)
     }
 
     private suspend fun walk(

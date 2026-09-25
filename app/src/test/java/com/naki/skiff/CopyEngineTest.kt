@@ -318,6 +318,29 @@ class CopyEngineTest {
     }
 
     @Test
+    fun `plan refuses a transfer larger than the free space before anything moves`() = runTest {
+        val from = source().apply { putFile("/a/big.bin", ByteArray(1000)) }
+        val to = destination().apply { freeBytes = 999 }
+
+        val failure = runCatching {
+            engine.plan(from, listOf("/a"), to, "/", ConflictPolicy.KEEP_BOTH)
+        }.exceptionOrNull()
+
+        assertTrue("expected NoSpace, got $failure", failure is com.naki.skiff.fs.FsError.NoSpace)
+        assertEquals(setOf("/"), to.paths())
+    }
+
+    @Test
+    fun `a destination that cannot report free space is not checked`() = runTest {
+        val from = source().apply { putFile("/big.bin", ByteArray(1000)) }
+        val to = destination().apply { freeBytes = null }
+
+        run(from, to, listOf("/big.bin"), "/")
+
+        assertEquals(1000, to.fileContent("/big.bin")?.size)
+    }
+
+    @Test
     fun `missing source is reported rather than silently skipped`() = runTest {
         val from = source()
         val to = destination()

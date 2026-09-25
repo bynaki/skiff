@@ -160,7 +160,10 @@ class FakeFileSystem(
         }
     }
 
-    override suspend fun freeSpace(path: String): Long = Long.MAX_VALUE
+    /** What [freeSpace] reports; null plays a server, which cannot say. */
+    var freeBytes: Long? = Long.MAX_VALUE
+
+    override suspend fun freeSpace(path: String): Long? = freeBytes
 
     override fun close() = Unit
 
