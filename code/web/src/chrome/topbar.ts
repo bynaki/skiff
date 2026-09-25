@@ -1,6 +1,7 @@
-// The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left; ② original size, ③ layer and
-// ④ more on the right. It floats over the layer, slides away while the layer scrolls down and comes
-// back when it scrolls up. ④ is a placeholder for a later step.
+// The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left, then the file on the
+// screen with a dot while it has been typed in; ② original size, ③ layer and ④ more on the right. It
+// floats over the layer, slides away while the layer scrolls down and comes back when it scrolls up.
+// ④ is a placeholder for a later step.
 import type { LayerName } from '../layers/pane'
 import { lastZoomTime } from '../zoom'
 
@@ -16,6 +17,8 @@ export interface TopbarLabels {
   layerEditor: string
   layerDiff: string
   more: string
+  /** The dot beside the file's name. The name itself is data and needs none. */
+  unsaved: string
 }
 
 const LAYER_LABEL: Record<LayerName, keyof TopbarLabels> = {
@@ -51,6 +54,11 @@ export interface Topbar {
   label(labels: TopbarLabels): void
   /** Which layer ③ shows, or null when no document is open and it does nothing. */
   setLayer(name: LayerName | null): void
+  /**
+   * The file on the screen, or null when nothing is open. [dirty] puts the dot beside it; a file
+   * that could not be opened has no buffer and so is never dirty.
+   */
+  setFile(name: string | null, dirty: boolean): void
   /** Brings the menu back, for a new document. */
   show(): void
 }
@@ -73,10 +81,19 @@ export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void
   const layer = button(ICONS.viewer, actions.toggleLayer)
   const more = button(ICONS.more)
   layer.disabled = true
+  const file = document.createElement('div')
+  file.className = 'file'
+  const fileName = document.createElement('span')
+  fileName.className = 'name'
+  const dot = document.createElement('span')
+  dot.className = 'dot'
+  dot.setAttribute('role', 'img')
+  dot.hidden = true
+  file.append(fileName, dot)
   const group = document.createElement('div')
   group.className = 'group'
   group.append(resetZoom, layer, more)
-  bar.append(sidebar, group)
+  bar.append(sidebar, file, group)
   document.body.append(bar)
 
   const setHidden = (hidden: boolean) => bar.classList.toggle('hidden', hidden)
@@ -117,7 +134,13 @@ export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void
       for (const [element, text] of [[sidebar, next.sidebar], [resetZoom, next.resetZoom], [more, next.more]] as const) {
         name(element, text)
       }
+      dot.title = next.unsaved
+      dot.setAttribute('aria-label', next.unsaved)
       applyLayer()
+    },
+    setFile(name, dirty) {
+      fileName.textContent = name ?? ''
+      dot.hidden = name === null || !dirty
     },
     setLayer(next) {
       shown = next

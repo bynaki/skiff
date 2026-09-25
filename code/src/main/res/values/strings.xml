@@ -54,6 +54,7 @@
     <string name="menu_layer_editor">Editing layer</string>
     <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
+    <string name="menu_unsaved">Unsaved changes</string>
 
     <string name="close_dirty">What you have typed in this file will be lost. Close it?</string>
 

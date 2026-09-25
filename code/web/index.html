@@ -42,6 +42,13 @@
     }
     #topbar.hidden { transform: translateY(-100%); }
     #topbar .group { display: flex; }
+    /* Takes whatever room the buttons leave and clips the end of a long name: unlike the sidebar's
+       path, the start of a file name is the part that tells it apart. The dot sits right after the
+       name rather than at the far end, so it reads as belonging to it. */
+    #topbar .file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+    #topbar .name { min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #topbar .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #1f2328; }
+    #topbar .dot[hidden] { display: none; }
     #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
     #topbar button:disabled { color: #afb8c1; }
     #topbar svg { display: block; width: 22px; height: 22px; }

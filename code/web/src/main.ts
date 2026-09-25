@@ -227,7 +227,7 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
-      pane = openPane(root, doc, memory)
+      pane = openPane(root, doc, memory, (dirty) => topbar.setFile(doc.name, dirty))
       break
     case 'refused':
       root.append(notice(doc.title, doc.message))
@@ -236,6 +236,8 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
       root.append(notice(null, doc.message))
       break
   }
+  // A file back from the background may already have been typed in; after this the pane says when.
+  topbar.setFile(doc.state === 'empty' ? null : doc.name, pane?.dirty ?? false)
   topbar.setLayer(pane?.layer ?? null)
   if (id !== null) askWhatWaited(id)
 }

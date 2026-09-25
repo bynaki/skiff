@@ -198,6 +198,7 @@ class MainActivity : Activity() {
                 .put("layerEditor", getString(R.string.menu_layer_editor))
                 .put("layerDiff", getString(R.string.menu_layer_diff))
                 .put("more", getString(R.string.menu_more))
+                .put("unsaved", getString(R.string.menu_unsaved))
                 .put("reload", getString(R.string.watch_reload))
                 .put("keepMine", getString(R.string.watch_keep))
                 .put("dismiss", getString(R.string.watch_dismiss))

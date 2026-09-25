@@ -145,8 +145,15 @@ export const jsonLinesAsJson = (name: string): string =>
 /**
  * Shows [doc] in [parent]. With [memory] it is a file coming back to the screen: the buffer it
  * left, the layer it was on and the line it was showing, rather than the file as it was read.
+ * [onDirtyChange] hears [Pane.dirty] turn over — typing, a save and a change taken from outside
+ * all arrive as transactions — and only when it does.
  */
-export function openPane(parent: HTMLElement, doc: TextDocument, memory?: PaneMemory): Pane {
+export function openPane(
+  parent: HTMLElement,
+  doc: TextDocument,
+  memory?: PaneMemory,
+  onDirtyChange?: (dirty: boolean) => void,
+): Pane {
   // By name, not content: language-data knows extensions and names such as Makefile.
   // Its JSON entry claims .json and .map but not .jsonl, and every line of a .jsonl file is JSON,
   // so that name is matched as if it were one. The parser recovers at each line break, which
@@ -183,7 +190,17 @@ export function openPane(parent: HTMLElement, doc: TextDocument, memory?: PaneMe
     })
     const restored = restore !== null
     restore = null
-    const created = new EditorView({ parent, state })
+    // On the view, not an updateListener in the state: a state that comes back from the background
+    // brings its extensions with it, and a listener there would still be the pane it left.
+    const created = new EditorView({
+      parent,
+      state,
+      dispatchTransactions(transactions, target) {
+        const before = isDirty(target.state)
+        target.update(transactions)
+        if (isDirty(target.state) !== before) onDirtyChange?.(!before)
+      },
+    })
     // A state built before the last pinch carries that pinch's size; the font is one for the whole
     // page, so the view is brought to it rather than the other way round.
     if (restored) applyFontSize(created)
