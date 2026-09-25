@@ -44,11 +44,9 @@
   null을 반환한다(SFTP 기본 프로토콜에 해당 호출이 없다). 따라서 이 점검은 **로컬이 목적지일
   때만** 동작하는데, 그게 곧 흔한 다운로드 경우이므로 여전히 값어치가 있다.
   `CopyEngine.plan`에 넣고, 바이트가 움직이기 전에 `FsError.NoSpace`를 던지게 한다.
-- **`androidx.window`** — `libs.versions.toml`에 선언돼 있는데 import한 곳이 한 군데도 없다.
-  원래는 분할선을 폴드 힌지에 스냅시키려던 것이었다. `ui/workspace/SplitContainer.kt`에서
-  `WindowInfoTracker`/`FoldingFeature`로 구현하거나, 아니면 의존성을 뺀다. 폴더블 폰도 지원 대상이라
-  가치는 있다. 다만 지금 실기기는 힌지가 없는 갤럭시탭 S10 FE라서 폴더블 기기 없이는 동작을
-  확인할 수 없다 — 어느 쪽이든 **안 쓰는 의존성이 카탈로그에 남아 있어선 안 된다**.
+- **`androidx.window`** — 뺐다(2026-09-25, 사용자 결정). 분할선을 폴드 힌지에 스냅시키려던
+  의존성이었는데 import한 곳이 없었다. 스냅을 다시 하게 되면 `ui/workspace/SplitContainer.kt`에서
+  `WindowInfoTracker`/`FoldingFeature`로 하고, 그때 의존성을 다시 넣는다.
 
 ---
 
