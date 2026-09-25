@@ -91,6 +91,14 @@
     <string name="transfer_done">Done</string>
     <string name="transfer_cancelled">Cancelled</string>
     <string name="transfer_clear_finished">Clear finished</string>
+    <string name="transfer_waiting_conflict">Waiting: %1$s already exists</string>
+    <string name="conflict_title">File already exists</string>
+    <string name="conflict_body">“%1$s” already exists in %2$s.</string>
+    <string name="conflict_apply_to_rest">Do the same for the rest</string>
+    <string name="action_skip">Skip</string>
+    <string name="action_keep_both">Keep both</string>
+    <string name="action_overwrite">Overwrite</string>
+    <string name="action_cancel_transfer">Cancel transfer</string>
     <string name="action_copy_to_other">Copy to other pane</string>
     <string name="action_move_to_other">Move to other pane</string>
     <string name="error_split_required">Turn on split view to transfer between panes</string>

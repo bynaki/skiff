@@ -6,6 +6,7 @@ import com.naki.skiff.data.store.SkiffStore
 import com.naki.skiff.data.store.openSkiffDataStore
 import com.naki.skiff.fs.sftp.HostKeyGate
 import com.naki.skiff.fs.sftp.HostKeyPrompter
+import com.naki.skiff.transfer.ConflictPrompter
 import com.naki.skiff.transfer.TransferQueue
 import com.naki.skiff.ui.describe
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +31,9 @@ class SkiffContainer(private val context: Context) {
         newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) },
     )
 
-    val transferQueue = TransferQueue(scope, registry) { context.describe(it) }
+    val conflictPrompter = ConflictPrompter()
+
+    val transferQueue = TransferQueue(scope, registry, conflictPrompter) { context.describe(it) }
 
     init {
         scope.launch {

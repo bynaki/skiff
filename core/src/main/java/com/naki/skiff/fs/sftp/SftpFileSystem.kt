@@ -68,7 +68,8 @@ class SftpFileSystem(
 
     override suspend fun delete(path: String, recursive: Boolean) = translating(path) {
         browseConnection.withSftp { sftp ->
-            val attributes = sftp.stat(path)
+            // lstat, not stat: a symlink to a directory is unlinked, never descended into.
+            val attributes = sftp.lstat(path)
             if (attributes.type == FileMode.Type.DIRECTORY) {
                 if (recursive) deleteTreeBlocking(sftp, path) else sftp.rmdir(path)
             } else {

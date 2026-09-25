@@ -91,6 +91,14 @@
     <string name="transfer_done">완료</string>
     <string name="transfer_cancelled">취소됨</string>
     <string name="transfer_clear_finished">완료 항목 지우기</string>
+    <string name="transfer_waiting_conflict">대기 중: %1$s 파일이 이미 있습니다</string>
+    <string name="conflict_title">같은 이름의 파일이 있습니다</string>
+    <string name="conflict_body">%2$s에 “%1$s” 파일이 이미 있습니다.</string>
+    <string name="conflict_apply_to_rest">나머지에도 똑같이 적용</string>
+    <string name="action_skip">건너뛰기</string>
+    <string name="action_keep_both">둘 다 유지</string>
+    <string name="action_overwrite">덮어쓰기</string>
+    <string name="action_cancel_transfer">전송 취소</string>
     <string name="action_copy_to_other">반대편으로 복사</string>
     <string name="action_move_to_other">반대편으로 이동</string>
     <string name="error_split_required">패널 간 전송은 분할 보기를 켜야 합니다</string>

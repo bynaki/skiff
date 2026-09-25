@@ -7,6 +7,8 @@ import com.naki.skiff.data.SourceDescriptor
 import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.data.store.Settings
 import com.naki.skiff.skiff
+import com.naki.skiff.transfer.ConflictAnswer
+import com.naki.skiff.transfer.ConflictPrompt
 import com.naki.skiff.transfer.TransferJob
 import com.naki.skiff.transfer.TransferService
 import com.naki.skiff.fs.FileNode
@@ -48,6 +50,8 @@ data class WorkspaceUiState(
     val editingProfile: EditingProfile? = null,
     /** Non-null while a connection is waiting on the user to accept a host key. */
     val hostKeyPrompt: HostKeyPrompt? = null,
+    /** Non-null while a transfer is waiting on the user to settle a taken name. */
+    val conflictPrompt: ConflictPrompt? = null,
     /** Set when a server on the local network needs the ACCESS_LOCAL_NETWORK grant first. */
     val pendingLocalNetworkSource: SourceId? = null,
     /** One-shot message for the snackbar. */
@@ -91,6 +95,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             container.hostKeyPrompter.pending.collectLatest { prompt ->
                 _state.update { it.copy(hostKeyPrompt = prompt) }
+            }
+        }
+        viewModelScope.launch {
+            container.conflictPrompter.pending.collectLatest { prompt ->
+                _state.update { it.copy(conflictPrompt = prompt) }
             }
         }
         viewModelScope.launch {
@@ -287,6 +296,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun cancelTransfer(jobId: String) = container.transferQueue.cancel(jobId)
+
+    fun respondToConflict(answer: ConflictAnswer) = container.conflictPrompter.respond(answer)
 
     fun clearFinishedTransfers() = container.transferQueue.clearFinished()
 

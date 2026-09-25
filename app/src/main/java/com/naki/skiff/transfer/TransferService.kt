@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -34,19 +35,21 @@ class TransferService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        val queue = (application as SkiffApplication).container.transferQueue
+        val container = (application as SkiffApplication).container
+        val queue = container.transferQueue
 
         startForeground(idleNotification())
 
         scope.launch {
-            queue.jobs.collect { jobs ->
+            // A question left waiting would otherwise read as a transfer that stalled.
+            combine(queue.jobs, container.conflictPrompter.pending, ::Pair).collect { (jobs, conflict) ->
                 val active = jobs.firstOrNull { !it.finished }
                 if (active == null) {
                     // Nothing left to do; drop the notification and let the process idle.
                     ServiceCompat.stopForeground(this@TransferService, ServiceCompat.STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 } else {
-                    notificationManager().notify(NOTIFICATION_ID, progressNotification(active, jobs.size))
+                    notificationManager().notify(NOTIFICATION_ID, progressNotification(active, jobs.size, conflict))
                 }
             }
         }
@@ -68,12 +71,18 @@ class TransferService : Service() {
         )
     }
 
-    private fun progressNotification(job: TransferJob, queued: Int): android.app.Notification {
+    private fun progressNotification(
+        job: TransferJob,
+        queued: Int,
+        conflict: ConflictPrompt?,
+    ): android.app.Notification {
         val title = getString(
             if (job.move) R.string.transfer_moving else R.string.transfer_copying,
             job.label,
         )
-        val text = if (job.totalFiles > 1) {
+        val text = if (conflict != null) {
+            getString(R.string.transfer_waiting_conflict, conflict.fileName)
+        } else if (job.totalFiles > 1) {
             getString(R.string.transfer_progress_files, job.completedFiles + 1, job.totalFiles)
         } else {
             job.currentFileName

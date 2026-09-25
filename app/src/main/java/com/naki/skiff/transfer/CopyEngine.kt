@@ -117,38 +117,57 @@ class CopyEngine {
     /**
      * Executes [plan]. [onProgress] is called with cumulative bytes and the current file so
      * the caller can drive both the notification and the in-app sheet from one source.
+     *
+     * Under [ConflictPolicy.ASK], [onConflict] is called for each file whose destination is
+     * taken, and suspends until the user answers; an answer that applies to the rest replaces
+     * the policy for the files after it.
+     *
+     * Returns the source paths of the files that were skipped, which a move must not delete.
      */
     suspend fun execute(
         plan: TransferPlan,
         source: FileSystem,
         destination: FileSystem,
         conflictPolicy: ConflictPolicy,
+        onConflict: suspend (PlannedFile) -> ConflictAnswer = { error("No one to ask about ${it.to}") },
         onProgress: suspend (transferredBytes: Long, completedFiles: Int, currentName: String) -> Unit,
-    ) {
+    ): Set<String> {
         for (directory in plan.directories) {
             currentCoroutineContext().ensureActive()
             if (!destination.exists(directory)) destination.mkdir(directory)
         }
 
+        var policy = conflictPolicy
         var transferred = 0L
         var completed = 0
+        val skipped = HashSet<String>()
 
         for (file in plan.files) {
             currentCoroutineContext().ensureActive()
 
-            val target = when {
-                !destination.exists(file.to) -> file.to
-                conflictPolicy == ConflictPolicy.SKIP -> {
+            val resolution = when {
+                !destination.exists(file.to) -> null
+                policy == ConflictPolicy.ASK -> {
+                    val answer = onConflict(file)
+                    if (answer.applyToRest) policy = answer.policy
+                    answer.policy
+                }
+                else -> policy
+            }
+            val target = when (resolution) {
+                null, ConflictPolicy.OVERWRITE -> file.to
+                ConflictPolicy.SKIP -> {
+                    skipped.add(file.from)
                     completed++
                     transferred += file.size
                     onProgress(transferred, completed, FsPath.name(file.to))
                     continue
                 }
-                conflictPolicy == ConflictPolicy.KEEP_BOTH -> {
+                ConflictPolicy.KEEP_BOTH -> {
                     val parent = FsPath.parent(file.to)
                     FsPath.join(parent, FsPath.uniqueName(FsPath.name(file.to), destination.childNames(parent)))
                 }
-                else -> file.to
+                ConflictPolicy.ASK -> error("An answer has to pick a policy")
             }
 
             onProgress(transferred, completed, FsPath.name(target))
@@ -157,6 +176,37 @@ class CopyEngine {
             }
             completed++
             onProgress(transferred, completed, FsPath.name(target))
+        }
+        return skipped
+    }
+
+    /**
+     * The delete half of a move. A file in [skipped] was never copied, so it stays where it
+     * is, and so does every folder holding one; everything else under [sourcePaths] goes.
+     */
+    suspend fun removeSources(source: FileSystem, sourcePaths: List<String>, skipped: Set<String>) {
+        for (path in sourcePaths) {
+            if (skipped.none { FsPath.isAncestorOrSame(path, it) }) {
+                source.delete(path, recursive = true)
+                continue
+            }
+            // Looked up in its parent's listing rather than by stat, which follows a link and
+            // would report the target's type.
+            val node = source.list(FsPath.parent(path)).firstOrNull { it.name == FsPath.name(path) }
+            if (node != null) removeMoved(source, node, skipped)
+        }
+    }
+
+    private suspend fun removeMoved(source: FileSystem, node: FileNode, skipped: Set<String>) {
+        currentCoroutineContext().ensureActive()
+        if (skipped.none { FsPath.isAncestorOrSame(node.path, it) }) {
+            source.delete(node.path, recursive = true)
+            return
+        }
+        // Only a real directory is opened. A link's target lies outside what was moved, so a
+        // link holding a skipped file stays whole rather than having its target emptied.
+        if (node.isDirectory && !node.isSymlink) {
+            for (child in source.list(node.path)) removeMoved(source, child, skipped)
         }
     }
 

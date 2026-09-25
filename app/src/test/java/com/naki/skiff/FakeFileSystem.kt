@@ -129,12 +129,14 @@ class FakeFileSystem(
     override suspend fun delete(path: String, recursive: Boolean) {
         val normalized = FsPath.normalize(path)
         when {
+            // Checked first: deleting a link unlinks it and never reaches the target.
+            normalized in links -> links.remove(normalized)
             normalized in files -> files.remove(normalized)
             normalized in directories -> {
-                val descendants = (files.keys + directories)
+                val descendants = (files.keys + directories + links.keys)
                     .filter { it != normalized && FsPath.isAncestorOrSame(normalized, it) }
                 if (descendants.isNotEmpty() && !recursive) throw FsError.DirectoryNotEmpty(normalized)
-                descendants.forEach { files.remove(it); directories.remove(it) }
+                descendants.forEach { files.remove(it); directories.remove(it); links.remove(it) }
                 directories.remove(normalized)
             }
             else -> throw FsError.NotFound(normalized)

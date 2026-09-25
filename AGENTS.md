@@ -187,13 +187,15 @@ Fingerprints are SHA256 (`fs/sftp/HostKeyFingerprint`) because that is what `ssh
 ### Ownership: process vs screen
 
 `SkiffContainer` (built in `SkiffApplication.onCreate`, reached via `Application.skiff`) owns
-`SkiffStore`, `SourceRegistry`, `HostKeyPrompter` and `TransferQueue`. These are deliberately
+`SkiffStore`, `SourceRegistry`, `HostKeyPrompter`, `ConflictPrompter` and `TransferQueue`. These are deliberately
 **not** in a ViewModel: a transfer has to survive the screen going away, so `WorkspaceViewModel`
 must never close the registry in `onCleared`. `TransferService` is a foreground service that
 carries the progress notification; the queue runs one job at a time on purpose.
 
 `HostKeyPrompter` is process-scoped for the same reason — a background transfer can meet an
-unknown key with no screen on top, and the answer arrives when the UI returns.
+unknown key with no screen on top, and the answer arrives when the UI returns. `ConflictPrompter`
+is the same pattern for a name already taken at the destination; while it waits, the progress
+notification says so, or the transfer reads as stalled.
 
 **State the page keeps goes in `localStorage`** (user's decision, 2026-09-21). Anything the app
 gathers as it is used — what the palette ran last, the zoom, which layer and line a file was on,

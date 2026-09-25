@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.naki.skiff.R
 import com.naki.skiff.fs.FileNode
 import com.naki.skiff.ui.dialog.ConfirmDeleteDialog
+import com.naki.skiff.ui.dialog.ConflictDialog
 import com.naki.skiff.ui.dialog.HostKeyDialog
 import com.naki.skiff.ui.dialog.LocalNetworkDialog
 import com.naki.skiff.ui.dialog.NameDialog
@@ -203,6 +204,14 @@ fun WorkspaceScreen(viewModel: WorkspaceViewModel, onOpenExternally: (FileNode) 
             prompt = prompt,
             onTrust = { viewModel.respondToHostKey(HostKeyDecision.Accept) },
             onReject = { viewModel.respondToHostKey(HostKeyDecision.Reject) },
+        )
+    }
+
+    state.conflictPrompt?.let { prompt ->
+        ConflictDialog(
+            prompt = prompt,
+            onAnswer = viewModel::respondToConflict,
+            onCancelTransfer = { viewModel.cancelTransfer(prompt.jobId) },
         )
     }
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 class TransferQueue(
     private val scope: CoroutineScope,
     private val registry: SourceRegistry,
+    private val conflictPrompter: ConflictPrompter,
     private val describeError: (Throwable) -> String,
 ) {
 
@@ -68,37 +69,45 @@ class TransferQueue(
             val destination = registry.get(job.destinationId)
 
             // Same filesystem + move: rename is instant, so try it before streaming bytes.
+            var sourcePaths = job.sourcePaths
             if (job.move && job.sourceId == job.destinationId) {
-                val renamed = job.sourcePaths.all { path ->
+                sourcePaths = job.sourcePaths.filterNot { path ->
                     runCatching {
                         destination.rename(path, FsPath.join(job.destinationDir, FsPath.name(path)))
                     }.isSuccess
                 }
-                if (renamed) {
+                if (sourcePaths.isEmpty()) {
                     update(job.id) {
                         it.copy(status = TransferStatus.DONE, completedFiles = job.sourcePaths.size)
                     }
                     return
                 }
-                // Fall through to copy+delete: rename fails across mount points.
+                // The rest fall through to copy+delete: rename fails across mount points, and
+                // onto a name that is already taken.
             }
 
             val plan = engine.plan(
                 source = source,
-                sourcePaths = job.sourcePaths,
+                sourcePaths = sourcePaths,
                 destination = destination,
                 destinationDir = job.destinationDir,
-                conflictPolicy = ConflictPolicy.KEEP_BOTH,
+                conflictPolicy = job.conflictPolicy,
             )
             update(job.id) {
                 it.copy(totalBytes = plan.totalBytes, totalFiles = plan.fileCount)
             }
 
-            engine.execute(
+            val skipped = engine.execute(
                 plan = plan,
                 source = source,
                 destination = destination,
-                conflictPolicy = ConflictPolicy.KEEP_BOTH,
+                conflictPolicy = job.conflictPolicy,
+                onConflict = { file ->
+                    val prompt = ConflictPrompt(job.id, FsPath.name(file.to), FsPath.parent(file.to))
+                    conflictPrompter.ask(prompt).also { answer ->
+                        if (answer.applyToRest) update(job.id) { it.copy(conflictPolicy = answer.policy) }
+                    }
+                },
             ) { bytes, files, name ->
                 update(job.id) {
                     it.copy(
@@ -109,9 +118,7 @@ class TransferQueue(
                 }
             }
 
-            if (job.move) {
-                for (path in job.sourcePaths) source.delete(path, recursive = true)
-            }
+            if (job.move) engine.removeSources(source, sourcePaths, skipped)
 
             update(job.id) { it.copy(status = TransferStatus.DONE) }
         } catch (e: CancellationException) {

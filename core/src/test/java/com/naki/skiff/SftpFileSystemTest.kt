@@ -117,6 +117,17 @@ class SftpFileSystemTest {
     }
 
     @Test
+    fun `deleting a symlink to a directory unlinks it and spares the target`() = runTest {
+        server.writeFile("real/keep.txt", "x".toByteArray())
+        java.nio.file.Files.createSymbolicLink(server.root.resolve("link"), server.root.resolve("real"))
+
+        fs.delete("/link", recursive = true)
+
+        assertFalse(java.nio.file.Files.exists(server.root.resolve("link"), java.nio.file.LinkOption.NOFOLLOW_LINKS))
+        assertTrue(server.exists("real/keep.txt"))
+    }
+
+    @Test
     fun `non-recursive delete of a populated directory fails`() = runTest {
         server.writeFile("full/inside.txt", "x".toByteArray())
 

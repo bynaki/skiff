@@ -1,11 +1,13 @@
 package com.naki.skiff
 
 import com.naki.skiff.fs.SourceId
+import com.naki.skiff.transfer.ConflictAnswer
 import com.naki.skiff.transfer.ConflictPolicy
 import com.naki.skiff.transfer.CopyEngine
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -202,6 +204,117 @@ class CopyEngineTest {
 
         assertEquals(2, plan.fileCount)
         assertEquals(1000L, plan.totalBytes)
+    }
+
+    @Test
+    fun `ask puts each taken name to the user and follows each answer`() = runTest {
+        val from = source().apply {
+            putFile("/a.txt", "new a".toByteArray())
+            putFile("/b.txt", "new b".toByteArray())
+            putFile("/free.txt", "free".toByteArray())
+        }
+        val to = destination().apply {
+            putFile("/a.txt", "old a".toByteArray())
+            putFile("/b.txt", "old b".toByteArray())
+        }
+        val answers = mapOf(
+            "/a.txt" to ConflictAnswer(ConflictPolicy.OVERWRITE, applyToRest = false),
+            "/b.txt" to ConflictAnswer(ConflictPolicy.SKIP, applyToRest = false),
+        )
+        val asked = mutableListOf<String>()
+
+        val plan = engine.plan(from, listOf("/a.txt", "/b.txt", "/free.txt"), to, "/", ConflictPolicy.ASK)
+        val skipped = engine.execute(
+            plan, from, to, ConflictPolicy.ASK,
+            onConflict = { asked += it.to; answers.getValue(it.to) },
+        ) { _, _, _ -> }
+
+        // A free name is never asked about.
+        assertEquals(listOf("/a.txt", "/b.txt"), asked)
+        assertArrayEquals("new a".toByteArray(), to.fileContent("/a.txt"))
+        assertArrayEquals("old b".toByteArray(), to.fileContent("/b.txt"))
+        assertArrayEquals("free".toByteArray(), to.fileContent("/free.txt"))
+        assertEquals(setOf("/b.txt"), skipped)
+    }
+
+    @Test
+    fun `an answer applied to the rest is not asked again`() = runTest {
+        val from = source().apply {
+            putFile("/one.txt", "new".toByteArray())
+            putFile("/two.txt", "new".toByteArray())
+            putFile("/three.txt", "new".toByteArray())
+        }
+        val to = destination().apply {
+            putFile("/one.txt", "old".toByteArray())
+            putFile("/two.txt", "old".toByteArray())
+            putFile("/three.txt", "old".toByteArray())
+        }
+        var asked = 0
+
+        val plan = engine.plan(from, listOf("/one.txt", "/two.txt", "/three.txt"), to, "/", ConflictPolicy.ASK)
+        engine.execute(
+            plan, from, to, ConflictPolicy.ASK,
+            onConflict = { asked++; ConflictAnswer(ConflictPolicy.KEEP_BOTH, applyToRest = true) },
+        ) { _, _, _ -> }
+
+        assertEquals(1, asked)
+        for (name in listOf("one", "two", "three")) {
+            assertArrayEquals("old".toByteArray(), to.fileContent("/$name.txt"))
+            assertArrayEquals("new".toByteArray(), to.fileContent("/$name (1).txt"))
+        }
+    }
+
+    @Test
+    fun `a folder whose name is taken is merged, and only its taken files are asked about`() = runTest {
+        val from = source().apply {
+            putFile("/a/taken.txt", "new".toByteArray())
+            putFile("/a/free.txt", "free".toByteArray())
+        }
+        val to = destination().apply {
+            putFile("/target/a/taken.txt", "old".toByteArray())
+            putFile("/target/a/theirs.txt", "theirs".toByteArray())
+        }
+        val asked = mutableListOf<String>()
+
+        val plan = engine.plan(from, listOf("/a"), to, "/target", ConflictPolicy.ASK)
+        engine.execute(
+            plan, from, to, ConflictPolicy.ASK,
+            onConflict = { asked += it.to; ConflictAnswer(ConflictPolicy.OVERWRITE, applyToRest = false) },
+        ) { _, _, _ -> }
+
+        assertEquals(listOf("/target/a/taken.txt"), asked)
+        assertArrayEquals("new".toByteArray(), to.fileContent("/target/a/taken.txt"))
+        assertArrayEquals("free".toByteArray(), to.fileContent("/target/a/free.txt"))
+        assertArrayEquals("theirs".toByteArray(), to.fileContent("/target/a/theirs.txt"))
+    }
+
+    @Test
+    fun `a move keeps a skipped file and the folders above it, and removes the rest`() = runTest {
+        val from = source().apply {
+            putFile("/a/kept.txt", "k".toByteArray())
+            putFile("/a/moved.txt", "m".toByteArray())
+            putFile("/a/sub/moved.txt", "m".toByteArray())
+            putFile("/lone.txt", "l".toByteArray())
+        }
+
+        engine.removeSources(from, listOf("/a", "/lone.txt"), skipped = setOf("/a/kept.txt"))
+
+        assertEquals(setOf("/", "/a", "/a/kept.txt"), from.paths())
+    }
+
+    @Test
+    fun `a move does not empty the target of a link that holds a skipped file`() = runTest {
+        val from = source().apply {
+            putFile("/other/inside.txt", "x".toByteArray())
+            putFile("/a/moved.txt", "m".toByteArray())
+            putSymlink("/a/shortcut", "/other")
+        }
+
+        engine.removeSources(from, listOf("/a"), skipped = setOf("/a/shortcut/inside.txt"))
+
+        assertArrayEquals("x".toByteArray(), from.fileContent("/other/inside.txt"))
+        assertTrue("/a/shortcut" in from.paths())
+        assertFalse("/a/moved.txt" in from.paths())
     }
 
     @Test
