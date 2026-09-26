@@ -250,6 +250,12 @@ gate, and it lists the `OpenRequest` kinds one by one rather than falling throug
 new kind has to answer the question. `content://` is not in scope: it is a grant the sending app
 handed us, not a path we chose.
 
+The palette's file mode opens without that question, because the user picked the file inside the
+app. What keeps that from becoming a way around the gate is that the page sends only a *name*:
+`Folder.request` refuses anything with `/`, `.`, `..` or NUL, so the file opened is always beside
+one the user has already opened. Widening what the page may send — a path, a directory — puts this
+back in scope.
+
 **Identify the sender with `ComponentCaller`, never `getReferrer()`.** The caller fills in
 `EXTRA_REFERRER` itself, so any app can claim to be Skiff; `ComponentCaller.getPackage()` and
 `getLaunchedFromPackage()` are answered by the framework, and a caller chooses only *whether* to

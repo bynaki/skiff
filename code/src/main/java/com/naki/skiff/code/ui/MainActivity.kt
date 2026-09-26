@@ -45,6 +45,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.text.DecimalFormat
@@ -188,6 +189,23 @@ class MainActivity : Activity() {
         bridge.method("reload") { params ->
             val entry = docs.byId(params.getInt("id")) ?: error("no open file to reload")
             entry.watcher?.reread { change -> fileChanged(entry, change) }
+            JSONObject()
+        }
+        // The files beside the one named, for the palette's file mode: every file in its directory
+        // that is not open already. A `content://` document has no directory, and answers none.
+        bridge.method("folder") { params ->
+            val folder = docs.byId(params.getInt("id"))?.folder
+            val names = folder?.names { request -> docs.byKey(keyOf(request)) != null } ?: emptyList()
+            JSONObject().put("names", JSONArray(names))
+        }
+        // Opens a file the palette's file mode offered from beside an open one. The page sends only
+        // a name, and [Folder.request] keeps it to that file's directory; the path is one the user
+        // picked in this app, so it is not confirmed the way a link's is.
+        bridge.method("openFromFolder") { params ->
+            val entry = docs.byId(params.getInt("id")) ?: error("no open file to open beside")
+            val name = params.getString("name")
+            val request = entry.folder?.request(name) ?: error("not a file beside ${entry.name}: $name")
+            startOpening { OpenFlow(this@MainActivity, container).open(linkOf(request), request, pathChosen = true) }
             JSONObject()
         }
         bridge.method("labels") {
@@ -397,11 +415,7 @@ class MainActivity : Activity() {
     private fun handleLink(intent: Intent, sender: String?) {
         val link = intent.dataString ?: return
         val fromSkiff = sentBySkiff(sender)
-        // A newer link replaces one still being opened: its dialogs close and its result is dropped,
-        // rather than a second set of dialogs stacking on top of the first.
-        opening?.cancel()
-        tellOpening(true)
-        val job = scope.launch {
+        startOpening {
             var request = OpenRequest.of(intent.action, link, container.store.profiles.first())
             if (request is OpenRequest.Remote || request is OpenRequest.UnknownServer) {
                 // Skiff may know this server, or know it better than we do: take its profiles first.
@@ -412,7 +426,20 @@ class MainActivity : Activity() {
                 }
             }
             Log.i(TAG, "open ${request.javaClass.simpleName} from ${sender ?: "an app that did not say"}")
-            val opened = OpenFlow(this@MainActivity, container).open(link, request, fromSkiff) ?: return@launch
+            OpenFlow(this@MainActivity, container).open(link, request, pathChosen = fromSkiff)
+        }
+    }
+
+    /**
+     * Opens a file and puts it on the screen — from a link, or from the palette's file mode. A newer
+     * one replaces one still being opened: its dialogs close and its result is dropped, rather than
+     * a second set of dialogs stacking on top of the first.
+     */
+    private fun startOpening(open: suspend () -> OpenFlow.Opened?) {
+        opening?.cancel()
+        tellOpening(true)
+        val job = scope.launch {
+            val opened = open() ?: return@launch
             Log.i(TAG, "opened ${opened.name}: ${opened.result.javaClass.simpleName}")
             val key = keyOf(opened.request)
             val already = docs.byKey(key)
@@ -434,7 +461,7 @@ class MainActivity : Activity() {
             }
             docs.add(
                 key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher,
-                opened.save, (opened.stamp as? Stamped.At)?.stamp,
+                opened.save, (opened.stamp as? Stamped.At)?.stamp, opened.folder,
             )
             documentsChanged()
         }

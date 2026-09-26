@@ -218,4 +218,23 @@ describe('the command palette', () => {
     expect(machine.stage).toBe('button')
     expect(machine.results).toEqual([])
   })
+
+  test('searches again when what a mode offers arrives while it is open, and not while it is closed', () => {
+    let offered: string[] = []
+    const machine = createPalette({ items: () => offered.map((name) => ({ name, run: () => {} })) })
+    machine.open()
+    machine.type('no')
+    expect(names(machine.results)).toEqual([])
+
+    offered = ['notes.md', 'main.ts']
+    machine.refresh()
+    expect(machine.stage).toBe('results')
+    expect(machine.query).toBe('no')
+    expect(names(machine.results)).toEqual(['notes.md'])
+
+    machine.cancel()
+    machine.refresh()
+    expect(machine.stage).toBe('button')
+    expect(machine.results).toEqual([])
+  })
 })

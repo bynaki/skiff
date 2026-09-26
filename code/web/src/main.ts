@@ -13,6 +13,7 @@ import { type OpenFile, type OpenFilesLabels, createOpenFiles } from './chrome/o
 import { type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type CommandSource, commands } from './commands'
+import { createFolder, files } from './files'
 import { createLoadingView } from './chrome/loading'
 import { createLoading } from './loading'
 import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
@@ -53,6 +54,8 @@ type Labels = TopbarLabels & BannerLabels & SidebarLabels & OpenFilesLabels & Do
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
 let activeId: number | null = null
+/** What is open, as Kotlin last listed it, for the palette's file mode. */
+let openList: OpenFile[] = []
 /**
  * What each open file that is not on the screen left behind, the one that left longest ago first:
  * a file comes out of here when it goes to the screen and back in at the end when it leaves, which
@@ -165,8 +168,7 @@ function closeFile(): void {
 
 /**
  * What the palette's commands act on. The list of them is `commands.ts`; here is where the pane,
- * the menus and the bridge are. The file and symbol modes are the next items and offer nothing
- * yet.
+ * the menus and the bridge are. The symbol mode is the next item and offers nothing yet.
  */
 const palette: CommandSource = {
   open: () => activeId !== null,
@@ -183,9 +185,35 @@ const palette: CommandSource = {
   redo: () => pane?.redo(),
 }
 
+/** The files beside the one on the screen, listed by Kotlin once each time the palette opens. */
+const folder = createFolder(
+  (id) => rpc<{ names: string[] }>('folder', { id }).then((answer) => answer.names),
+  () => paletteView.refresh(),
+)
+
+/** Where the palette's file mode goes: `files.ts` says in what order. */
+function fileItems() {
+  // The file the names are beside, held for when one is picked: the screen may have moved by then.
+  const id = activeId
+  return files({
+    open: () => openList,
+    active: () => id,
+    beside: () => (id === null ? [] : folder.names(id)),
+    activate: (other) => void rpc('activate', { id: other }).catch((error) => console.log(`activate: ${error}`)),
+    openBeside: (name) => void rpc('openFromFolder', { id, name }).catch((error) => console.log(`openFromFolder: ${error}`)),
+  })
+}
+
 // The open files menu goes away when the palette opens: both are ways to another file, and one at a
 // time is the one being used.
-createPaletteView((mode) => (mode === 'command' ? commands(palette) : []), () => openFiles.hide())
+const paletteView = createPaletteView(
+  (mode) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : []),
+  () => {
+    openFiles.hide()
+    // A directory changes while nobody is looking, so each opening lists it again.
+    folder.forget()
+  },
+)
 
 function dirtyInBackground(id: number): boolean {
   const memory = memories.get(id)
@@ -200,6 +228,9 @@ function dirtyInBackground(id: number): boolean {
  */
 async function reconcile(goToLine?: number | null): Promise<void> {
   const { active, files } = await rpc<Documents>('documents')
+  openList = files
+  // What was listed left out the files that were open then, and was beside the file on the screen then.
+  folder.forget()
   const open = (id: number) => files.some((file) => file.id === id)
   for (const id of [...memories.keys()]) if (!open(id)) memories.delete(id)
   for (const id of [...waiting.keys()]) if (!open(id)) waiting.delete(id)

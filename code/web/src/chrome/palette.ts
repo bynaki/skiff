@@ -40,11 +40,12 @@ const SWIPE_STEP = 24
 
 /**
  * [items] is asked every time the query changes, for the mode the palette is in, and `fuzzy.ts`
- * decides which of what comes back comes first. The file and symbol modes have nothing to offer
- * until the registry item builds them a source. [opened] is told when it opens, for whatever else
- * is out to make way.
+ * decides which of what comes back comes first. The symbol mode has nothing to offer until its own
+ * item builds it a source. [opened] is told when it opens, for whatever else is out to make way.
+ * What comes back is how to say that [items] has more to give than it gave the last time it was
+ * asked.
  */
-export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], opened: () => void): void {
+export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], opened: () => void): { refresh(): void } {
   const machine: Palette = createPalette({ items })
 
   // Covers the screen while the palette is open so that a tap anywhere else cancels it, which is
@@ -192,4 +193,10 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], o
     render()
   })
   render()
+  return {
+    refresh() {
+      machine.refresh()
+      render()
+    },
+  }
 }

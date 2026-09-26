@@ -59,15 +59,18 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         val stamp: Stamped,
         /** Where a save goes, or null for a document that cannot take one; see [SaveTarget]. */
         val save: SaveTarget?,
+        /** The directory it is in, for the palette's file mode; null for `content://`. */
+        val folder: Folder?,
     )
 
     /**
      * Null when the user backed out or the file could not be opened; either way they have been
-     * told. [fromSkiff] says the link came from Skiff itself, which is what lets it open without
-     * confirming the path; see [confirmPath].
+     * told. [pathChosen] says the path is already the user's choice — the link came from Skiff
+     * itself, or the file was picked in the palette from beside one already open — which is what
+     * lets it open without confirming the path; see [confirmPath].
      */
-    suspend fun open(link: String, request: OpenRequest, fromSkiff: Boolean): Opened? = try {
-        val opened = if (!fromSkiff && !confirmPath(request)) null else when (request) {
+    suspend fun open(link: String, request: OpenRequest, pathChosen: Boolean): Opened? = try {
+        val opened = if (!pathChosen && !confirmPath(request)) null else when (request) {
             is OpenRequest.Invalid -> fail(R.string.error_bad_link, request.reason)
             is OpenRequest.LocalPath -> openLocal(link, request)
             is OpenRequest.Content -> openContent(link, request)
@@ -136,6 +139,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         return Opened(
             link, file.name, request, result, request.at.line,
             WatchedLocalPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
+            Folder.of(fs, request),
         )
     }
 
@@ -152,7 +156,7 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         // change. And the provider's own stamp, since the loader's `stat` here is of a stream.
         val watched = WatchedContent(activity.applicationContext.contentResolver, uri, loader)
         // No save target: a `content://` document is read-only here (docs/skiffcode.plan.md M3).
-        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp(), null)
+        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp(), null, null)
     }
 
     /**
@@ -193,12 +197,14 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
                 else -> {
                     val result = loader.load(fs, request.path)
+                    val opened = request.copy(profile = profile)
                     Opened(
-                        link, node.name, request.copy(profile = profile), result, request.at.line,
+                        link, node.name, opened, result, request.at.line,
                         // The same filesystem the file was read through: `stat` goes over the browse
                         // connection while reading and saving go over transfer, so a poll every two
                         // seconds never waits behind either of them.
                         WatchedPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
+                        Folder.of(fs, opened),
                     )
                 }
             }

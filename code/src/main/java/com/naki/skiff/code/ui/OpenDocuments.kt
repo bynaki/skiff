@@ -42,6 +42,8 @@ class OpenDocuments {
         val save: SaveTarget?,
         /** How the file looked when it was read, which is where [base] starts. */
         base: Stamp?,
+        /** The directory the file is in, which the palette's file mode lists; null for `content://`. */
+        val folder: Folder?,
     ) {
 
         /**
@@ -100,8 +102,9 @@ class OpenDocuments {
         watcher: FileWatcher?,
         save: SaveTarget?,
         base: Stamp?,
+        folder: Folder?,
     ): Entry {
-        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base)
+        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base, folder)
         entries.add(entry)
         active = entry
         return entry

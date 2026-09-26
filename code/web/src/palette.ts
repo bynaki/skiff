@@ -54,6 +54,11 @@ export interface Palette {
   run(): void
   /** B or C → A, keeping the mode. */
   cancel(): void
+  /**
+   * What the mode offers has changed while the palette is open — a directory listing has come in —
+   * so what is typed is searched again.
+   */
+  refresh(): void
 }
 
 export function createPalette(sources: { items(mode: PaletteMode): PaletteItem[] }): Palette {
@@ -139,5 +144,8 @@ export function createPalette(sources: { items(mode: PaletteMode): PaletteItem[]
       item.run()
     },
     cancel: close,
+    refresh() {
+      if (stage !== 'button') search()
+    },
   }
 }
