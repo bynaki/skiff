@@ -63,7 +63,11 @@ export interface Topbar {
   show(): void
 }
 
-export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void; toggleLayer(): void }): Topbar {
+/** [layers] is where the documents scroll; only a scroll inside it moves the menu. */
+export function createTopbar(
+  actions: { toggleSidebar(): void; resetZoom(): void; toggleLayer(): void },
+  layers: HTMLElement,
+): Topbar {
   document.documentElement.style.setProperty('--topbar-space', `${TOPBAR_SPACE}px`)
   const bar = document.createElement('div')
   bar.id = 'topbar'
@@ -100,10 +104,11 @@ export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void
 
   // Scroll events do not bubble, so one capturing listener hears every scroller: CodeMirror's and
   // the markdown one alike. A scroller seen for the first time only records where it is, so jumping
-  // to a link's line does not count as scrolling down.
-  const lastTop = new WeakMap<Element, number>()
+  // to a link's line does not count as scrolling down. It hears the palette's list and the sidebar's
+  // too, which are not the document and must not move the menu.
+  let lastTop = new WeakMap<Element, number>()
   document.addEventListener('scroll', (event) => {
-    if (!(event.target instanceof Element)) return
+    if (!(event.target instanceof Element) || !layers.contains(event.target)) return
     const top = event.target.scrollTop
     const last = lastTop.get(event.target)
     lastTop.set(event.target, top)
@@ -145,6 +150,11 @@ export function createTopbar(actions: { toggleSidebar(): void; resetZoom(): void
     setLayer(next) {
       shown = next
       applyLayer()
+      // A layer switch puts the surface it arrives at on the line the other one was showing. In a
+      // markdown file that is the rendered document's own scroller, still holding where it was left,
+      // so the jump would count as scrolling and hide the menu that was just tapped. Forgetting every
+      // scroller makes the jump a first sighting, the way a link's line already is.
+      lastTop = new WeakMap()
     },
     show: () => setHidden(false),
   }

@@ -117,10 +117,12 @@
     #palette .row { display: flex; align-items: center; gap: 8px; }
     #palette.open .row { align-self: stretch; }
     #palette:not(.open) input { display: none; }
+    /* touch-action for the same reason as the list's overscroll-behavior, which an input ignores:
+       a vertical drag here scrolled the document behind. Sideways still moves a long query. */
     #palette input {
       flex: 1; min-width: 0; box-sizing: border-box; height: 48px; padding: 0 16px;
       font: inherit; font-size: 16px; color: #1f2328; background: #fff;
-      border: 1px solid #d1d9e0; border-radius: 24px;
+      border: 1px solid #d1d9e0; border-radius: 24px; touch-action: pan-x;
     }
     /* touch-action so the button keeps a finger drawn up or down it: left to itself the browser
        takes such a gesture for a scroll after a few pixels and cancels the pointer, and the mode
@@ -132,8 +134,11 @@
     }
     #palette .mode svg { display: block; width: 24px; height: 24px; }
     #palette.open .mode { opacity: 1; }
+    /* overscroll-behavior so a drag on the list stays in it. Without it the drag went on to the
+       document behind, both past the list's end and on a list too short to scroll at all. */
     #palette .results {
       align-self: stretch; margin: 0; padding: 0; max-height: 40vh; overflow: auto; list-style: none;
+      overscroll-behavior: contain;
       background: #fff; border: 1px solid #d1d9e0; border-radius: 8px;
     }
     #palette .results li { padding: 12px 16px; font-size: 15px; border-bottom: 1px solid #eff1f3; }

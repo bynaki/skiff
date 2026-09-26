@@ -95,7 +95,7 @@ function showLayer(layer: LayerName): void {
   topbar.setLayer(pane?.layer ?? null)
 }
 
-const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer })
+const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer }, root)
 
 const loadingView = createLoadingView()
 /**

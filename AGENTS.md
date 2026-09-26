@@ -403,6 +403,12 @@ These apply to `:code` only:
   claims a vertical drag for scrolling within a few pixels and sends `pointercancel`, so the
   element sees one `pointermove` and never the rest. This is what kept the palette button's swipe
   from turning the mode.
+- **A drag on something floating over the document scrolls the document.** The WebView hands the
+  scroll on to the editor behind even though it is no ancestor of what was touched — past the end of
+  the palette's list, and on a list too short to scroll at all. `overscroll-behavior: contain` on the
+  list keeps it there; a floating surface that should keep a drag needs the same. **An `<input>`
+  ignores `overscroll-behavior`** (measured: the document still moved 344px), so the palette's input
+  takes `touch-action: pan-x` instead, which drops a vertical drag and still pans a long query.
 - **A tap that changes the screen must act on `click`, not on `pointerdown`.** The click that
   follows lands on whatever is on the screen by then: a command run on the way down opened the
   sidebar, and the click behind it hit the sidebar's scrim and closed it again. `preventDefault` on
