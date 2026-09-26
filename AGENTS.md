@@ -421,6 +421,18 @@ These apply to `:code` only:
 
 ## Testing
 
+**Run lint with the tests, lint first**, for every module the change touches: it takes seconds and
+reads the code without running it, so what it finds comes before the slower suites.
+
+```bash
+./gradlew :code:lintDebug :code:testDebugUnitTest :code:testWeb   # likewise :core and :app
+```
+
+Lint already reports warnings (30 across the three modules on 2026-09-26, none of them errors), so
+the question is not whether it is clean. An error is fixed; a warning in a file the change touched
+is checked against the diff, and fixed if the change brought it. The reports are
+`<module>/build/reports/lint-results-debug.xml`.
+
 `:core`'s `SftpFileSystemTest` runs the production SFTP code against a **real Apache MINA SSH
 server** on a random port over a real socket (`SftpTestServer`, a test fixture so `:app` can
 reach it too). This is the highest-value test in the repo — it has already caught a protocol
@@ -462,11 +474,11 @@ none of them fails a test when they are. A diff touching `fs/sftp/`, `data/crypt
 in the manifest, or anything that starts a remote command earns a second read for that reason
 alone.
 
-Once both reads come back clean, **ask the user before committing** — every commit, including
-documentation-only ones and the hand-off. Say what goes into it (the files and a one-line summary)
-and wait for a yes. A "go ahead" for the work itself is not a yes to commit it, and a yes to one
-commit does not carry over to the next. The user often steps away, so send the push notification
-with the question; do not commit while waiting.
+A commit is made when the user asks for one — a "go ahead" for the work itself is not that — and
+the commit skill (`.claude/skills/commit`) runs both reads first. **When both come back clean, it
+commits and then reports** what went in (user's decision, 2026-09-26); **when either finds
+something, it asks instead** and commits only on a yes, which does not carry over to the next
+commit. Either way the user hears it through a push notification, since they often step away.
 
 **Ask again before pushing.** A yes to a commit is not a yes to push it. Once commits are made,
 say how many the branch is ahead and ask; push only on an explicit yes, and a yes to one push
@@ -537,4 +549,4 @@ notes in `docs/devices.md`. Values that must not enter the repo (device addresse
 stay in a local note outside it, with a placeholder in the docs. **When the user says they are
 starting a new session, do this before anything else:** overwrite `HANDOFF.md` (and check
 `docs/skiffcode.plan.md`'s checklist) so both describe the state as it is, down to what is and is
-not pushed; ask before committing it; then ask whether to push.
+not pushed; commit it under "Before committing"; then ask whether to push.

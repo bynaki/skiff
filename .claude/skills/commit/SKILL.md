@@ -1,14 +1,15 @@
 ---
 name: commit
-description: Use whenever the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit). Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and asks for approval — the commit happens only after an explicit yes. Also use when the user asks whether privacy or security was checked.
+description: Use whenever the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit). Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and commits on its own when every check is clean — it asks only when one is not. Also use when the user asks whether privacy or security was checked.
 ---
 
-# Commit: check, report, ask
+# Commit: check, report, commit
 
 The rules behind this are `AGENTS.md`'s "Before committing". This skill is the order to carry
 them out in. **Every check below is run in this turn, and its output is what the report is made
-of — never report a check from memory or from an earlier turn.** A commit request is not a yes to
-commit: it starts this procedure, which ends in a question.
+of — never report a check from memory or from an earlier turn.** A commit request starts this
+procedure. When every check comes back clean it ends in the commit, reported; when one does not, it
+ends in a question (user's decision, 2026-09-26).
 
 ## 1. What goes in
 
@@ -96,7 +97,12 @@ category the diff does not touch, rather than skipping it.
   holding anything that identifies a server or a person, TLS or host verification relaxed, a
   dependency added or bumped (say which, and why).
 
-## 4. Report and ask
+## 4. Report, then commit or ask
+
+**Clean** means all of these: step 1 found nothing unclear about what belongs in the commit, step 2
+printed `none` for every check (or its hits were fixed at the source and the rerun came back
+`none`), step 3 found nothing in any category, and nothing was left unchecked — no binary, image or
+log went in unopened. Anything else is not clean.
 
 In Korean, in this shape:
 
@@ -106,17 +112,18 @@ In Korean, in this shape:
 - 개인정보: <없음 | 무엇이 어디에 있었고 어떻게 고쳤는지>
 - 보안: <범주별로 해당 없음 | 발견한 것과 판단>
 - 돌린 것: <the commands above, and anything not checked, e.g. a binary not opened>
-커밋할까요?
+<clean: 커밋했습니다: <hash> "<subject>" | not clean: what is wrong, and 커밋할까요?>
 ```
 
-Then send a push notification with a one-line version of the question (the user often steps
-away), and **stop**. Commit only on an explicit yes to this question; a yes covers this commit
-only. If the user asks for changes, make them and run steps 1–4 again.
+**Clean:** commit exactly what the report lists, with the attribution lines the session gives,
+and put the hash in the report. **Not clean:** do not commit — say what was found and ask, then
+**stop**; commit only on an explicit yes to that question, which covers this commit only. Either
+way, send a push notification with a one-line version (the user often steps away). If the user
+asks for changes, make them and run steps 1–4 again.
 
-## 5. After a yes
+## 5. Push
 
-Commit exactly what was reported, with the attribution lines the session gives. Then say how many
-commits the branch is ahead of its upstream and **ask separately whether to push** — a yes to
-commit is not a yes to push. Before a push, run step 2 against the commits being pushed, messages
-included: replace `added` with
+After a commit, say how many commits the branch is ahead of its upstream and **ask whether to
+push** — a commit, whether it asked or not, is not a yes to push. Before a push, run step 2
+against the commits being pushed, messages included: replace `added` with
 `{ git log -p --no-color --format= @{u}..HEAD | awk '/^\+\+\+ b\//{f=substr($0,7)} /^\+[^+]/{print f"\t"substr($0,2)}'; git log --format=%B @{u}..HEAD | awk '{print "commit message\t"$0}'; }`.
