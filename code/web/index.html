@@ -42,10 +42,14 @@
     }
     #topbar.hidden { transform: translateY(-100%); }
     #topbar .group { display: flex; }
-    /* Takes whatever room the buttons leave and clips the end of a long name: unlike the sidebar's
-       path, the start of a file name is the part that tells it apart. The dot sits right after the
-       name rather than at the far end, so it reads as belonging to it. */
-    #topbar .file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+    /* Takes whatever room the buttons leave and clips the end of a long name: unlike the open files
+       menu's path, the start of a file name is the part that tells it apart. The dot sits right
+       after the name rather than at the far end, so it reads as belonging to it. It is the button
+       that drops that menu down, and wears none of a button's other looks. */
+    #topbar .file {
+      flex: 1; min-width: 0; width: auto; display: flex; align-items: center; gap: 8px; padding: 0 8px;
+      font: inherit; text-align: left;
+    }
     #topbar .name { min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #topbar .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #1f2328; }
     #topbar .dot[hidden] { display: none; }
@@ -148,8 +152,8 @@
     /* Transparent on purpose: what is being searched for is usually in the document behind it. */
     #palette-scrim { position: fixed; inset: 0; z-index: 15; }
     #palette-scrim:not(.open) { display: none; }
-    /* The drawer behind ①: the files that are open, and in M5 the projects and their trees. It
-       covers the menu while it is out, so the way back is the scrim over the layer. */
+    /* The drawer behind ①: in M5 the projects and their trees, for now only a line saying there are
+       none. It covers the menu while it is out, so the way back is the scrim over the layer. */
     #scrim {
       position: fixed; inset: 0; z-index: 20; background: rgba(31, 35, 40, 0.4);
       opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -170,36 +174,74 @@
     }
     #sidebar header button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
     #sidebar header svg { display: block; width: 22px; height: 22px; }
-    #sidebar ul { flex: 1; margin: 0; padding: 0; list-style: none; overflow: auto; }
-    #sidebar li { display: flex; align-items: center; border-bottom: 1px solid #eff1f3; }
-    #sidebar li.current { background: #eff1f3; }
-    #sidebar li.empty { padding: 16px; color: #59636e; font-size: 14px; border: 0; }
-    #sidebar .entry {
+    #sidebar .empty { margin: 0; padding: 16px; color: #59636e; font-size: 14px; }
+    /* The files that are open, dropped down from behind the menu when the file's name is tapped.
+       Under the menu (z-index 10) so it comes out from behind it, and closed it waits above the
+       screen by its own height and the menu's too: the menu slides away with the scroll, and a menu
+       parked right behind it would show there. As wide as the palette at most, for the same reason:
+       a list across a whole tablet is a long way from the name that opened it. */
+    #open-files-scrim {
+      position: fixed; inset: 0; z-index: 8; background: rgba(31, 35, 40, 0.4);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    }
+    #open-files-scrim.open { opacity: 1; pointer-events: auto; }
+    /* The document stays where it was while the menu is out. A drag on anything floating over it —
+       the scrim, the menu along the top, the banner — is handed on to the editor behind, which
+       scrolled it and slid the menu away with the list still hanging there. touch-action takes
+       the drag away from them and leaves their taps. */
+    #open-files-scrim, .files-open #topbar, .files-open #banner { touch-action: none; }
+    #open-files {
+      position: fixed; top: var(--topbar-space); left: 0; z-index: 9; box-sizing: border-box;
+      width: 100%; max-width: 600px; display: flex; flex-direction: column;
+      background: #fff; border: 1px solid #d1d9e0; border-top: 0; border-radius: 0 0 8px 8px;
+      transform: translateY(calc(-100% - var(--topbar-space))); transition: transform 0.2s ease;
+    }
+    #open-files.open { transform: none; }
+    /* Follows the finger on the bar with nothing in between. */
+    #open-files.dragging { transition: none; }
+    /* Positioned so a row's offsetTop is measured from it, for the five rows' height. overscroll-
+       behavior so a drag on the list stays in it rather than moving the document behind. */
+    #open-files ul {
+      position: relative; margin: 0; padding: 0; list-style: none; overflow: auto;
+      overscroll-behavior: contain;
+    }
+    #open-files li { display: flex; align-items: center; border-bottom: 1px solid #eff1f3; }
+    #open-files li.current { background: #eff1f3; }
+    #open-files li.empty { padding: 16px; color: #59636e; font-size: 14px; }
+    #open-files .entry {
       flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
       padding: 12px 4px 12px 16px; color: inherit; font: inherit; text-align: left;
       background: none; border: 0;
     }
-    #sidebar .name { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #open-files .name { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Right to left, so what is clipped on a narrow screen is the start of the path: the directory
        a file is in is what tells two files of the same name apart. The text itself carries a
        left-to-right mark, which keeps the path reading forwards inside the box. */
-    #sidebar .where {
+    #open-files .where {
       font-size: 12px; color: #59636e; direction: rtl; text-align: left;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    #sidebar .close {
+    #open-files .close {
       flex: none; width: 40px; height: 40px; margin-right: 8px; padding: 0;
       font-size: 20px; color: #59636e; background: none; border: 0;
     }
     /* A file that has been typed in cannot be saved yet, so closing it asks in its own row. */
-    #sidebar li.confirming { display: block; padding: 12px 16px; }
-    #sidebar li.confirming p { margin: 0 0 8px; font-size: 14px; }
-    #sidebar .answers { display: flex; gap: 8px; justify-content: flex-end; }
-    #sidebar .answers button {
+    #open-files li.confirming { display: block; padding: 12px 16px; }
+    #open-files li.confirming p { margin: 0 0 8px; font-size: 14px; }
+    #open-files .answers { display: flex; gap: 8px; justify-content: flex-end; }
+    #open-files .answers button {
       padding: 6px 12px; font-size: 14px; color: #1f2328; background: none;
       border: 1px solid #d1d9e0; border-radius: 6px;
     }
-    #sidebar .answers .confirm { color: #fff; background: #1f2328; border-color: #1f2328; }
+    #open-files .answers .confirm { color: #fff; background: #1f2328; border-color: #1f2328; }
+    /* The bar along the bottom: drawn upwards, it takes the menu with it. touch-action so the
+       browser does not claim the drag as a scroll and cancel the pointer a few pixels in. */
+    #open-files .handle {
+      flex: none; height: 24px; display: grid; place-items: center; touch-action: none;
+    }
+    #open-files .handle::after {
+      content: ''; width: 36px; height: 4px; border-radius: 2px; background: #afb8c1;
+    }
   </style>
 </head>
 <body>

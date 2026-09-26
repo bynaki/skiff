@@ -1,7 +1,7 @@
 // The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left, then the file on the
-// screen with a dot while it has been typed in; ② original size, ③ layer and ④ more on the right. It
-// floats over the layer, slides away while the layer scrolls down and comes back when it scrolls up.
-// ④ is a placeholder for a later step.
+// screen with a dot while it has been typed in, which opens the list of open files when tapped;
+// ② original size, ③ layer and ④ more on the right. It floats over the layer, slides away while the
+// layer scrolls down and comes back when it scrolls up. ④ is a placeholder for a later step.
 import type { LayerName } from '../layers/pane'
 import { lastZoomTime } from '../zoom'
 
@@ -59,13 +59,15 @@ export interface Topbar {
    * that could not be opened has no buffer and so is never dirty.
    */
   setFile(name: string | null, dirty: boolean): void
+  /** Whether the open files menu is out. It hangs from the menu, so the menu comes back with it. */
+  setFilesOpen(open: boolean): void
   /** Brings the menu back, for a new document. */
   show(): void
 }
 
 /** [layers] is where the documents scroll; only a scroll inside it moves the menu. */
 export function createTopbar(
-  actions: { toggleSidebar(): void; resetZoom(): void; toggleLayer(): void },
+  actions: { toggleSidebar(): void; toggleFiles(): void; resetZoom(): void; toggleLayer(): void },
   layers: HTMLElement,
 ): Topbar {
   document.documentElement.style.setProperty('--topbar-space', `${TOPBAR_SPACE}px`)
@@ -85,8 +87,13 @@ export function createTopbar(
   const layer = button(ICONS.viewer, actions.toggleLayer)
   const more = button(ICONS.more)
   layer.disabled = true
-  const file = document.createElement('div')
+  // Its name is what it says, the file and the dot, rather than a label of its own: the name is the
+  // thing a person tapping it is looking for.
+  const file = button('', actions.toggleFiles)
   file.className = 'file'
+  file.disabled = true
+  file.setAttribute('aria-haspopup', 'true')
+  file.setAttribute('aria-expanded', 'false')
   const fileName = document.createElement('span')
   fileName.className = 'name'
   const dot = document.createElement('span')
@@ -104,8 +111,8 @@ export function createTopbar(
 
   // Scroll events do not bubble, so one capturing listener hears every scroller: CodeMirror's and
   // the markdown one alike. A scroller seen for the first time only records where it is, so jumping
-  // to a link's line does not count as scrolling down. It hears the palette's list and the sidebar's
-  // too, which are not the document and must not move the menu.
+  // to a link's line does not count as scrolling down. It hears the palette's list and the open files
+  // menu's too, which are not the document and must not move the menu.
   let lastTop = new WeakMap<Element, number>()
   document.addEventListener('scroll', (event) => {
     if (!(event.target instanceof Element) || !layers.contains(event.target)) return
@@ -146,6 +153,11 @@ export function createTopbar(
     setFile(name, dirty) {
       fileName.textContent = name ?? ''
       dot.hidden = name === null || !dirty
+      file.disabled = name === null
+    },
+    setFilesOpen(open) {
+      file.setAttribute('aria-expanded', String(open))
+      if (open) setHidden(false)
     },
     setLayer(next) {
       shown = next

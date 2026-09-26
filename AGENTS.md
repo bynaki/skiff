@@ -409,6 +409,9 @@ These apply to `:code` only:
   list keeps it there; a floating surface that should keep a drag needs the same. **An `<input>`
   ignores `overscroll-behavior`** (measured: the document still moved 344px), so the palette's input
   takes `touch-action: pan-x` instead, which drops a vertical drag and still pans a long query.
+  Something that does not scroll at all, like a scrim, gives `overscroll-behavior` nothing to act on:
+  the open files menu's scrim, the top menu and the banner take `touch-action: none` while that menu
+  is out (a drag on the scrim had moved the document 507px), which leaves their taps working.
 - **A tap that changes the screen must act on `click`, not on `pointerdown`.** The click that
   follows lands on whatever is on the screen by then: a command run on the way down opened the
   sidebar, and the click behind it hit the sidebar's scrim and closed it again. `preventDefault` on

@@ -11,8 +11,8 @@ import org.json.JSONObject
 /**
  * The files that are open at once, and which of them the page is showing.
  *
- * A link used to replace the document; now it adds one, and the sidebar is how the user moves
- * between them. What each file *is* — its buffer, its layer, where it was scrolled to — stays in
+ * A link used to replace the document; now it adds one, and the open files menu is how the user
+ * moves between them. What each file *is* — its buffer, its layer, where it was scrolled to — stays in
  * the page, which is where CodeMirror's `EditorState` lives. Kotlin keeps only what it alone can:
  * the text as the file last said it, and the watch on the file behind it.
  *
@@ -32,7 +32,7 @@ class OpenDocuments {
         /** What says two links mean the same file; see [keyOf]. */
         val key: String,
         val name: String,
-        /** The second line in the sidebar: where this file is, for telling two `main.ts` apart. */
+        /** The second line in the open files menu: where this file is, for telling two `main.ts` apart. */
         val where: String,
         val state: JSONObject,
         private val watched: WatchedFile,
@@ -134,7 +134,7 @@ class OpenDocuments {
         active = null
     }
 
-    /** The whole list and which one is showing, for the sidebar. */
+    /** The whole list and which one is showing, for the open files menu. */
     fun listed(): JSONObject = JSONObject()
         .put("active", active?.id ?: JSONObject.NULL)
         .put("files", JSONArray(entries.map { it.listed() }))
@@ -155,7 +155,7 @@ fun keyOf(request: OpenRequest): String = when (request) {
     is OpenRequest.Invalid -> "invalid:${request.reason}"
 }
 
-/** The line under the file's name in the sidebar. */
+/** The line under the file's name in the open files menu. */
 fun whereOf(request: OpenRequest): String = when (request) {
     is OpenRequest.LocalPath -> request.path
     is OpenRequest.Content -> request.uri

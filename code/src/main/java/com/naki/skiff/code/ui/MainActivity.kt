@@ -56,7 +56,7 @@ private const val ORIGIN = WebBridge.ORIGIN
  * One WebView served from assets, talking JSON-RPC over [WebBridge]. The page shows whichever of
  * the open files this activity has made active: it asks with `documents` and `document`, and is
  * told `documentsChanged` when a link (`skiffcode://…`, or `content://…` from another app) has run
- * through [OpenFlow] to another one, or when the sidebar has moved between them.
+ * through [OpenFlow] to another one, or when the open files menu has moved between them.
  */
 class MainActivity : Activity() {
 
@@ -203,6 +203,7 @@ class MainActivity : Activity() {
                 .put("keepMine", getString(R.string.watch_keep))
                 .put("dismiss", getString(R.string.watch_dismiss))
                 .put("noFiles", getString(R.string.viewer_empty))
+                .put("noProjects", getString(R.string.sidebar_no_projects))
                 .put("close", getString(R.string.action_close))
                 .put("closeDirty", getString(R.string.close_dirty))
                 .put("cancel", getString(R.string.action_cancel))

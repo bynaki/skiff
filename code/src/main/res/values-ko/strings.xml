@@ -55,6 +55,7 @@
     <string name="menu_layer_diff">비교 레이어</string>
     <string name="menu_more">더보기</string>
     <string name="menu_unsaved">저장하지 않은 변경</string>
+    <string name="sidebar_no_projects">열린 프로젝트가 없습니다.</string>
 
     <string name="close_dirty">이 파일에 쓴 것이 사라집니다. 닫을까요?</string>
 

@@ -23,9 +23,12 @@
 - **페이지의 버튼은 `uiautomator dump`에 나오지 않는다.** CDP `Input.dispatchTouchEvent`는 **CSS px
   그대로** 받으므로 `getBoundingClientRect()` 값을 그대로 넘기면 된다(`devicePixelRatio`도 WebView
   오프셋도 필요 없다). **탭이 한 번 먹히지 않는 일이 있으니** 누른 뒤 결과를 읽어 확인한다.
-  상태만 확인하면 될 때는 **DOM의 `.click()`이 더 빠르다** — 사이드바 행은 `#sidebar li .entry`다.
+  상태만 확인하면 될 때는 **DOM의 `.click()`이 더 빠르다** — 열린 파일 메뉴의 행은 `#open-files li .entry`다.
 - `Runtime.evaluate`를 여러 번 할 때 **`const`는 전역에 남아** 다음 호출이 "already been declared"로
   죽는다. 식을 `(async () => { … })()`로 감싸면 되고, 그러면 `await`도 쓸 수 있다.
+- **탭의 `screencap`이 몇 분 전 화면을 그대로 돌려준 적이 있다**(2026-09-26). 화면은 켜져 있고
+  페이지의 `requestAnimationFrame`도 돌았는데 상태 표시줄 시계가 4분째 같았다. 찍은 것을 믿기 전에 그 시계를
+  `adb shell date`와 맞춰 본다. 같은 때 CDP `Page.captureScreenshot`은 답이 없었다.
 - **`screencap`이 다이얼로그가 떠 있는 화면을 비게 찍은 적이 있다.** 화면 대신
   `uiautomator dump`(네이티브)와 DevTools(페이지)를 믿는다.
 - **`adb shell run-as … sh -c '…'`는 명령 전체를 한 번 더 따옴표로 감싸야 한다.** 안 그러면 adb가

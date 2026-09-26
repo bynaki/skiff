@@ -1,7 +1,7 @@
 // The page: shows whichever of the open files Kotlin has made active. Kotlin says
-// `documentsChanged` when the list or that choice moves — a link arrived, the sidebar switched
-// files, one was closed — and the page asks what it is now, so a reloaded page, a new link and a
-// tap in the sidebar all take the same path.
+// `documentsChanged` when the list or that choice moves — a link arrived, the open files menu
+// switched files, one was closed — and the page asks what it is now, so a reloaded page, a new link
+// and a tap in that menu all take the same path.
 //
 // One file is on the screen at a time and the rest are what they left behind (`PaneMemory`): their
 // buffer, the layer they were on and the line they were showing. That is also what makes switching
@@ -9,7 +9,8 @@
 import { notify, onNotify, rpc } from './bridge'
 import { type BannerLabels, createBanner } from './chrome/banner'
 import { createPaletteView } from './chrome/palette'
-import { type OpenFile, type SidebarLabels, createSidebar } from './chrome/sidebar'
+import { type OpenFile, type OpenFilesLabels, createOpenFiles } from './chrome/openfiles'
+import { type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type CommandSource, commands } from './commands'
 import { createLoadingView } from './chrome/loading'
@@ -47,7 +48,7 @@ interface DocumentLabels {
   reloadFailed: string
 }
 
-type Labels = TopbarLabels & BannerLabels & SidebarLabels & DocumentLabels
+type Labels = TopbarLabels & BannerLabels & SidebarLabels & OpenFilesLabels & DocumentLabels
 
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
@@ -69,12 +70,21 @@ let labels: Labels | null = null
 
 const banner = createBanner()
 
-const sidebar = createSidebar({
+const sidebar = createSidebar()
+
+const openFiles = createOpenFiles({
   activate: (id) => void rpc('activate', { id }).catch((error) => console.log(`activate: ${error}`)),
   close: (id) => void rpc('close', { id }).catch((error) => console.log(`close: ${error}`)),
   // Only this side knows: Kotlin is never told whether a buffer has been typed in.
   dirty: (id) => (id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)),
+  opened: (open) => topbar.setFilesOpen(open),
 })
+
+/** The drawer covers the whole screen, so the menu hanging under the name goes away first. */
+function toggleSidebar(): void {
+  openFiles.hide()
+  sidebar.toggle()
+}
 
 // Keeps the line at the middle of the screen where it is.
 function zoomTo(size: number): void {
@@ -95,7 +105,7 @@ function showLayer(layer: LayerName): void {
   topbar.setLayer(pane?.layer ?? null)
 }
 
-const topbar = createTopbar({ toggleSidebar: () => sidebar.toggle(), resetZoom, toggleLayer }, root)
+const topbar = createTopbar({ toggleSidebar, toggleFiles: () => openFiles.toggle(), resetZoom, toggleLayer }, root)
 
 const loadingView = createLoadingView()
 /**
@@ -145,17 +155,17 @@ function reloadFile(): void {
   })
 }
 
-/** A file that has been typed in is asked about in the sidebar, where the same question is asked. */
+/** A file that has been typed in is asked about in the open files menu, where the same question is asked. */
 function closeFile(): void {
   const id = activeId
   if (id === null) return
-  if (pane?.dirty) return sidebar.askClose(id)
+  if (pane?.dirty) return openFiles.askClose(id)
   void rpc('close', { id }).catch((error) => console.log(`close: ${error}`))
 }
 
 /**
  * What the palette's commands act on. The list of them is `commands.ts`; here is where the pane,
- * the sidebar and the bridge are. The file and symbol modes are the next items and offer nothing
+ * the menus and the bridge are. The file and symbol modes are the next items and offer nothing
  * yet.
  */
 const palette: CommandSource = {
@@ -168,12 +178,14 @@ const palette: CommandSource = {
   show: showLayer,
   zoom: (by) => zoomTo(currentFontSize() + by * ZOOM_STEP),
   resetZoom,
-  toggleSidebar: () => sidebar.toggle(),
+  toggleSidebar,
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
 }
 
-createPaletteView((mode) => (mode === 'command' ? commands(palette) : []))
+// The open files menu goes away when the palette opens: both are ways to another file, and one at a
+// time is the one being used.
+createPaletteView((mode) => (mode === 'command' ? commands(palette) : []), () => openFiles.hide())
 
 function dirtyInBackground(id: number): boolean {
   const memory = memories.get(id)
@@ -206,7 +218,7 @@ async function reconcile(goToLine?: number | null): Promise<void> {
     forgetOldBuffers(memories)
     await show(files, arriving)
   }
-  sidebar.show(files, active)
+  openFiles.show(files, active)
   if (goToLine) pane?.goToLine(goToLine)
 }
 
@@ -310,6 +322,7 @@ rpc<Labels>('labels').then((answer) => {
   topbar.label(answer)
   banner.label(answer)
   sidebar.label(answer)
+  openFiles.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
