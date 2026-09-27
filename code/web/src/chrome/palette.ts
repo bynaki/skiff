@@ -40,8 +40,8 @@ const SWIPE_STEP = 24
 
 /**
  * [items] is asked every time the query changes, for the mode the palette is in, and `fuzzy.ts`
- * decides which of what comes back comes first. The symbol mode has nothing to offer until its own
- * item builds it a source. [opened] is told when it opens, for whatever else is out to make way.
+ * decides which of what comes back comes first. [opened] is told when it opens, for whatever else is
+ * out to make way.
  * What comes back is how to say that [items] has more to give than it gave the last time it was
  * asked.
  */

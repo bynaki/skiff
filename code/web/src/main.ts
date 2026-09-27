@@ -16,6 +16,7 @@ import { type CommandSource, commands } from './commands'
 import { createFolder, files } from './files'
 import { createLoadingView } from './chrome/loading'
 import { createLoading } from './loading'
+import { type DocSymbol, outlineOf, symbols } from './symbols'
 import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { forgetOldBuffers } from './memories'
 import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize } from './zoom'
@@ -168,7 +169,7 @@ function closeFile(): void {
 
 /**
  * What the palette's commands act on. The list of them is `commands.ts`; here is where the pane,
- * the menus and the bridge are. The symbol mode is the next item and offers nothing yet.
+ * the menus and the bridge are.
  */
 const palette: CommandSource = {
   open: () => activeId !== null,
@@ -204,14 +205,37 @@ function fileItems() {
   })
 }
 
+/**
+ * The outline of the file on the screen, read from its buffer once each time the palette opens.
+ * A file Kotlin refused has no pane, and so no outline.
+ */
+const outline = createFolder<DocSymbol>(
+  (id) => {
+    const name = openList.find((file) => file.id === id)?.name
+    return pane && name ? outlineOf(name, pane.text) : Promise.resolve([])
+  },
+  () => paletteView.refresh(),
+)
+
+/** Where the palette's symbol mode goes: to the symbol's line, on whichever layer is showing. */
+function symbolItems() {
+  const showing = pane
+  if (activeId === null || !showing) return []
+  return symbols(outline.names(activeId), (line) => {
+    if (pane === showing) showing.goToLine(line)
+  })
+}
+
 // The open files menu goes away when the palette opens: both are ways to another file, and one at a
 // time is the one being used.
 const paletteView = createPaletteView(
-  (mode) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : []),
+  (mode) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : symbolItems()),
   () => {
     openFiles.hide()
-    // A directory changes while nobody is looking, so each opening lists it again.
+    // A directory changes while nobody is looking, so each opening lists it again. The buffer may
+    // have been typed in since the last opening, so the outline is read again too.
     folder.forget()
+    outline.forget()
   },
 )
 

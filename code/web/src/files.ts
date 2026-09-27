@@ -31,12 +31,12 @@ export function files(source: FileSource): PaletteItem[] {
   ]
 }
 
-export interface Folder {
+export interface Folder<T = string> {
   /**
    * What is beside [id] as far as it is known. The first ask starts the listing and answers
    * nothing; [arrived] is called when the names are in, for the palette to search again.
    */
-  names(id: number): string[]
+  names(id: number): T[]
   /** Lists again at the next ask: the palette has opened, or what is open has moved. */
   forget(): void
 }
@@ -45,10 +45,11 @@ export interface Folder {
  * The directory listing is Kotlin's and, on a server, a round trip, while the palette asks for its
  * items every time the query changes — so the names are listed once per opening of the palette and
  * kept. A listing that fails answers nothing rather than being asked for again at every keystroke.
+ * The symbol mode keeps a file's outline the same way, for the same reason.
  */
-export function createFolder(list: (id: number) => Promise<string[]>, arrived: () => void): Folder {
-  let known: { id: number; names: string[] } | null = null
-  let asking: Promise<string[]> | null = null
+export function createFolder<T = string>(list: (id: number) => Promise<T[]>, arrived: () => void): Folder<T> {
+  let known: { id: number; names: T[] } | null = null
+  let asking: Promise<T[]> | null = null
   let askingFor: number | null = null
 
   return {
