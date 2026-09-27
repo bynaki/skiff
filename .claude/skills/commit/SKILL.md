@@ -1,15 +1,16 @@
 ---
 name: commit
-description: Use whenever the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit). Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and commits on its own when every check is clean — it asks only when one is not. Also use when the user asks whether privacy or security was checked.
+description: Use only when the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit) — never on your own when work is finished; ask "커밋할까요?" instead. Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and commits on its own when every check is clean — it asks only when one is not. Also use when the user asks whether privacy or security was checked.
 ---
 
 # Commit: check, report, commit
 
 The rules behind this are `AGENTS.md`'s "Before committing". This skill is the order to carry
 them out in. **Every check below is run in this turn, and its output is what the report is made
-of — never report a check from memory or from an earlier turn.** A commit request starts this
-procedure. When every check comes back clean it ends in the commit, reported; when one does not, it
-ends in a question (user's decision, 2026-09-26).
+of — never report a check from memory or from an earlier turn.** Only the user's commit request
+starts this procedure: finished work, or a "go ahead" for it, is not one — that ends in asking
+whether to commit (user's decision, 2026-09-27). When every check comes back clean it ends in the
+commit, reported; when one does not, it ends in a question (user's decision, 2026-09-26).
 
 ## 1. What goes in
 

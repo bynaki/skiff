@@ -483,11 +483,15 @@ none of them fails a test when they are. A diff touching `fs/sftp/`, `data/crypt
 in the manifest, or anything that starts a remote command earns a second read for that reason
 alone.
 
-A commit is made when the user asks for one — a "go ahead" for the work itself is not that — and
-the commit skill (`.claude/skills/commit`) runs both reads first. **When both come back clean, it
-commits and then reports** what went in (user's decision, 2026-09-26); **when either finds
-something, it asks instead** and commits only on a yes, which does not carry over to the next
-commit. Either way the user hears it through a push notification, since they often step away.
+**When a piece of work is done, run lint and the tests, then ask the user whether to commit**
+(user's decision, 2026-09-27). Finishing the work is not a commit request, and neither is a "go
+ahead" for it — only the user saying to commit is. **Never run the commit skill before that.**
+
+On that request the commit skill (`.claude/skills/commit`) runs both reads and reports what they
+found. **When both come back clean, it commits** and says what went in (user's decision,
+2026-09-26); **when either finds something, it asks instead** and commits only on a yes, which does
+not carry over to the next commit. Either way the user hears it through a push notification, since
+they often step away.
 
 **Ask again before pushing.** A yes to a commit is not a yes to push it. Once commits are made,
 say how many the branch is ahead and ask; push only on an explicit yes, and a yes to one push
@@ -546,8 +550,9 @@ the same commit as the work, and follows the hand-off rules written there. The o
 
 **Report and notify after every piece of work.** Each time a checklist item or other requested task
 is finished (or blocked), report the result to the user in Korean — what was done, what was
-verified and how, what is left — and send a push notification with a one-line summary. The user
-often steps away while work runs, so the notification is not optional.
+verified and how (lint and tests included), what is left — ask whether to commit it, and send a
+push notification with a one-line summary. The user often steps away while work runs, so the
+notification is not optional.
 
 **Read `HANDOFF.md` at the start of a session, and overwrite it at the end.** It carries only
 the last session: what it did, where it left things, and what comes next. It is a snapshot of the
@@ -558,4 +563,4 @@ notes in `docs/devices.md`. Values that must not enter the repo (device addresse
 stay in a local note outside it, with a placeholder in the docs. **When the user says they are
 starting a new session, do this before anything else:** overwrite `HANDOFF.md` (and check
 `docs/skiffcode.plan.md`'s checklist) so both describe the state as it is, down to what is and is
-not pushed; commit it under "Before committing"; then ask whether to push.
+not pushed; then ask whether to commit it, and after a commit, whether to push.
