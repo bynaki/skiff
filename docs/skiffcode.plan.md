@@ -190,7 +190,7 @@
 - [x] 커맨드 레지스트리(레이어 전환, 확대/축소, 저장, 사이드바, 설정 열기 등)와 파일 모드(열린 파일 + 같은 디렉토리), 단일 파일 심볼 모드(lezer)
   - **③은 LSP를 기본으로, lezer를 대체 수단으로 한다**(2026-09-27 사용자 결정). 무엇을 심볼로 보는지와 이유는 `skiffcode.spec.md`의 "심볼 검색"에 있다. M6의 "`@` 심볼 모드를 LSP로 확장"이 LSP 쪽이다.
   - **셋으로 나눠서 한다**(2026-09-21 사용자 결정): ① `>` 커맨드 레지스트리와 저장, ② 파일 모드(🔍), ③ 심볼 모드(`@`). 셋 다 했다(①은 아래, ②와 ③은 그 뒤에).
-  - **`main` 병합은 ①②③과 그다음 확인 항목이 끝난 뒤에 묻는다**(2026-09-21 사용자 결정). 저장 커맨드가 붙기 전까지 main의 Skiff Code는 저장할 수 없는 에디터였다. 브랜치가 앞서 있고 main에만 있는 것이 없어 fast-forward다. worktree에서 `git checkout main`은 하지 않는다.
+  - **`main` 병합은 ①②③과 그다음 확인 항목이 끝난 뒤에 묻는다**(2026-09-21 사용자 결정). **2026-09-27에 물어 병합했다** — `origin/main`을 fast-forward. 저장 커맨드가 붙기 전까지 main의 Skiff Code는 저장할 수 없는 에디터였다. 브랜치가 앞서 있고 main에만 있는 것이 없어 fast-forward다. worktree에서 `git checkout main`은 하지 않는다.
   - **①에 등록한 커맨드**(`commands.ts`, 이름은 전부 영문): `Save File`, `Toggle Layer`, `Show Editor`, `Show Viewer`, `Undo`, `Redo`, `Zoom In`, `Zoom Out`, `Reset Zoom`, `Toggle Sidebar`, `Reload File`, `Close File`. 사용자가 레이어 직접 전환·Undo/Redo·Reload File을 더했다(2026-09-21).
     - **`Show Diff`는 넣지 않았다**(2026-09-21 사용자 결정). 비교 대상이 M5에 생기므로 지금 들어가면 읽기 전용 버퍼만 보인다. M5에서 더한다.
     - **`Open Settings`도 미뤘다**(2026-09-21 사용자 결정). 열 파일이 없다 — `settings.toml` 항목에서 파일 자리가 정해질 때 같이 넣는다.
