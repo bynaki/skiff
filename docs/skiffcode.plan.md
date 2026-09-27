@@ -230,7 +230,8 @@
 - [x] `.jsonl`을 JSON 문법으로 연다 (2026-09-23 사용자 요청) + vitest
   - `FileKind`는 건드리지 않기로 했다(2026-09-23 사용자 결정). Skiff 목록에서 `.jsonl`을 탭하면 여전히 밖으로 나가고, 강조는 링크로 연 Skiff Code 안에서만이다.
 - [x] 링크를 여는 동안의 로딩 표시: 위 라인과 문서 모양 (2026-09-24 사용자 요청) + vitest 5개
-  - **아직 기기에서 눈으로 못 봤다.** 로컬 파일은 200ms 안에 끝나 설계대로 아무것도 뜨지 않는다 — 실제로 보려면 SFTP 파일을 여는 링크가 필요하다. 탭에 설치는 해두었다.
+  - 로컬 파일은 200ms 안에 끝나 설계대로 아무것도 뜨지 않는다 — 보려면 SFTP 파일을 여는 링크가 필요하다.
+  - **2026-09-27 사용자가 SFTP 링크로 확인했다** — 라인이 200ms 뒤에 뜨고, 스켈레톤이 함께 떴다가 문서가 그려지며 걷힌다. `prefers-reduced-motion` 쪽은 아직 보지 않았다.
 - [x] 상단바 ① 옆에 파일 이름과 저장 상태 점 (2026-09-24 사용자 요청)
   - 설계는 `skiffcode.spec.md`의 "화면 메뉴"에 적었다. 건드릴 곳은 다섯이다: `chrome/topbar.ts`(`setFile(name, dirty)`와 DOM), `index.html`(말줄임과 점 스타일), `layers/pane.ts`(`openPane`에 `onDirtyChange`), `main.ts`(문서를 그릴 때와 콜백에서 갱신), Kotlin `MainActivity`의 `labels` + `values/strings.xml`·`values-ko/strings.xml`(점의 접근성 이름).
   - 콜백은 뷰가 있어야 도는 것이라 vitest로 잡기 어렵다. `dirtyFlag`의 뒤집힘 자체는 이미 상태 수준에서 덮여 있다.
@@ -280,8 +281,8 @@
 ## 아직 확인하지 않은 것
 
 세션이 지나도 이어지는 목록이다. 확인하면 지우고, 안 되는 게 나오면 [`skiffcode.spec.md`](skiffcode.spec.md)의 설계를 먼저 고친다.
-- **로딩 라인과 스켈레톤을 화면에서 본 적이 없다.** 유닛 테스트와 빌드까지다. 로컬 파일은 설계상 아무것도
-  띄우지 않으므로 **SFTP 링크로만 볼 수 있다.** `prefers-reduced-motion` 쪽도 마찬가지다.
+- **로딩 라인과 스켈레톤의 `prefers-reduced-motion` 쪽을 보지 못했다.** 보통 쪽은 2026-09-27 사용자가 SFTP
+  링크로 봤다. 로컬 파일은 설계상 아무것도 띄우지 않으므로 **SFTP 링크로만 볼 수 있다.**
 - **원격(SFTP) 저장을 기기에서 못 봤다.** 이번에 저장한 것은 로컬 파일이다. `DocumentSaver`의 MINA 유닛
   테스트는 원격 쪽을 덮고 있지만, 앱에서 원격 파일을 저장해 본 적은 없다 — 다음 확인 항목이 그것이다.
 - **저장의 `unencodable`(EUC-KR 파일에 없는 글자)과 `readonly`(`content://`) 답을 기기에서 못 봤다.**
