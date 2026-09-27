@@ -17,6 +17,7 @@ function source(state: { open: boolean; layer: LayerName | null }) {
     zoom: (by) => ran.push(`zoom ${by}`),
     resetZoom: () => ran.push('resetZoom'),
     toggleSidebar: () => ran.push('toggleSidebar'),
+    openSettings: () => ran.push('openSettings'),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
   }
@@ -39,6 +40,7 @@ describe('what the palette offers', () => {
       'Zoom Out',
       'Reset Zoom',
       'Toggle Sidebar',
+      'Open Settings',
       'Reload File',
       'Close File',
     ])
@@ -56,13 +58,14 @@ describe('what the palette offers', () => {
       'Zoom Out',
       'Reset Zoom',
       'Toggle Sidebar',
+      'Open Settings',
       'Reload File',
       'Close File',
     ])
   })
 
   test('is only what needs no file when none is open', () => {
-    expect(names({ open: false, layer: null })).toEqual(['Zoom In', 'Zoom Out', 'Reset Zoom', 'Toggle Sidebar'])
+    expect(names({ open: false, layer: null })).toEqual(['Zoom In', 'Zoom Out', 'Reset Zoom', 'Toggle Sidebar', 'Open Settings'])
   })
 
   test('runs what it says it runs', () => {
@@ -79,6 +82,7 @@ describe('what the palette offers', () => {
       'zoom -1',
       'resetZoom',
       'toggleSidebar',
+      'openSettings',
       'reload',
       'close',
     ])

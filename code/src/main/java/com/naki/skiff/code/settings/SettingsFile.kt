@@ -1,0 +1,46 @@
+package com.naki.skiff.code.settings
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+
+/**
+ * `settings.toml` in the app's own files, which only this app can reach: it is edited here, through
+ * `Open Settings`, and saving it is what applies it. Getting it in and out of the app is SAF's job
+ * (docs/skiffcode.plan.md M4, import/export), not a shared folder's.
+ */
+class SettingsFile(val file: File) {
+
+    private val lock = Mutex()
+
+    @Volatile
+    private var read: SettingsRead? = null
+
+    /** What the file says, read the first time anything asks. */
+    suspend fun current(): SettingsRead = read ?: reload()
+
+    /**
+     * The last read, or the defaults before the first one. For what asks too often to suspend — the
+     * watch asks on every poll — and only ever asks after a file has been opened, which read it.
+     */
+    val latest: Settings get() = read?.settings ?: Settings()
+
+    /** Reads the file again, which is what saving it in the app does. A file that is not there is every default. */
+    suspend fun reload(): SettingsRead = lock.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                if (file.exists()) SettingsToml.read(file.readText()) else SettingsRead(Settings(), emptyList())
+            } catch (e: IOException) {
+                SettingsRead(Settings(), listOf(SettingsProblem.Unreadable(e.message ?: e.javaClass.simpleName)))
+            }
+        }.also { read = it }
+    }
+
+    /** Writes [SettingsToml.TEMPLATE] if there is no file yet, so there is something to open. */
+    suspend fun ensureExists() = withContext(Dispatchers.IO) {
+        if (!file.exists()) file.writeText(SettingsToml.TEMPLATE)
+    }
+}

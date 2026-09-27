@@ -17,6 +17,7 @@ import com.naki.skiff.code.doc.WatchedContent
 import com.naki.skiff.code.doc.WatchedFile
 import com.naki.skiff.code.doc.WatchedLocalPath
 import com.naki.skiff.code.doc.WatchedPath
+import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
@@ -40,9 +41,12 @@ import java.io.File
  * the viewer can show — too large, binary, an unknown encoding — is not a failure here: it comes
  * back as [Opened.result], for the page to say so where the document would have been.
  */
-class OpenFlow(private val activity: MainActivity, private val container: SkiffCodeContainer) {
-
-    private val loader = TextLoader()
+class OpenFlow(
+    private val activity: MainActivity,
+    private val container: SkiffCodeContainer,
+    /** Built by the caller, since its size limit is the one `settings.toml` says now. */
+    private val loader: TextLoader,
+) {
 
     /**
      * A file that was read, how to name it, and the line the link asked for — with the file it
@@ -82,6 +86,27 @@ class OpenFlow(private val activity: MainActivity, private val container: SkiffC
         throw e
     } catch (e: Exception) {
         Log.w(TAG, "open failed: $link", e)
+        fail(R.string.error_open, describe(e))
+    }
+
+    /**
+     * The app's own `settings.toml`, for the palette's `Open Settings`. It is in the app's files, so
+     * none of what a link needs applies: no all-files grant, no question about the path — the person
+     * asked for this file by name — and no directory for the file mode, since what sits beside it is
+     * the store with the server profiles. It is not a recent file either: it has a command of its own.
+     */
+    suspend fun openSettings(file: File): Opened? = try {
+        val request = OpenRequest.LocalPath(file.path, OpenAt())
+        val fs = LocalFileSystem(file.name)
+        val result = loader.load(fs, file.path)
+        Opened(
+            linkOf(request), file.name, request, result, null,
+            WatchedLocalPath(fs, file.path, loader), stampOf(result), saveTo(fs, file.path, result), null,
+        )
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "settings did not open", e)
         fail(R.string.error_open, describe(e))
     }
 

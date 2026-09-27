@@ -69,7 +69,7 @@ class FileWatcherTest {
     private fun watcherFor(path: String, from: LoadResult.Text) = FileWatcher(
         WatchedPath(fs, path, loader),
         Stamped.At(Stamp(from.size, from.modifiedEpochSeconds)),
-        pollMillis = POLL,
+        pollMillis = { POLL },
     )
 
     /** Runs the loop for the length of [block], reporting everything it sees down the channel. */
@@ -152,7 +152,7 @@ class FileWatcherTest {
             override suspend fun stamp() = Stamped.Unknown
             override suspend fun read() = loader.decode(onDisk.toByteArray(), onDisk.length.toLong(), 0)
         }
-        val watcher = FileWatcher(file, Stamped.Unknown, pollMillis = POLL)
+        val watcher = FileWatcher(file, Stamped.Unknown, pollMillis = { POLL })
         val seen = mutableListOf<FileChange>()
 
         // The loop gives up rather than re-reading the whole stream every couple of seconds.
@@ -191,7 +191,7 @@ class FileWatcherTest {
             override suspend fun stamp() = Stamped.At(Stamp(7, 100))
             override suspend fun read() = loader.decode(onDisk.toByteArray(), 7, 100)
         }
-        val watcher = FileWatcher(file, Stamped.At(Stamp(7, 100)), pollMillis = POLL)
+        val watcher = FileWatcher(file, Stamped.At(Stamp(7, 100)), pollMillis = { POLL })
         val seen = mutableListOf<FileChange>()
 
         onDisk = "after!\n"
@@ -216,7 +216,7 @@ class FileWatcherTest {
 
             override suspend fun read() = loader.decode("x".toByteArray(), 1, 9)
         }
-        val watcher = FileWatcher(file, Stamped.At(Stamp(9, 9)), pollMillis = POLL)
+        val watcher = FileWatcher(file, Stamped.At(Stamp(9, 9)), pollMillis = { POLL })
         val seen = mutableListOf<FileChange>()
 
         val job = launch(Dispatchers.Default) { watcher.watch { seen.add(it) } }

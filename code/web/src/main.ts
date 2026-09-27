@@ -18,8 +18,9 @@ import { createLoadingView } from './chrome/loading'
 import { createLoading } from './loading'
 import { type DocSymbol, outlineOf, symbols } from './symbols'
 import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
-import { forgetOldBuffers } from './memories'
-import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize } from './zoom'
+import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
+import { type Settings, showSettings } from './settings'
+import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
@@ -42,6 +43,8 @@ interface Documents {
 interface SaveAnswer {
   result: 'saved' | 'conflict' | 'unencodable' | 'readonly'
   message: string
+  /** Saved, but it was `settings.toml` and some of it could not be used: what, and what was used instead. */
+  warning?: string
 }
 
 /** The two messages this file puts on the banner itself, for a call that did not come back. */
@@ -71,6 +74,15 @@ const memories = new Map<number, PaneMemory>()
 const waiting = new Map<number, { message: string; text?: string }>()
 /** Null until Kotlin has answered `labels`, which is before anything in here can be asked for. */
 let labels: Labels | null = null
+/** Where Reset Zoom goes: the size `settings.toml` chose. */
+let chosenFontSize = DEFAULT_FONT_SIZE
+/** How many files off the screen keep their buffer, as `settings.toml` says. */
+let keptBuffers = RETAINED_BUFFERS
+/**
+ * Whether the page was left at a size of its own, read before anything here writes one. Without
+ * one — a first launch — the page opens at the size the settings chose.
+ */
+const pinched = storedFontSize() !== null
 
 const banner = createBanner()
 
@@ -97,7 +109,7 @@ function zoomTo(size: number): void {
   else setFontSize(size)
 }
 
-const resetZoom = () => zoomTo(DEFAULT_FONT_SIZE)
+const resetZoom = () => zoomTo(chosenFontSize)
 
 function toggleLayer(): void {
   pane?.toggle()
@@ -139,7 +151,8 @@ async function saveFile(): Promise<void> {
     if (pane !== saving || activeId !== id) return
     if (answer.result !== 'saved') return banner.tell(answer.message)
     saving.saved()
-    banner.flash(answer.message)
+    if (answer.warning) banner.tell(answer.warning)
+    else banner.flash(answer.message)
   } catch (error) {
     console.log(`save: ${error}`)
     if (labels) banner.tell(labels.saveFailed)
@@ -182,6 +195,7 @@ const palette: CommandSource = {
   zoom: (by) => zoomTo(currentFontSize() + by * ZOOM_STEP),
   resetZoom,
   toggleSidebar,
+  openSettings: () => void rpc('openSettings').catch((error) => console.log(`openSettings: ${error}`)),
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
 }
@@ -270,7 +284,7 @@ async function reconcile(goToLine?: number | null): Promise<void> {
     // to lose the buffer it is about to be built from.
     const arriving = active === null ? undefined : memories.get(active)
     if (active !== null) memories.delete(active)
-    forgetOldBuffers(memories)
+    forgetOldBuffers(memories, keptBuffers)
     await show(files, arriving)
   }
   openFiles.show(files, active)
@@ -371,6 +385,21 @@ onNotify<FileChange>('fileChanged', (change) => {
   waiting.delete(change.id)
 })
 
+/**
+ * Takes up what `settings.toml` says. A size it chooses is where Reset Zoom goes; it is shown as
+ * well when it is new — the person has just said so — or when the page has no size of its own yet,
+ * but a page that was pinched and is only opening again keeps the size it was pinched to.
+ */
+function applySettings(settings: Settings, first: boolean): void {
+  const moved = settings.fontSize !== chosenFontSize
+  chosenFontSize = settings.fontSize
+  keptBuffers = settings.keptBuffers
+  showSettings(settings)
+  pane?.settingsChanged()
+  forgetOldBuffers(memories, keptBuffers)
+  if (first ? !pinched : moved) zoomTo(settings.fontSize)
+}
+
 setFontSize(currentFontSize())
 rpc<Labels>('labels').then((answer) => {
   labels = answer
@@ -381,4 +410,9 @@ rpc<Labels>('labels').then((answer) => {
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
-refresh()
+onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
+// The settings before the first document, so it is not laid out once without them and again with.
+rpc<Settings>('settings')
+  .then((settings) => applySettings(settings, true))
+  .catch((error) => console.log(`settings: ${error}`))
+  .finally(() => refresh())

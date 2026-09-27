@@ -26,6 +26,8 @@ export interface CommandSource {
   zoom(by: number): void
   resetZoom(): void
   toggleSidebar(): void
+  /** Opens `settings.toml`, which saving applies. */
+  openSettings(): void
   undo(): void
   redo(): void
 }
@@ -54,6 +56,7 @@ export function commands(source: CommandSource): PaletteItem[] {
     { name: 'Zoom Out', run: () => source.zoom(-1) },
     { name: 'Reset Zoom', run: () => source.resetZoom() },
     { name: 'Toggle Sidebar', run: () => source.toggleSidebar() },
+    { name: 'Open Settings', run: () => source.openSettings() },
   )
   if (source.open()) {
     items.push(

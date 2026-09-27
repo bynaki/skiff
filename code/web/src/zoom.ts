@@ -34,7 +34,7 @@ export interface Anchor {
  */
 export type Hold = (clientY: number) => (size: number, clientY: number) => void
 
-/** What ② original size returns to, until settings.toml gives the user's own. */
+/** The size before `settings.toml` has answered, and the one it gives when it says nothing. */
 export const DEFAULT_FONT_SIZE = 14
 
 /** Where the size the user is reading at is kept (docs/skiffcode.spec.md "상태 저장"). */
@@ -47,19 +47,20 @@ const KEY = 'zoom.size'
 const WRITE_DELAY = 400
 
 /**
- * The size this page opens at: the one it was left at, if that is still a size. It is the page's
- * own storage and not `settings.toml`, which holds the size the user *chose* to read at — this is
- * the one they pinched to, and it has to survive the activity being rebuilt by a dark mode or a
- * font scale change, which is where it used to go back to [DEFAULT_FONT_SIZE].
+ * The size the page was left at, if that is still a size, or null when there is none — a first
+ * launch, which opens at the size `settings.toml` chose. It is the page's own storage and not that
+ * file, which holds the size the user *chose* to read at: this is the one they pinched to, and it
+ * has to survive the activity being rebuilt by a dark mode or a font scale change, which is where
+ * it used to go back to the default.
  */
-export function storedFontSize(): number {
+export function storedFontSize(): number | null {
   const size = Number(read(KEY))
-  if (!Number.isFinite(size) || size === 0) return DEFAULT_FONT_SIZE
+  if (!Number.isFinite(size) || size === 0) return null
   return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size))
 }
 
 // One size for every document, so opening another file keeps the zoom.
-let fontSize = storedFontSize()
+let fontSize = storedFontSize() ?? DEFAULT_FONT_SIZE
 let zoomedAt = -Infinity
 let writing = 0
 

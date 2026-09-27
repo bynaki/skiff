@@ -64,7 +64,8 @@ class FileWatcher(
     private val file: WatchedFile,
     /** How the file looked when the document was read, which is what a change is measured from. */
     from: Stamped,
-    private val pollMillis: Long = DEFAULT_POLL_MILLIS,
+    /** Asked before every wait, so a changed setting reaches a file that is already being watched. */
+    private val pollMillis: () -> Long = { DEFAULT_POLL_MILLIS },
     /** logcat on the device; a plain JVM test, where `Log` is a stub that throws, says nothing. */
     private val warn: (String, Throwable) -> Unit = { _, _ -> },
 ) {
@@ -108,7 +109,7 @@ class FileWatcher(
     suspend fun watch(onChange: suspend (FileChange) -> Unit) {
         try {
             while (true) {
-                file.awaitHint(pollMillis)
+                file.awaitHint(pollMillis())
                 val now = stampOrNull() ?: continue
                 if (now is Stamped.Unknown) return
                 apply(now, onChange)

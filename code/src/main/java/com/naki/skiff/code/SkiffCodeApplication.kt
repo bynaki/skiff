@@ -4,9 +4,11 @@ import android.app.Application
 import com.naki.skiff.code.data.SkiffCodeStore
 import com.naki.skiff.code.data.openSkiffCodeDataStore
 import com.naki.skiff.code.session.RemoteSessions
+import com.naki.skiff.code.settings.SettingsFile
 import com.naki.skiff.fs.sftp.HostKeyGate
 import com.naki.skiff.fs.sftp.HostKeyPrompter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.io.File
 import java.security.Security
 
 class SkiffCodeApplication : Application() {
@@ -35,6 +37,8 @@ class SkiffCodeContainer(app: Application) {
     val hostKeyPrompter = HostKeyPrompter()
 
     val sessions = RemoteSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
+
+    val settings = SettingsFile(File(app.filesDir, "settings.toml"))
 }
 
 val Application.skiffCode: SkiffCodeContainer get() = (this as SkiffCodeApplication).container

@@ -33,8 +33,12 @@ import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.doc.SaveResult
 import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.Stamped
+import com.naki.skiff.code.doc.TextLoader
+import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
+import com.naki.skiff.code.settings.SettingsProblem
+import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -162,7 +166,15 @@ class MainActivity : Activity() {
                     watcher.saved(now)
                     // What the file holds now, so a page that reloads shows what was written.
                     entry.state.put("text", text)
-                    saved("saved", getString(R.string.save_done))
+                    val answer = saved("saved", getString(R.string.save_done))
+                    // Saving the settings is what applies them. What in them could not be used rides
+                    // on the answer rather than a banner of its own, which the save's would replace.
+                    if (entry.key == keyOf(OpenRequest.LocalPath(container.settings.file.path, OpenAt()))) {
+                        val read = container.settings.reload()
+                        bridge.notify("settingsChanged", pageSettings(read))
+                        answer.putOpt("warning", describe(read.problems))
+                    }
+                    answer
                 }
                 // Told, not offered: the watch is what brings the other change in, and it asks.
                 is SaveResult.Conflict ->
@@ -205,7 +217,7 @@ class MainActivity : Activity() {
             val entry = docs.byId(params.getInt("id")) ?: error("no open file to open beside")
             val name = params.getString("name")
             val request = entry.folder?.request(name) ?: error("not a file beside ${entry.name}: $name")
-            startOpening { OpenFlow(this@MainActivity, container).open(linkOf(request), request, pathChosen = true) }
+            startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
             JSONObject()
         }
         bridge.method("labels") {
@@ -229,6 +241,14 @@ class MainActivity : Activity() {
                 .put("reloadFailed", getString(R.string.reload_failed))
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
+        bridge.method("settings") { pageSettings(container.settings.current()) }
+        // Created on first use, with every key at its default and what it does, so there is a file
+        // to open and something in it to read.
+        bridge.method("openSettings") {
+            container.settings.ensureExists()
+            startOpening { openFlow().openSettings(container.settings.file) }
+            JSONObject()
+        }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
         bridge.attach(webView)
 
@@ -262,6 +282,33 @@ class MainActivity : Activity() {
             }
         }
         if (docs.all.isEmpty()) handleLink(intent, senderOf(initial = true))
+    }
+
+    /** Reads with the size limit `settings.toml` says now, which is why each open builds its own. */
+    private suspend fun openFlow() =
+        OpenFlow(this, container, TextLoader(container.settings.current().settings.files.maxSizeBytes))
+
+    /** The settings the page applies itself; the file limits and the poll stay on this side. */
+    private fun pageSettings(read: SettingsRead): JSONObject = with(read.settings) {
+        JSONObject()
+            .put("font", editor.font)
+            .put("fontSize", editor.fontSize)
+            .put("tabSize", editor.tabSize)
+            .put("wrap", editor.wrap)
+            .put("keptBuffers", files.keptBuffers)
+    }
+
+    /** What in `settings.toml` was passed over, as one line for the banner, or null when nothing was. */
+    private fun describe(problems: List<SettingsProblem>): String? = problems.takeIf { it.isNotEmpty() }?.joinToString(" ") {
+        when (it) {
+            is SettingsProblem.Unreadable -> getString(R.string.settings_unreadable, it.reason)
+            is SettingsProblem.UnknownKey -> getString(R.string.settings_unknown_key, it.key)
+            is SettingsProblem.Refused -> if (it.allowed == null) {
+                getString(R.string.settings_refused, it.key, it.value, it.default)
+            } else {
+                getString(R.string.settings_out_of_range, it.key, it.value, it.allowed.first, it.allowed.last, it.default)
+            }
+        }
     }
 
     /** What a save answers with: what happened, and how to say it on the page's banner. */
@@ -426,7 +473,7 @@ class MainActivity : Activity() {
                 }
             }
             Log.i(TAG, "open ${request.javaClass.simpleName} from ${sender ?: "an app that did not say"}")
-            OpenFlow(this@MainActivity, container).open(link, request, pathChosen = fromSkiff)
+            openFlow().open(link, request, pathChosen = fromSkiff)
         }
     }
 
@@ -452,7 +499,11 @@ class MainActivity : Activity() {
                 return@launch
             }
             val watcher = if (opened.result is LoadResult.Text) {
-                FileWatcher(opened.watched, opened.stamp, warn = { message, e -> Log.w(TAG, message, e) })
+                FileWatcher(
+                    opened.watched, opened.stamp,
+                    pollMillis = { container.settings.latest.files.pollMillis },
+                    warn = { message, e -> Log.w(TAG, message, e) },
+                )
             } else {
                 // Nothing on screen for a change to be merged into: too large, binary, or in an
                 // encoding we cannot name.

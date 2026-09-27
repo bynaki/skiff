@@ -10,7 +10,8 @@ import { type PaneMemory, isDirty } from './layers/pane'
 
 /**
  * How many buffers are kept for files that are off the screen. The file on the screen has its own,
- * held by the pane, and is not one of these. `settings.toml` (M4) is where this becomes the user's.
+ * held by the pane, and is not one of these. This is the default; `settings.toml`'s `kept_buffers`
+ * is the user's.
  */
 export const RETAINED_BUFFERS = 30
 

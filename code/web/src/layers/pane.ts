@@ -24,6 +24,7 @@ import { type MarkdownSurface, showMarkdown } from '../markdown'
 import { TOPBAR_SPACE } from '../chrome/topbar'
 import { hardwareKeyboard } from '../keyboard'
 import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinchZoom } from '../zoom'
+import { applyEditorSettings, editorSettings } from '../settings'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -132,6 +133,8 @@ export interface Pane {
   redo(): void
   /** Puts [line] at the top of the screen, for a link that asked for one. */
   goToLine(line: number): void
+  /** Takes up the settings the page has just been given; see `settings.ts`. */
+  settingsChanged(): void
   /** What ② original size zooms around, on whichever layer is showing. */
   hold: Hold
   /** Takes the pane off the screen and hands back what the file needs to come back to it. */
@@ -180,9 +183,10 @@ export function openPane(
         syntaxHighlighting(defaultHighlightStyle),
         layerBundle.of(BUNDLES[layer]),
         codeFontSize(),
+        editorSettings(),
         EditorView.theme({
           '&': { height: '100%' },
-          '.cm-scroller': { fontFamily: 'monospace', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
+          '.cm-scroller': { fontFamily: 'var(--code-font, monospace)', lineHeight: '1.5', touchAction: 'pan-x pan-y' },
           // Gutters follow the content's padding, so the line numbers move down with it.
           '.cm-content': { paddingTop: 'var(--topbar-space)' },
         }),
@@ -201,9 +205,13 @@ export function openPane(
         if (isDirty(target.state) !== before) onDirtyChange?.(!before)
       },
     })
-    // A state built before the last pinch carries that pinch's size; the font is one for the whole
-    // page, so the view is brought to it rather than the other way round.
-    if (restored) applyFontSize(created)
+    // A state built before the last pinch carries that pinch's size, and one built before the last
+    // save of the settings carries those; both are the page's, so the view is brought to them
+    // rather than the other way round.
+    if (restored) {
+      applyFontSize(created)
+      applyEditorSettings(created)
+    }
     // Each language's parser is its own chunk, fetched the first time a file needs it.
     language?.load().then((support) => {
       if (!created.dom.isConnected) return
@@ -345,6 +353,7 @@ export function openPane(
     undo: () => void (view && undo(view)),
     redo: () => void (view && redo(view)),
     goToLine,
+    settingsChanged: () => void (view && applyEditorSettings(view)),
     close() {
       window.removeEventListener('resize', keepCaretVisible)
       uninstallPinchZoom()
