@@ -1,0 +1,48 @@
+# Skiff Code's light theme. Every color is #rgb, #rgba, #rrggbb or #rrggbbaa.
+# A key left out, or a value that is not a color, takes the value the bundled theme with the same
+# `base` gives it.
+base = "light"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#fff"
+foreground = "#1f2328"
+muted = "#59636e"
+border = "#d1d9e0"
+faint = "#afb8c1"
+subtle = "#eff1f3"
+accent = "#0969da"
+scrim = "#1f232866"
+strong_background = "#1f2328"
+strong_foreground = "#fff"
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#fff"
+foreground = "#1f2328"
+gutter_background = "#f5f5f5"
+gutter_foreground = "#6c6c6c"
+gutter_border = "#ddd"
+cursor = "#000"
+selection = "#d7d4f0"
+code_background = "#f6f8fa"
+
+[syntax]
+keyword = "#708"
+atom = "#219"
+literal = "#164"
+string = "#a11"
+regexp = "#e40"
+definition = "#00f"
+local = "#30a"
+type = "#085"
+class = "#167"
+macro = "#256"
+property = "#00c"
+comment = "#940"
+meta = "#404740"
+invalid = "#f00"
+
+[diff]
+added = "#2ea043"
+removed = "#f85149"

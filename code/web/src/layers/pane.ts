@@ -18,13 +18,14 @@ import {
 import { diff } from '@codemirror/merge'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/commands'
-import { LanguageDescription, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { type MarkdownSurface, showMarkdown } from '../markdown'
 import { TOPBAR_SPACE } from '../chrome/topbar'
 import { hardwareKeyboard } from '../keyboard'
 import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinchZoom } from '../zoom'
 import { applyEditorSettings, editorSettings } from '../settings'
+import { editorTheme } from '../theme'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -180,7 +181,7 @@ export function openPane(
         history(),
         dirtyFlag,
         syntax.of([]),
-        syntaxHighlighting(defaultHighlightStyle),
+        editorTheme,
         layerBundle.of(BUNDLES[layer]),
         codeFontSize(),
         editorSettings(),

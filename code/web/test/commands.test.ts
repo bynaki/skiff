@@ -18,6 +18,7 @@ function source(state: { open: boolean; layer: LayerName | null }) {
     resetZoom: () => ran.push('resetZoom'),
     toggleSidebar: () => ran.push('toggleSidebar'),
     openSettings: () => ran.push('openSettings'),
+    setTheme: (name) => ran.push(`setTheme ${name}`),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
   }
@@ -41,6 +42,9 @@ describe('what the palette offers', () => {
       'Reset Zoom',
       'Toggle Sidebar',
       'Open Settings',
+      'Theme: System',
+      'Theme: Light',
+      'Theme: Dark',
       'Reload File',
       'Close File',
     ])
@@ -59,13 +63,25 @@ describe('what the palette offers', () => {
       'Reset Zoom',
       'Toggle Sidebar',
       'Open Settings',
+      'Theme: System',
+      'Theme: Light',
+      'Theme: Dark',
       'Reload File',
       'Close File',
     ])
   })
 
   test('is only what needs no file when none is open', () => {
-    expect(names({ open: false, layer: null })).toEqual(['Zoom In', 'Zoom Out', 'Reset Zoom', 'Toggle Sidebar', 'Open Settings'])
+    expect(names({ open: false, layer: null })).toEqual([
+      'Zoom In',
+      'Zoom Out',
+      'Reset Zoom',
+      'Toggle Sidebar',
+      'Open Settings',
+      'Theme: System',
+      'Theme: Light',
+      'Theme: Dark',
+    ])
   })
 
   test('runs what it says it runs', () => {
@@ -83,6 +99,9 @@ describe('what the palette offers', () => {
       'resetZoom',
       'toggleSidebar',
       'openSettings',
+      'setTheme system',
+      'setTheme light',
+      'setTheme dark',
       'reload',
       'close',
     ])

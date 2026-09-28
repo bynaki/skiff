@@ -236,6 +236,9 @@ method로 구독한다(M0에서 확인).
   - 폰트 크기에는 **기기의 시스템 글꼴 배율이 그대로 곱해진다.** `font_scale` 1.5인 폰에서 기본 14px이 21px로 나왔다(WebView의 `textZoom`, 페이지 아래에서 적용되어 페이지가 볼 수 없다). 설정의 상한 8~40도 그만큼 달라진다. **따르기로 했다**(2026-09-27 사용자 결정) — 글자를 크게 해 둔 사람은 코드도 크게 본다. 대신 `font_size`가 기기마다 다른 크기가 된다.
   - `font_size`는 Reset Zoom이 돌아가는 크기다. 핀치한 크기(`localStorage`의 `zoom.size`)는 따로 남고, 설정의 크기가 **바뀌었을 때**와 핀치한 적이 없는 **첫 실행**에만 지금 크기도 그리로 옮긴다.
 - `themes/*.toml`: `[ui]`(메뉴, 사이드바, 팔레트), `[editor]`, `[syntax]`, `[diff]`. Web에서 CSS 변수로 바꾸고 **메뉴와 레이어에 똑같이** 적용한다. 다크와 라이트를 기본 번들한다. 잘못된 값은 기본값으로 폴백하고 오류를 알린다.
+  - **고르는 것은 `settings.toml`의 `[editor] theme`이고 기본값은 `system`이다**(2026-09-28 사용자 결정). `system`은 기기의 다크 모드에 맞는 번들을 쓴다. 팔레트의 `Theme: …` 명령이 그 줄을 고쳐 쓴다. 사용자 테마는 import와 함께 들어온다.
+  - 검사와 폴백은 Kotlin(`settings/Theme.kt`)이 한다. 빠진 색과 쓸 수 없는 색은 같은 `base`의 번들 값이고, 모르는 키가 있으면 base 전체다 — `settings.toml`과 같은 규칙이다. 페이지는 온전한 한 벌을 받아 변수로 쓴다.
+  - 다크 모드는 `uiMode`로 Kotlin이 읽는다. WebView의 `prefers-color-scheme`는 앱 테마를 따르지 기기를 따르지 않을 수 있고, 액티비티를 다시 만들지 않으려면 어차피 `onConfigurationChanged`를 받아야 한다.
 - 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다.
 - TOML 파싱은 Kotlin의 ktoml(`com.akuleshov7:ktoml-core` 0.7.1)로 한다. M0에서 확인했다.
   - 중첩 테이블, 문자열 리스트, 언어로 키를 삼은 테이블(`[lsp.python]` → `Map<String, …>`),

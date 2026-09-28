@@ -39,6 +39,21 @@ class SettingsFile(val file: File) {
         }.also { read = it }
     }
 
+    /**
+     * Sets `[editor]`'s `theme` in the file — made from [SettingsToml.TEMPLATE] if there is none yet —
+     * and reads it again. An open buffer of the file hears about it the way it hears of any change
+     * made outside it: its watch.
+     */
+    suspend fun setTheme(name: String): SettingsRead {
+        lock.withLock {
+            withContext(Dispatchers.IO) {
+                val text = if (file.exists()) file.readText() else SettingsToml.TEMPLATE
+                file.writeText(SettingsToml.withTheme(text, name))
+            }
+        }
+        return reload()
+    }
+
     /** Writes [SettingsToml.TEMPLATE] if there is no file yet, so there is something to open. */
     suspend fun ensureExists() = withContext(Dispatchers.IO) {
         if (!file.exists()) file.writeText(SettingsToml.TEMPLATE)

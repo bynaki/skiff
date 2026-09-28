@@ -5,6 +5,7 @@
 // height has to be measured again, and a changed configuration is what makes CodeMirror do that.
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
+import { type Theme, showTheme } from './theme'
 
 /** What Kotlin's `settings` answers and `settingsChanged` carries. */
 export interface Settings {
@@ -16,6 +17,8 @@ export interface Settings {
   wrap: boolean
   /** How many files off the screen keep their buffer; see `memories.ts`. */
   keptBuffers: number
+  /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
+  theme: Theme
 }
 
 type Shown = Pick<Settings, 'tabSize' | 'wrap'>
@@ -40,6 +43,7 @@ export function showSettings(settings: Settings): void {
   root.style.setProperty('--code-font', settings.font)
   root.style.setProperty('--tab-size', String(settings.tabSize))
   root.classList.toggle('wrap', settings.wrap)
+  showTheme(settings.theme)
 }
 
 /** What a code view starts with. */

@@ -6,7 +6,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.Color
+import android.content.res.Configuration
 import android.hardware.input.InputManager
 import android.net.Uri
 import android.os.Build
@@ -39,6 +39,8 @@ import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
+import com.naki.skiff.code.settings.SettingsToml
+import com.naki.skiff.code.settings.Theme
 import com.naki.skiff.code.skiffCode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,9 @@ class MainActivity : Activity() {
     private val bridge = WebBridge(scope)
     private val saver = DocumentSaver()
     private var hostKeyDialog: AlertDialog? = null
+    private lateinit var frame: FrameLayout
+    /** The device's dark mode as the page was last told it, for a `system` theme to follow. */
+    private var night = false
     private var permissionAnswer: CompletableDeferred<Boolean>? = null
     private var returned: CompletableDeferred<Unit>? = null
     private var opening: Job? = null
@@ -242,6 +247,13 @@ class MainActivity : Activity() {
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         bridge.method("settings") { pageSettings(container.settings.current()) }
+        // The palette's Theme commands. Writing the file is what applies it, the same as saving it.
+        bridge.method("setTheme") { params ->
+            val name = params.getString("name")
+            require(name in SettingsToml.THEMES) { "no theme called $name" }
+            bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
+            JSONObject()
+        }
         // Created on first use, with every key at its default and what it does, so there is a file
         // to open and something in it to read.
         bridge.method("openSettings") {
@@ -254,8 +266,7 @@ class MainActivity : Activity() {
 
         // Android 15 draws the app under the system bars. The page is kept inside them by the frame
         // rather than by padding the WebView, whose content ignores its own padding.
-        val frame = FrameLayout(this)
-        frame.setBackgroundColor(Color.WHITE)
+        frame = FrameLayout(this)
         frame.addView(webView)
         frame.setOnApplyWindowInsetsListener { view, insets ->
             // ime() as well, so the editor layer shrinks instead of letting the soft keyboard cover
@@ -268,9 +279,9 @@ class MainActivity : Activity() {
             WindowInsets.CONSUMED
         }
         setContentView(frame)
-        // The theme is dark, so its bar icons are white; on the page's white they vanish.
-        val light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-        window.insetsController?.setSystemBarsAppearance(light, light)
+        night = isNight(resources.configuration)
+        // Before the page has asked for the settings, so the frame is not white under a dark theme.
+        scope.launch { showAround(container.settings.current()) }
         webView.loadUrl("$ORIGIN/assets/web/index.html")
 
         // The prompter outlives this activity, so a question asked while none was in front is
@@ -288,15 +299,50 @@ class MainActivity : Activity() {
     private suspend fun openFlow() =
         OpenFlow(this, container, TextLoader(container.settings.current().settings.files.maxSizeBytes))
 
-    /** The settings the page applies itself; the file limits and the poll stay on this side. */
+    /**
+     * The settings the page applies itself; the file limits and the poll stay on this side. The
+     * theme goes as its colors, already chosen for the dark mode the device is in — and around the
+     * page too, since whatever is sent here is what the page is about to become.
+     */
     private fun pageSettings(read: SettingsRead): JSONObject = with(read.settings) {
+        val theme = showAround(read)
         JSONObject()
             .put("font", editor.font)
             .put("fontSize", editor.fontSize)
             .put("tabSize", editor.tabSize)
             .put("wrap", editor.wrap)
             .put("keptBuffers", files.keptBuffers)
+            .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
     }
+
+    /**
+     * Paints what is outside the page — the strips the frame keeps clear under the system bars, and
+     * the WebView before its page draws — the color of the menu, and turns the bar icons to show on it.
+     */
+    private fun showAround(read: SettingsRead): Theme {
+        val theme = container.themes.resolve(read.settings.editor.theme, night)
+        frame.setBackgroundColor(theme.argb("ui.background"))
+        frame.getChildAt(0).setBackgroundColor(theme.argb("editor.background"))
+        val light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        window.insetsController?.setSystemBarsAppearance(if (theme.dark) 0 else light, light)
+        return theme
+    }
+
+    /**
+     * `uiMode` is in the manifest's `configChanges`, so turning dark mode on or off lands here rather
+     * than rebuilding the activity — which would put the reader back in the viewer at the top. A
+     * `system` theme follows it; any other choice sends the same colors again, which changes nothing.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val now = isNight(newConfig)
+        if (now == night) return
+        night = now
+        scope.launch { bridge.notify("settingsChanged", pageSettings(container.settings.current())) }
+    }
+
+    private fun isNight(config: Configuration) =
+        config.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
     /** What in `settings.toml` was passed over, as one line for the banner, or null when nothing was. */
     private fun describe(problems: List<SettingsProblem>): String? = problems.takeIf { it.isNotEmpty() }?.joinToString(" ") {

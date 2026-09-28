@@ -196,6 +196,7 @@ const palette: CommandSource = {
   resetZoom,
   toggleSidebar,
   openSettings: () => void rpc('openSettings').catch((error) => console.log(`openSettings: ${error}`)),
+  setTheme: (name) => void rpc('setTheme', { name }).catch((error) => console.log(`setTheme: ${error}`)),
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
 }

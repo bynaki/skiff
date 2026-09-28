@@ -12,35 +12,51 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
   <title>Skiff Code</title>
   <style>
+    /* The light theme, which the page wears until Kotlin sends the one settings.toml chose (theme.ts).
+       theme.test.ts holds it to assets/themes/light.toml. */
+    :root {
+      --ui-background: #fff; --ui-foreground: #1f2328; --ui-muted: #59636e; --ui-border: #d1d9e0;
+      --ui-faint: #afb8c1; --ui-subtle: #eff1f3; --ui-accent: #0969da; --ui-scrim: #1f232866;
+      --ui-strong-background: #1f2328; --ui-strong-foreground: #fff;
+      --editor-background: #fff; --editor-foreground: #1f2328; --editor-gutter-background: #f5f5f5;
+      --editor-gutter-foreground: #6c6c6c; --editor-gutter-border: #ddd; --editor-cursor: #000;
+      --editor-selection: #d7d4f0; --editor-code-background: #f6f8fa;
+      --syntax-keyword: #708; --syntax-atom: #219; --syntax-literal: #164; --syntax-string: #a11;
+      --syntax-regexp: #e40; --syntax-definition: #00f; --syntax-local: #30a; --syntax-type: #085;
+      --syntax-class: #167; --syntax-macro: #256; --syntax-property: #00c; --syntax-comment: #940;
+      --syntax-meta: #404740; --syntax-invalid: #f00;
+      --diff-added: #2ea043; --diff-removed: #f85149;
+    }
     html, body { margin: 0; height: 100%; }
-    body { background: #fff; color: #1f2328; font-family: sans-serif; }
+    body { background: var(--editor-background); color: var(--editor-foreground); font-family: sans-serif; }
     #viewer { height: 100%; }
     .notice { padding: calc(var(--topbar-space) + 16px) 24px 32px; }
     .notice h1 { margin: 0 0 8px; font-size: 18px; }
-    .notice p { margin: 0; color: #59636e; overflow-wrap: anywhere; }
+    .notice p { margin: 0; color: var(--ui-muted); overflow-wrap: anywhere; }
     /* Positioned so a block's offsetTop is measured from it, for scrolling to a link's line. */
     .markdown-scroller { position: relative; height: 100%; overflow: auto; touch-action: pan-x pan-y; }
     .markdown {
       max-width: 60em; margin: 0 auto; padding: var(--topbar-space) 24px 48px;
       font-size: var(--code-font-size); line-height: 1.6; overflow-wrap: break-word;
     }
-    .markdown h1, .markdown h2 { border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; }
-    .markdown a { color: #0969da; }
-    .markdown code { font-family: var(--code-font, monospace); font-size: 0.9em; background: #eff1f3; padding: 0.1em 0.3em; border-radius: 4px; }
-    .markdown pre { background: #f6f8fa; padding: 12px 16px; border-radius: 6px; overflow: auto; tab-size: var(--tab-size, 4); }
+    .markdown h1, .markdown h2 { border-bottom: 1px solid var(--ui-border); padding-bottom: 0.3em; }
+    .markdown a { color: var(--ui-accent); }
+    .markdown code { font-family: var(--code-font, monospace); font-size: 0.9em; background: var(--ui-subtle); padding: 0.1em 0.3em; border-radius: 4px; }
+    .markdown pre { background: var(--editor-code-background); padding: 12px 16px; border-radius: 6px; overflow: auto; tab-size: var(--tab-size, 4); }
     /* settings.toml's `wrap`, which the code views take through CodeMirror's lineWrapping. */
     .wrap .markdown pre { white-space: pre-wrap; }
     .markdown pre code { background: none; padding: 0; }
-    .markdown blockquote { margin-left: 0; padding-left: 1em; border-left: 4px solid #d1d9e0; color: #59636e; }
+    .markdown blockquote { margin-left: 0; padding-left: 1em; border-left: 4px solid var(--ui-border); color: var(--ui-muted); }
     .markdown table { border-collapse: collapse; display: block; overflow: auto; }
-    .markdown th, .markdown td { border: 1px solid #d1d9e0; padding: 4px 12px; }
+    .markdown th, .markdown td { border: 1px solid var(--ui-border); padding: 4px 12px; }
     .markdown img { max-width: 100%; }
     /* An opaque bar across the top. The layers keep --topbar-space clear so their first line is
        never under it, and it slides away when a layer is scrolled down. */
     #topbar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 10; box-sizing: border-box;
       height: var(--topbar-space); padding: 8px; display: flex; justify-content: space-between; align-items: center;
-      background: #fff; border-bottom: 1px solid #d1d9e0; transition: transform 0.2s ease;
+      color: var(--ui-foreground); background: var(--ui-background); border-bottom: 1px solid var(--ui-border);
+      transition: transform 0.2s ease;
     }
     #topbar.hidden { transform: translateY(-100%); }
     #topbar .group { display: flex; }
@@ -53,21 +69,21 @@
       font: inherit; text-align: left;
     }
     #topbar .name { min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #topbar .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #1f2328; }
+    #topbar .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-foreground); }
     #topbar .dot[hidden] { display: none; }
-    #topbar button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
-    #topbar button:disabled { color: #afb8c1; }
+    #topbar button { width: 40px; height: 40px; padding: 8px; color: var(--ui-foreground); background: none; border: 0; }
+    #topbar button:disabled { color: var(--ui-faint); }
     #topbar svg { display: block; width: 22px; height: 22px; }
     /* A link is on its way to the screen: the line runs along the very top, above the menu, which
        slides away with the scroll and would carry it off. */
     #loading {
       position: fixed; top: 0; left: 0; right: 0; z-index: 30;
-      height: 3px; background: #d1d9e0; overflow: hidden;
+      height: 3px; background: var(--ui-border); overflow: hidden;
     }
     #loading[hidden] { display: none; }
     #loading::after {
       content: ''; position: absolute; top: 0; bottom: 0; width: 40%;
-      background: #0969da; animation: loading-run 1.1s ease-in-out infinite;
+      background: var(--ui-accent); animation: loading-run 1.1s ease-in-out infinite;
     }
     @keyframes loading-run {
       from { transform: translateX(-100%); }
@@ -77,11 +93,11 @@
        where the "nothing is open" notice would otherwise be. Under the menu, over that notice. */
     #skeleton {
       position: fixed; top: var(--topbar-space); right: 0; bottom: 0; left: 0; z-index: 5;
-      padding: 16px 24px; background: #fff;
+      padding: 16px 24px; background: var(--editor-background);
     }
     #skeleton[hidden] { display: none; }
     #skeleton .row {
-      height: 14px; margin-bottom: 14px; border-radius: 4px; background: #eff1f3;
+      height: 14px; margin-bottom: 14px; border-radius: 4px; background: var(--ui-subtle);
       animation: skeleton-breathe 1.4s ease-in-out infinite;
     }
     @keyframes skeleton-breathe {
@@ -98,15 +114,15 @@
     #banner {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; box-sizing: border-box;
       padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between;
-      background: #1f2328; color: #fff;
+      background: var(--ui-strong-background); color: var(--ui-strong-foreground);
     }
     /* display: flex would otherwise win over the hidden attribute. */
     #banner[hidden] { display: none; }
     #banner p { margin: 0; font-size: 14px; }
     #banner .actions { display: flex; gap: 8px; flex: none; }
     #banner button {
-      padding: 8px 12px; color: #fff; background: none;
-      border: 1px solid #59636e; border-radius: 6px; font-size: 14px;
+      padding: 8px 12px; color: var(--ui-strong-foreground); background: none;
+      border: 1px solid var(--ui-muted); border-radius: 6px; font-size: 14px;
     }
     /* The command button in the bottom-right corner and what opens out of it. A is the button
        alone at half strength; open, the row stretches and the results stack above it. It sits
@@ -127,8 +143,8 @@
        a vertical drag here scrolled the document behind. Sideways still moves a long query. */
     #palette input {
       flex: 1; min-width: 0; box-sizing: border-box; height: 48px; padding: 0 16px;
-      font: inherit; font-size: 16px; color: #1f2328; background: #fff;
-      border: 1px solid #d1d9e0; border-radius: 24px; touch-action: pan-x;
+      font: inherit; font-size: 16px; color: var(--ui-foreground); background: var(--ui-background);
+      border: 1px solid var(--ui-border); border-radius: 24px; touch-action: pan-x;
     }
     /* touch-action so the button keeps a finger drawn up or down it: left to itself the browser
        takes such a gesture for a scroll after a few pixels and cancels the pointer, and the mode
@@ -136,7 +152,7 @@
     #palette .mode {
       flex: none; width: 56px; height: 56px; padding: 0; font-size: 22px; touch-action: none;
       display: grid; place-items: center;
-      color: #fff; background: #1f2328; border: 0; border-radius: 28px; opacity: 0.5;
+      color: var(--ui-strong-foreground); background: var(--ui-strong-background); border: 0; border-radius: 28px; opacity: 0.5;
     }
     #palette .mode svg { display: block; width: 24px; height: 24px; }
     #palette.open .mode { opacity: 1; }
@@ -145,26 +161,26 @@
     #palette .results {
       align-self: stretch; margin: 0; padding: 0; max-height: 40vh; overflow: auto; list-style: none;
       overscroll-behavior: contain;
-      background: #fff; border: 1px solid #d1d9e0; border-radius: 8px;
+      color: var(--ui-foreground); background: var(--ui-background); border: 1px solid var(--ui-border); border-radius: 8px;
     }
-    #palette .results li { padding: 12px 16px; font-size: 15px; border-bottom: 1px solid #eff1f3; }
+    #palette .results li { padding: 12px 16px; font-size: 15px; border-bottom: 1px solid var(--ui-subtle); }
     #palette .results li:last-child { border-bottom: 0; }
-    #palette .results li.selected { background: #eff1f3; }
-    #palette .results li.none { color: #59636e; }
+    #palette .results li.selected { background: var(--ui-subtle); }
+    #palette .results li.none { color: var(--ui-muted); }
     /* Transparent on purpose: what is being searched for is usually in the document behind it. */
     #palette-scrim { position: fixed; inset: 0; z-index: 15; }
     #palette-scrim:not(.open) { display: none; }
     /* The drawer behind ①: in M5 the projects and their trees, for now only a line saying there are
        none. It covers the menu while it is out, so the way back is the scrim over the layer. */
     #scrim {
-      position: fixed; inset: 0; z-index: 20; background: rgba(31, 35, 40, 0.4);
+      position: fixed; inset: 0; z-index: 20; background: var(--ui-scrim);
       opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
     }
     #scrim.open { opacity: 1; pointer-events: auto; }
     #sidebar {
       position: fixed; top: 0; bottom: 0; left: 0; z-index: 21; box-sizing: border-box;
       width: min(320px, 80vw); display: flex; flex-direction: column; overflow: hidden;
-      background: #fff; border-right: 1px solid #d1d9e0;
+      color: var(--ui-foreground); background: var(--ui-background); border-right: 1px solid var(--ui-border);
       transform: translateX(-100%); transition: transform 0.2s ease;
     }
     #sidebar.open { transform: none; }
@@ -172,18 +188,18 @@
        put while the list scrolls under it. */
     #sidebar header {
       flex: none; box-sizing: border-box; height: var(--topbar-space); padding: 8px;
-      display: flex; align-items: center; border-bottom: 1px solid #d1d9e0;
+      display: flex; align-items: center; border-bottom: 1px solid var(--ui-border);
     }
-    #sidebar header button { width: 40px; height: 40px; padding: 8px; color: #1f2328; background: none; border: 0; }
+    #sidebar header button { width: 40px; height: 40px; padding: 8px; color: var(--ui-foreground); background: none; border: 0; }
     #sidebar header svg { display: block; width: 22px; height: 22px; }
-    #sidebar .empty { margin: 0; padding: 16px; color: #59636e; font-size: 14px; }
+    #sidebar .empty { margin: 0; padding: 16px; color: var(--ui-muted); font-size: 14px; }
     /* The files that are open, dropped down from behind the menu when the file's name is tapped.
        Under the menu (z-index 10) so it comes out from behind it, and closed it waits above the
        screen by its own height and the menu's too: the menu slides away with the scroll, and a menu
        parked right behind it would show there. As wide as the palette at most, for the same reason:
        a list across a whole tablet is a long way from the name that opened it. */
     #open-files-scrim {
-      position: fixed; inset: 0; z-index: 8; background: rgba(31, 35, 40, 0.4);
+      position: fixed; inset: 0; z-index: 8; background: var(--ui-scrim);
       opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
     }
     #open-files-scrim.open { opacity: 1; pointer-events: auto; }
@@ -195,7 +211,7 @@
     #open-files {
       position: fixed; top: var(--topbar-space); left: 0; z-index: 9; box-sizing: border-box;
       width: 100%; max-width: 600px; display: flex; flex-direction: column;
-      background: #fff; border: 1px solid #d1d9e0; border-top: 0; border-radius: 0 0 8px 8px;
+      color: var(--ui-foreground); background: var(--ui-background); border: 1px solid var(--ui-border); border-top: 0; border-radius: 0 0 8px 8px;
       transform: translateY(calc(-100% - var(--topbar-space))); transition: transform 0.2s ease;
     }
     #open-files.open { transform: none; }
@@ -207,9 +223,9 @@
       position: relative; margin: 0; padding: 0; list-style: none; overflow: auto;
       overscroll-behavior: contain;
     }
-    #open-files li { display: flex; align-items: center; border-bottom: 1px solid #eff1f3; }
-    #open-files li.current { background: #eff1f3; }
-    #open-files li.empty { padding: 16px; color: #59636e; font-size: 14px; }
+    #open-files li { display: flex; align-items: center; border-bottom: 1px solid var(--ui-subtle); }
+    #open-files li.current { background: var(--ui-subtle); }
+    #open-files li.empty { padding: 16px; color: var(--ui-muted); font-size: 14px; }
     #open-files .entry {
       flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
       padding: 12px 4px 12px 16px; color: inherit; font: inherit; text-align: left;
@@ -220,29 +236,29 @@
        a file is in is what tells two files of the same name apart. The text itself carries a
        left-to-right mark, which keeps the path reading forwards inside the box. */
     #open-files .where {
-      font-size: 12px; color: #59636e; direction: rtl; text-align: left;
+      font-size: 12px; color: var(--ui-muted); direction: rtl; text-align: left;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     #open-files .close {
       flex: none; width: 40px; height: 40px; margin-right: 8px; padding: 0;
-      font-size: 20px; color: #59636e; background: none; border: 0;
+      font-size: 20px; color: var(--ui-muted); background: none; border: 0;
     }
     /* A file that has been typed in cannot be saved yet, so closing it asks in its own row. */
     #open-files li.confirming { display: block; padding: 12px 16px; }
     #open-files li.confirming p { margin: 0 0 8px; font-size: 14px; }
     #open-files .answers { display: flex; gap: 8px; justify-content: flex-end; }
     #open-files .answers button {
-      padding: 6px 12px; font-size: 14px; color: #1f2328; background: none;
-      border: 1px solid #d1d9e0; border-radius: 6px;
+      padding: 6px 12px; font-size: 14px; color: var(--ui-foreground); background: none;
+      border: 1px solid var(--ui-border); border-radius: 6px;
     }
-    #open-files .answers .confirm { color: #fff; background: #1f2328; border-color: #1f2328; }
+    #open-files .answers .confirm { color: var(--ui-strong-foreground); background: var(--ui-strong-background); border-color: var(--ui-strong-background); }
     /* The bar along the bottom: drawn upwards, it takes the menu with it. touch-action so the
        browser does not claim the drag as a scroll and cancel the pointer a few pixels in. */
     #open-files .handle {
       flex: none; height: 24px; display: grid; place-items: center; touch-action: none;
     }
     #open-files .handle::after {
-      content: ''; width: 36px; height: 4px; border-radius: 2px; background: #afb8c1;
+      content: ''; width: 36px; height: 4px; border-radius: 2px; background: var(--ui-faint);
     }
   </style>
 </head>

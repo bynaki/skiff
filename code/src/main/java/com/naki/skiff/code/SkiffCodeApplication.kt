@@ -5,6 +5,7 @@ import com.naki.skiff.code.data.SkiffCodeStore
 import com.naki.skiff.code.data.openSkiffCodeDataStore
 import com.naki.skiff.code.session.RemoteSessions
 import com.naki.skiff.code.settings.SettingsFile
+import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.fs.sftp.HostKeyGate
 import com.naki.skiff.fs.sftp.HostKeyPrompter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -39,6 +40,8 @@ class SkiffCodeContainer(app: Application) {
     val sessions = RemoteSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
 
     val settings = SettingsFile(File(app.filesDir, "settings.toml"))
+
+    val themes = Themes(app.assets::open)
 }
 
 val Application.skiffCode: SkiffCodeContainer get() = (this as SkiffCodeApplication).container

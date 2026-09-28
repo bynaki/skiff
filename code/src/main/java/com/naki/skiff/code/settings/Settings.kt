@@ -8,8 +8,8 @@ import kotlinx.serialization.Serializable
 /**
  * What `settings.toml` holds: what the person chose, as opposed to what the page noticed as it was
  * used, which stays in its `localStorage` (docs/skiffcode.spec.md "상태 저장"). Only the keys that
- * something reads today are here; the theme, the diff's transparency and the language servers join
- * with the features that read them. A key left out of the file takes the default written here, and
+ * something reads today are here; the diff's transparency and the language servers join with the
+ * features that read them. A key left out of the file takes the default written here, and
  * [TEMPLATE] says the same thing in the file a person opens — `SettingsTomlTest` holds the two to it.
  */
 @Serializable
@@ -26,6 +26,8 @@ data class Settings(
         @SerialName("tab_size") val tabSize: Int = 4,
         /** On, because a phone's cover screen is too narrow to read code that runs off to the right. */
         val wrap: Boolean = true,
+        /** A bundled theme's name, or `system` for the one that matches the device's dark mode. */
+        val theme: String = SettingsToml.SYSTEM_THEME,
     )
 
     @Serializable
@@ -66,6 +68,10 @@ object SettingsToml {
     val KEPT_BUFFERS = 0..200
     val POLL_SECONDS = 1..60
 
+    /** The theme that follows the device's dark mode rather than being one of its own. */
+    const val SYSTEM_THEME = "system"
+    val THEMES = setOf(SYSTEM_THEME, "light", "dark")
+
     /**
      * Reads [text]. A file that does not read at all gives every default, since there is no telling
      * which of its values were meant; one that reads keeps every value it can and puts the default
@@ -98,12 +104,17 @@ object SettingsToml {
             problems += SettingsProblem.Refused("editor.font", "\"${editor.font}\"", "\"${defaults.editor.font}\"", null)
             defaults.editor.font
         }
+        val theme = if (editor.theme in THEMES) editor.theme else {
+            problems += SettingsProblem.Refused("editor.theme", "\"${editor.theme}\"", "\"${defaults.editor.theme}\"", null)
+            defaults.editor.theme
+        }
         val settings = Settings(
             editor = Settings.Editor(
                 font = font,
                 fontSize = inRange("editor.font_size", editor.fontSize, FONT_SIZES, defaults.editor.fontSize),
                 tabSize = inRange("editor.tab_size", editor.tabSize, TAB_SIZES, defaults.editor.tabSize),
                 wrap = editor.wrap,
+                theme = theme,
             ),
             files = Settings.Files(
                 maxSizeMb = inRange("files.max_size_mb", files.maxSizeMb, MAX_SIZES_MB, defaults.files.maxSizeMb),
@@ -120,7 +131,7 @@ object SettingsToml {
      * internal, and the rest of which is advice for whoever wrote this class. So the message is what
      * is matched, and one in any other shape is passed on whole.
      */
-    private fun problemOf(e: SerializationException): SettingsProblem {
+    internal fun problemOf(e: SerializationException): SettingsProblem {
         val found = UNKNOWN_KEY.find(e.message.orEmpty())
             ?: return SettingsProblem.Unreadable(e.message ?: e.javaClass.simpleName)
         val (key, scope) = found.destructured
@@ -128,6 +139,27 @@ object SettingsToml {
     }
 
     private val UNKNOWN_KEY = Regex("Unknown key received: <([^>]*)> in scope <([^>]*)>")
+
+    /**
+     * [text] with `[editor]`'s `theme` set to [name], for the palette's Theme commands. Only that
+     * line changes, so the person's comments and the rest of their values stay as they wrote them;
+     * a file without the line gets it at the top of `[editor]`, and one without that table gets both
+     * at the end.
+     */
+    fun withTheme(text: String, name: String): String {
+        val line = "theme = \"$name\""
+        val lines = text.lines().toMutableList()
+        val header = lines.indexOfFirst { EDITOR_HEADER.matches(it) }
+        if (header < 0) return text.trimEnd('\n').let { if (it.isEmpty()) "" else "$it\n\n" } + "[editor]\n$line\n"
+        val end = (header + 1..lines.lastIndex).firstOrNull { ANY_HEADER.matches(lines[it]) } ?: lines.size
+        val existing = (header + 1 until end).firstOrNull { THEME_LINE.matches(lines[it]) }
+        if (existing != null) lines[existing] = line else lines.add(header + 1, line)
+        return lines.joinToString("\n")
+    }
+
+    private val EDITOR_HEADER = Regex("""\s*\[\s*editor\s*]\s*(#.*)?""")
+    private val ANY_HEADER = Regex("""\s*\[.*""")
+    private val THEME_LINE = Regex("""\s*theme\s*=.*""")
 
     /**
      * What a missing `settings.toml` is created with when the person first opens it: every key, at
@@ -146,6 +178,9 @@ object SettingsToml {
         tab_size = 4
         # Wrap long lines at the edge of the screen instead of scrolling sideways.
         wrap = true
+        # "system" follows the device's dark mode; "light" and "dark" stay put. The palette's Theme
+        # commands write this line.
+        theme = "system"
 
         [files]
         # 1 to 64. A larger file is not opened.

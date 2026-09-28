@@ -1,0 +1,121 @@
+package com.naki.skiff.code.settings
+
+import com.akuleshov7.ktoml.Toml
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Serializable
+import java.io.InputStream
+
+/**
+ * A theme's colors, keyed `section.name` the way the file spells them (`ui.background`), which the
+ * page turns into one CSS variable each (docs/skiffcode.spec.md "설정과 테마"). [dark] is the `base`
+ * the theme is drawn over: what fills in a color it lacks, and which way the system bars go.
+ */
+data class Theme(val dark: Boolean, val colors: Map<String, String>) {
+
+    /** [key]'s color as Android's ARGB, for the window around the page. CSS puts alpha last; Android first. */
+    fun argb(key: String): Int {
+        val hex = colors.getValue(key).removePrefix("#")
+        val full = if (hex.length <= 4) hex.flatMap { listOf(it, it) }.joinToString("") else hex
+        val rgb = full.take(6).toLong(16)
+        val alpha = if (full.length == 8) full.substring(6).toLong(16) else 0xff
+        return ((alpha shl 24) or rgb).toInt()
+    }
+}
+
+/** The theme to use, and what in its file was passed over to arrive at it. */
+data class ThemeRead(val theme: Theme, val problems: List<SettingsProblem>)
+
+object ThemeToml {
+
+    /**
+     * Every color a theme has. The page reads each as a variable, so a key outside this list would
+     * reach nothing — and is most likely one of these, misspelled.
+     */
+    val KEYS: List<String> = listOf(
+        "ui.background", "ui.foreground", "ui.muted", "ui.border", "ui.faint", "ui.subtle", "ui.accent",
+        "ui.scrim", "ui.strong_background", "ui.strong_foreground",
+        "editor.background", "editor.foreground", "editor.gutter_background", "editor.gutter_foreground",
+        "editor.gutter_border", "editor.cursor", "editor.selection", "editor.code_background",
+        "syntax.keyword", "syntax.atom", "syntax.literal", "syntax.string", "syntax.regexp",
+        "syntax.definition", "syntax.local", "syntax.type", "syntax.class", "syntax.macro",
+        "syntax.property", "syntax.comment", "syntax.meta", "syntax.invalid",
+        "diff.added", "diff.removed",
+    )
+
+    /** What CSS reads as a color without asking anything else: no names, no functions. */
+    private val COLOR = Regex("#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")
+
+    @Serializable
+    private data class ThemeFile(
+        val base: String = "light",
+        val ui: Map<String, String> = emptyMap(),
+        val editor: Map<String, String> = emptyMap(),
+        val syntax: Map<String, String> = emptyMap(),
+        val diff: Map<String, String> = emptyMap(),
+    )
+
+    /**
+     * Reads [text]. The same rules as `settings.toml`: a file that does not read, or names a color
+     * there is none of, gives the base's colors whole; one that reads keeps every color it can and
+     * takes the base's for each one it cannot. [fallback] gives the base's colors — the bundled
+     * theme on that side.
+     */
+    fun read(text: String, fallback: (dark: Boolean) -> Map<String, String>): ThemeRead {
+        val file = try {
+            Toml.decodeFromString(ThemeFile.serializer(), text)
+        } catch (e: SerializationException) {
+            return ThemeRead(Theme(false, fallback(false)), listOf(SettingsToml.problemOf(e)))
+        }
+        val problems = mutableListOf<SettingsProblem>()
+        val dark = when (file.base) {
+            "light" -> false
+            "dark" -> true
+            else -> {
+                problems += SettingsProblem.Refused("base", "\"${file.base}\"", "\"light\"", null)
+                false
+            }
+        }
+        val base = fallback(dark)
+        val given = mapOf("ui" to file.ui, "editor" to file.editor, "syntax" to file.syntax, "diff" to file.diff)
+            .flatMap { (section, table) -> table.map { (name, value) -> "$section.$name" to value } }
+            .toMap()
+        given.keys.firstOrNull { it !in KEYS }?.let {
+            return ThemeRead(Theme(dark, base), problems + SettingsProblem.UnknownKey(it))
+        }
+        val colors = KEYS.mapNotNull { key ->
+            val value = given[key]
+            when {
+                value == null -> base[key]
+                COLOR.matches(value) -> value
+                else -> {
+                    problems += SettingsProblem.Refused(key, "\"$value\"", "\"${base[key]}\"", null)
+                    base[key]
+                }
+            }?.let { key to it }
+        }.toMap()
+        return ThemeRead(Theme(dark, colors), problems)
+    }
+}
+
+/**
+ * The themes the app ships, `assets/themes/<name>.toml`. Each is read once, the first time it is
+ * asked for, against nothing: `ThemeTomlTest` holds both to having every key.
+ */
+class Themes(private val open: (path: String) -> InputStream) {
+
+    private val bundled = mapOf(
+        "light" to lazy { bundledRead("light") },
+        "dark" to lazy { bundledRead("dark") },
+    )
+
+    val names: Set<String> get() = bundled.keys
+
+    private fun bundledRead(name: String): Theme =
+        ThemeToml.read(open("themes/$name.toml").use { it.readBytes().decodeToString() }) { emptyMap() }.theme
+
+    /** [choice] as `settings.toml` says it, where `system` is the bundled theme that matches [night]. */
+    fun resolve(choice: String, night: Boolean): Theme {
+        val name = if (choice == SettingsToml.SYSTEM_THEME) (if (night) "dark" else "light") else choice
+        return (bundled[name] ?: error("no theme called $name")).value
+    }
+}

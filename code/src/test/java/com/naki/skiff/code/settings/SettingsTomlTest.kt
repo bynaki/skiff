@@ -105,4 +105,37 @@ class SettingsTomlTest {
         assertFalse(SettingsToml.read("[editor]\nwrap = false\n").settings.editor.wrap)
         assertTrue(SettingsToml.read("[editor]\nwrap = \"no\"\n").problems.single() is SettingsProblem.Unreadable)
     }
+
+    @Test
+    fun `a theme that is not there is replaced by following the system`() {
+        assertEquals("dark", SettingsToml.read("[editor]\ntheme = \"dark\"\n").settings.editor.theme)
+        val read = SettingsToml.read("[editor]\ntheme = \"blue\"\n")
+        assertEquals("system", read.settings.editor.theme)
+        assertEquals(listOf(SettingsProblem.Refused("editor.theme", "\"blue\"", "\"system\"", null)), read.problems)
+    }
+
+    @Test
+    fun `choosing a theme changes only its line, and the file reads as that theme`() {
+        val changed = SettingsToml.withTheme(SettingsToml.TEMPLATE, "dark")
+        assertEquals(Settings(Settings().editor.copy(theme = "dark")), SettingsToml.read(changed).settings)
+        val before = SettingsToml.TEMPLATE.lines()
+        val after = changed.lines()
+        assertEquals(before.size, after.size)
+        assertEquals(listOf("theme = \"dark\""), after.filterIndexed { i, line -> line != before[i] })
+    }
+
+    @Test
+    fun `choosing a theme adds the line where the file has none`() {
+        val text = "# mine\n[editor]\nfont_size = 18\n\n[files]\npoll_seconds = 5\n"
+        assertEquals(
+            "# mine\n[editor]\ntheme = \"light\"\nfont_size = 18\n\n[files]\npoll_seconds = 5\n",
+            SettingsToml.withTheme(text, "light"),
+        )
+        // A `theme` in another table is not the one being chosen.
+        assertEquals(
+            "[files]\ntheme = \"x\"\n\n[editor]\ntheme = \"light\"\n",
+            SettingsToml.withTheme("[files]\ntheme = \"x\"\n", "light"),
+        )
+        assertEquals("[editor]\ntheme = \"dark\"\n", SettingsToml.withTheme("", "dark"))
+    }
 }

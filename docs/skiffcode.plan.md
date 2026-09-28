@@ -247,7 +247,15 @@
   - `SettingsTomlTest` 11개. "왕복"은 **새로 만드는 파일(`TEMPLATE`)이 기본값 그대로 읽히는 것**으로 했다 — 앱은 설정을 인코딩하지 않고, 손으로 쓴 주석 달린 파일이 기본값과 어긋나는 것이 실제로 생길 수 있는 틀림이다. `FileWatcherTest`는 폴링 주기가 함수가 된 만큼만 고쳤고, vitest는 커맨드 목록과 `storedFontSize`(저장된 것이 없으면 null)를 고쳤다.
   - 실기기(탭) 확인, DevTools로: `Open Settings`가 주석 달린 파일을 열었다. 편집 레이어에서 `font_size` 20, `tab_size` 2, `wrap = false`로 저장하니 "저장했습니다."와 함께 **글자가 20px, 탭 2, 줄바꿈 해제가 한 번에** 먹었다(CodeMirror와 CSS 변수 둘 다). `font_size = 99`는 "editor.font_size = 99 은(는) 8~40 밖이라 기본값 14 을(를) 씁니다."가 떠 있고 14px로 돌아왔으며 탭과 줄바꿈은 그대로였다. `font_szie`는 "settings.toml에 editor.font_szie 라는 키는 없어서 모든 설정을 기본값으로 씁니다."였다. `max_size_mb = 1`로 저장한 뒤 1.6MB 파일을 링크로 여니 "1 MB보다 큰 파일은 열지 않습니다."였다. 끝나고 탭의 `settings.toml`과 시험 파일은 지웠다.
   - **기기에서 보지 못한 것:** `poll_seconds`와 `kept_buffers`는 값을 넘기는 자리만 바뀌었고 기기에서 따로 재지 않았다. 폴드8에서 커버 화면 줄바꿈도 아직 안 봤다.
-- [ ] `themes/*.toml` → CSS 변수 매핑(메뉴와 레이어 전체), 다크/라이트 번들, 폴백 + vitest
+- [x] `themes/*.toml` → CSS 변수 매핑(메뉴와 레이어 전체), 다크/라이트 번들, 폴백 + vitest
+  - **2026-09-28 사용자 결정 셋:** 기본값은 `theme = "system"`(기기 다크 모드를 따름), 바꾸는 방법은 `settings.toml`의 `[editor] theme`과 팔레트의 `Theme: System` / `Theme: Light` / `Theme: Dark`, 이번 항목은 번들 `light`/`dark`만(사용자 테마는 다음 항목의 import에서).
+  - 번들은 `assets/themes/{light,dark}.toml`, 표는 `[ui]` `[editor]` `[syntax]` `[diff]`와 최상위 `base`. **읽고 검사하는 것은 Kotlin이다**(`settings/Theme.kt`) — 문제를 알리는 말이 Kotlin 문자열 리소스에 있고 `settings.toml`과 같은 규칙(모르는 키면 통째로 base, 색이 아닌 값은 그 키만 base)을 쓰기 때문이다. 색은 `#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`만 받는다. 페이지는 받은 표를 `--섹션-키` 변수로 쓰기만 한다(`theme.ts`). 계획에서는 검사를 TS에 두려 했으나 옮겼다.
+  - 키 목록은 `ThemeToml.KEYS` 하나다. `theme.test.ts`가 `index.html`의 `:root`(Kotlin이 답하기 전의 모습)와 `light.toml`이 색마다 같은지, 페이지와 코드가 쓰는 `var(--…)`가 테마 키와 정확히 같은지 본다. `ThemeTomlTest` 9개, `SettingsTomlTest`에 `theme` 셋, vitest 4개.
+  - 라이트는 이전 화면과 같은 값이다: 메뉴 색은 `index.html`에 박혀 있던 것, 코드 뷰는 CodeMirror의 `defaultHighlightStyle`과 base theme의 라이트 값을 태그마다 변수로 옮겼다. **다른 점 하나:** 텍스트 선택 색이 브라우저 기본에서 `editor.selection`(`#d7d4f0`, CodeMirror의 라이트 선택색)이 됐다.
+  - **다크 모드를 따르는 방법:** WebView의 `prefers-color-scheme`에 기대지 않고 Kotlin이 `uiMode`의 night 비트로 번들을 골라 보낸다. `uiMode`를 `configChanges`에 넣었다 — 없으면 다크 모드를 바꿀 때 액티비티가 다시 만들어져 편집하던 사람이 viewer 맨 위로 돌아간다. 상태바 아이콘과 상태바 아래 프레임 색도 테마를 따른다.
+  - 팔레트의 Theme 명령은 `settings.toml`의 `theme =` 줄만 고쳐 쓴다(없으면 `[editor]` 맨 위에, 파일이 없으면 템플릿으로 만든다). 그 파일이 앱에 열려 있으면 감시가 바뀐 것을 가져오고, 친 내용이 있으면 묻는다.
+  - 실기기(탭) 확인, DevTools로: 다크 모드에서 `system` 기본으로 열면 상단 메뉴 `rgb(21,27,35)`, 편집기 `rgb(13,17,23)`, 상태바도 어둡고 아이콘이 밝다. 팔레트에서 `theme light`를 실행하니 한 번에 흰 화면이 되고 상태바 아이콘이 어두워졌으며 파일에 `theme = "light"`가 적혔다. `Theme: System`으로 돌리고 편집 레이어에서 `cmd uimode night no`를 하니 **같은 pid, 같은 페이지(심어 둔 전역 값이 남음), 편집 레이어 그대로** 라이트가 됐다. 다크에서 팔레트 결과 목록과 렌더된 마크다운도 어둡게 나왔다.
+  - **기기에서 보지 못한 것:** 사이드바와 열린 파일 메뉴, 배너를 다크에서 눈으로 보지 않았다(같은 변수를 쓴다). 탭 아래 내비게이션 줄은 라이트에서도 짙은 회색으로 보였다 — 이번 변경 전에도 그랬는지는 확인하지 않았다. 다크에서 앱을 켤 때 페이지가 답을 받기 전 잠깐 라이트(`:root`)로 그려질 수 있다.
 - [ ] 설정과 테마 import/export(SAF)
 - [x] `.jsonl`을 JSON 문법으로 연다 (2026-09-23 사용자 요청) + vitest
   - `FileKind`는 건드리지 않기로 했다(2026-09-23 사용자 결정). Skiff 목록에서 `.jsonl`을 탭하면 여전히 밖으로 나가고, 강조는 링크로 연 Skiff Code 안에서만이다.

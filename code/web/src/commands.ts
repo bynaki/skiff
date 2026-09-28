@@ -11,6 +11,9 @@
 import type { LayerName } from './layers/pane'
 import type { PaletteItem } from './palette'
 
+/** What `settings.toml`'s `theme` may say: the bundled themes, or the one matching the device. */
+export type ThemeChoice = 'system' | 'light' | 'dark'
+
 /** What the commands act on, and what says which of them there is anything to act on. */
 export interface CommandSource {
   /** A file is open, whether or not there is a document under it. */
@@ -28,6 +31,8 @@ export interface CommandSource {
   toggleSidebar(): void
   /** Opens `settings.toml`, which saving applies. */
   openSettings(): void
+  /** Writes `theme` into `settings.toml`, which applies it. */
+  setTheme(name: ThemeChoice): void
   undo(): void
   redo(): void
 }
@@ -57,6 +62,9 @@ export function commands(source: CommandSource): PaletteItem[] {
     { name: 'Reset Zoom', run: () => source.resetZoom() },
     { name: 'Toggle Sidebar', run: () => source.toggleSidebar() },
     { name: 'Open Settings', run: () => source.openSettings() },
+    { name: 'Theme: System', run: () => source.setTheme('system') },
+    { name: 'Theme: Light', run: () => source.setTheme('light') },
+    { name: 'Theme: Dark', run: () => source.setTheme('dark') },
   )
   if (source.open()) {
     items.push(

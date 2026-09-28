@@ -12,22 +12,20 @@
 
 ---
 
-## 마지막 세션 (2026-09-27, 두 번째)
+## 마지막 세션 (2026-09-28)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). `origin/main`은 이 세션 전 커밋(`51308c6`의 부모 `4a152e2`)까지 fast-forward돼 있다.
-  원래 체크아웃(`~/projects/skiff`)의 로컬 `main`은 아직 옛 위치라 `git pull`이 필요하다.
-- **`settings.toml` 로드와 적용을 끝냈다.** 사용자가 정한 넷(앱 내부 + `Open Settings`, 지금 읽는 키만, 줄바꿈 켬,
-  글꼴 배율 따름)과 탭 확인 결과는 `docs/skiffcode.plan.md`의 그 항목 아래에 있다.
-- 커밋했다(`settings.toml` 작업 + `docs/devices.md`의 무선 디버깅 포트 찾기 + 이 파일). **push는 하지 않았다.**
-- 이 빌드를 폴드8에도 설치했다. 사용자가 손으로 확인하는 중일 수 있다 — 커버 화면 줄바꿈과 `Open Settings`.
-- 폴드8 설치는 사용자 개인 스킬 `fold8-install`이 맡는다(레포 밖, `~/.claude/skills/`). Wi-Fi(mDNS) → 테일스케일 포트
-  스캔 순으로 찾고, 다 안 되면 APK를 `SendUserFile`로 보낸다. 주소와 시리얼은 그 스킬과 로컬 메모에만 있다.
-- 탭에서 시험한 `settings.toml`과 `pal/big.txt`는 지웠다. `pal/`의 나머지 확인용 파일은 그대로다.
-- 탭의 화면 꺼짐 시간이 600000이었다(지난 세션은 300000으로 되돌렸다고 적었다). 이번 세션은 건드리지 않았다.
+- 브랜치 `plan/skiffcode`(git worktree). 이 세션 시작 때 `270457a`까지 커밋돼 있었고 **push는 하지 않았다**(지난 세션 것도 포함).
+- **테마(`themes/*.toml` → CSS 변수)를 끝냈다.** 사용자가 정한 셋(`system` 기본, `settings.toml` + 팔레트 `Theme:` 명령, 번들 둘만)과
+  탭 확인 결과는 `docs/skiffcode.plan.md`의 그 항목 아래에 있다. 린트와 테스트(JVM 148, vitest 87) 통과.
+- 테마 작업은 이 파일과 함께 한 커밋으로 들어갔다. **push는 하지 않았다.**
+- 폴드8은 무선 디버깅으로 찾지 못해(Wi-Fi·테일스케일 모두) 이 빌드의 APK를 `SendUserFile`로 보냈다. 폰에 설치됐는지는 모른다.
+- 탭에 이 빌드가 설치돼 있고, 탭의 `settings.toml`에는 `theme = "system"`이 들어 있다. 탭은 다크 모드(`cmd uimode night yes`), 원래 상태 그대로다.
+- 이 세션 중 탭의 USB adb가 여러 번 끊겼다가 돌아왔다. 기기 명령은 `adb wait-for-device`와 재시도로 감쌌다.
 
 ### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다. 툴체인 제약, Before committing(**작업이 끝나면 린트와 테스트를 돌리고 커밋할지 묻는다. 커밋하라고 하면 점검하고, 깨끗하면 커밋한다. push는 늘 먼저 묻는다**),
-   보고와 알림 규칙, 그리고 이 파일을 작게 두는 규칙.
-2. 계획의 첫 `- [ ]`인 `themes/*.toml` → CSS 변수 매핑이다. `theme` 키는 그 항목에서 `settings.toml`에 더한다.
-3. 기기에서 아직 못 본 것: `poll_seconds`·`kept_buffers`가 실제로 먹는지, 폴드8 커버 화면의 줄바꿈.
+1. `AGENTS.md`를 읽는다(툴체인 제약, Before committing, 보고와 알림, 이 파일을 작게 두는 규칙).
+2. push할지 묻는다(`plan/skiffcode`가 `origin`보다 앞서 있다).
+3. 계획의 첫 `- [ ]`인 설정과 테마 import/export(SAF). 사용자 테마를 들이면 `Themes`가 번들 외의 이름도 알아야 하고,
+   `ThemeToml.read`의 문제(`SettingsProblem`)를 알릴 말(테마 파일용 `Unreadable`/`UnknownKey` 문구)이 그때 필요하다.
+4. 기기에서 아직 못 본 것: 다크의 사이드바·열린 파일 메뉴·배너, 탭 아래 내비게이션 줄 색, `poll_seconds`·`kept_buffers`, 폴드8 커버 화면 줄바꿈.

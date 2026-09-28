@@ -378,8 +378,9 @@ These apply to `:code` only:
   does not survive, so even a file Skiff sent comes back with the confirmation dialog.
   `onRetainNonConfigurationInstance` now carries the open document across and `onCreate` skips the
   link when it arrives, which makes a recreation survivable — but **only the document is carried,
-  not the layer or the scroll**, so `uiMode`, locale and font scale (none of them listed) still
-  drop the reader back into the viewer. `fontScale` is the way to trigger one on purpose:
+  not the layer or the scroll**, so locale and font scale (neither listed) still drop the reader
+  back into the viewer. `uiMode` is listed, so dark mode reaches a `system` theme through
+  `onConfigurationChanged`. `fontScale` is the way to trigger one on purpose:
   `adb shell settings put system font_scale 1.3`, then put it back.
 - **The WebView multiplies the system font scale into the page.** At the phone's `font_scale` 1.5
   the editor's 14px default computed to 21px, so `MIN_FONT_SIZE`/`MAX_FONT_SIZE` (8–40) are really
@@ -526,6 +527,8 @@ added:
 - `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,
   `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7, and `commands` 6.11.1, which M3 added for
   `history()` and the default keymap
+- `@lezer/highlight` 1.2.3, already under CodeMirror, named directly since M4 for the `tags` the
+  theme's highlight style is written against
 
 The bridge's shape is settled too, and the security rules on it are in `docs/skiffcode.spec.md`: one
 `WebViewCompat.addWebMessageListener` named `skiffBridge`, `https://appassets.androidplatform.net`
