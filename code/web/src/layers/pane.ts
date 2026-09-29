@@ -26,6 +26,7 @@ import { hardwareKeyboard } from '../keyboard'
 import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinchZoom } from '../zoom'
 import { applyEditorSettings, editorSettings } from '../settings'
 import { editorTheme } from '../theme'
+import { swatchesFor } from '../swatches'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -182,6 +183,8 @@ export function openPane(
         dirtyFlag,
         syntax.of([]),
         editorTheme,
+        // Outside the compartment, so every layer shows them.
+        swatchesFor(doc.name),
         layerBundle.of(BUNDLES[layer]),
         codeFontSize(),
         editorSettings(),

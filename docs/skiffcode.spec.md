@@ -121,6 +121,7 @@ method로 구독한다(M0에서 확인).
 
 - `pane`은 파일과 1:1이고 전체화면이다. viewer, editor, diff가 레이어로 겹쳐 있다.
 - **레이어는 뷰가 아니라 확장 묶음이다.** `pane` 하나에 `EditorView` 하나와 `EditorState` 하나를 두고, 레이어를 바꾸는 것은 `Compartment`에 든 확장 묶음을 바꾸는 것이다. 그래서 문서, 파싱 트리, 높이맵, undo 기록이 세 레이어에 하나씩만 있고, 나간 레이어의 state field는 CM6가 알아서 버린다(2026-09-20에 정했다. 근거는 `AGENTS.md`의 CM6 관찰). 마크다운 viewer만 CM6가 아닌 별도 DOM이라 예외다.
+- **색 네모:** `.toml`·`.css`·`.json`에서 `#0b3d5c` 같은 16진 색 앞에 그 색의 작은 네모를 붙인다(2026-09-29 사용자 요청과 결정). **보기만 하고** 누르는 것은 없다. 파일 종류를 좁힌 것은 다른 파일에서 `#add`, `#cafe` 같은 주석 글자가 색으로 잡히기 때문이다. 레이어 compartment 밖에 두어 세 레이어 모두에 보인다(`web/src/swatches.ts`).
 - **viewer:**
   - 읽기 전용 CM6에 하이라이팅, 줄 번호, git 거터를 보여준다.
   - **문법은 이름으로 고른다** — `LanguageDescription.matchFilename`이 `Makefile` 같은 이름과 확장자를 함께 안다. 내용은 보지 않는다.

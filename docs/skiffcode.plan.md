@@ -286,6 +286,24 @@
   - **고친 것:** `Themes.isImported("system")`이 참이었다 — `system`은 `names`에 있고 번들 맵에는 없어서다. 가져오기는 `nameOf`가 그 이름을 막아 드러나지 않았는데, 삭제 테스트가 잡았다.
   - **2026-09-29 탭에서 DevTools와 `uiautomator`로 확인했다(다크 모드, `system`):** 번들일 때 팔레트에 `Copy Theme`·`Edit Theme`만 있고 `Delete Theme`은 없다. 번들에서 Edit는 "dark 은(는) 앱에 든 기본 테마라 고칠 수 없습니다. 복사본을 만들어 고칠까요?"를 묻고, 복사를 누르면 이름 창이 `dark copy`로 뜬다. `dark`를 넣으면 거절 까닭이 창 위에 붙어 다시 뜨고, `dark copy`는 `files/themes/dark copy.toml`로 만들어져 `theme = "dark copy"`가 되고 편집기로 열렸다. `[ui] background`를 `#335577`로 고쳐 Save File 하니 `--ui-background`가 바로 `#335577`이 됐고, `backgrund`로 오타를 내 저장하니 "테마에 ui.backgrund 라는 색은 없어서 …" 배너와 함께 dark의 `#151b23`으로 돌아갔다. 친 채로 Delete Theme → 삭제하니 파일이 닫히고 폴더가 비고 `theme = "system"`, 팔레트에서 Delete가 빠졌다. 내 테마에서 Edit는 묻지 않고 바로 열고, 있는 이름으로 복사하면 "dark copy 테마가 이미 있습니다. dark copy copy 의 복사본으로 바꿀까요?"를 묻는다.
   - 폴드8과 라이트 모드에서는 보지 않았다.
+- [x] 색 문자열 옆에 그 색의 작은 네모 (2026-09-29 사용자 요청) + vitest 5개
+  - **정한 것(2026-09-29 사용자 결정):** `.toml`·`.css`·`.json` 파일에서만, **보기만** 한다(누르면 색 선택기가 뜨는 것은 없다). CodeMirror에 그런 기능은 없고, `@replit/codemirror-css-color-picker`는 CSS 문법 트리(`ColorLiteral`)를 읽어서 TOML 문자열 안의 색을 잡지 못한다.
+  - `web/src/swatches.ts`: `MatchDecorator`로 `#rgb`·`#rgba`·`#rrggbb`·`#rrggbbaa` 앞에 위젯을 넣는다. 레이어 compartment 밖에 두어 세 레이어에 다 보인다.
+  - 알려진 것: CSS의 id 선택자가 16진 글자로만 되어 있으면(`#fade`, `#add`) 색으로 잡힌다.
+  - **2026-09-29 탭에서 DevTools로 확인했다:** `swatch.css`에서 `#0b3d5c`, `#fff`, `#e5484d80`(반투명) 앞에 11px 네모가 그 색으로 붙었고, 위의 id 선택자 `#fade`에도 붙었다. `swatch.json`은 `#0b3d5c`·`#abcd` 둘(5자리 `#abcde`는 없음), `swatch.toml`은 `[ui]` 네 줄(`#abcde`와 `x#abc`는 없음), `swatch.py`는 0개였다. 탭의 `screencap`은 이때 WebView를 비워 찍었고 CDP `Page.captureScreenshot`은 답이 없어 모양은 눈으로 보지 못했다.
+- [ ] https 링크로 Skiff Code 열기 — Claude 앱에서 탭 한 번에 (2026-09-29 사용자 요청)
+  - **왜:** 폴드8의 Claude 앱은 `skiffcode://` 링크를 "지원되지 않는 링크"라며 넘기지 않는다. 대신 https 링크는 시스템에 넘긴다 — YouTube 링크를 누르니 YouTube 앱이 열렸다(2026-09-29 사용자 확인). 그러니 Skiff Code가 https 링크 하나를 자기 것으로 받으면 된다.
+  - **모양(제안):** `https://<호스트>/skiffcode/open#<skiffcode:// 뒤의 나머지>`. 예: `…/open#alice@host/srv/demo/a.md?line=3`, 로컬은 `…/open#/storage/emulated/0/a.md`. 받은 쪽은 `#` 뒤를 `skiffcode://`에 붙여 **지금의 `OpenRequest.of` 그대로** 태운다 — 파서도 경로 확인 창도 하나다.
+    - 경로를 `#` 뒤에 두는 까닭: 앱이 없거나 링크가 브라우저로 새면, `#` 앞까지만 웹 서버로 간다. 서버 이름과 경로가 블로그의 접속 기록에 남지 않는다.
+  - **보안:** https 링크는 `skiffcode://`와 똑같이 **밖에서 온 링크**다. 누가 보냈든 Skiff가 아니면 `confirmPath`가 묻는다. `AGENTS.md`의 "Links that arrive from outside"에 입구가 둘이 됐다고 적는다. 받는 경로는 `pathPrefix`로 `/skiffcode/open` 하나로 좁혀, 블로그의 다른 주소는 계속 브라우저로 간다.
+  - **정할 것 셋 — 시작 전에 사용자에게 묻는다.** 괄호 안은 제안이다.
+    1. 호스트 (**`bynaki.github.io`** — 2026-09-29 사용자 요청으로 사용자 지정 도메인 `paran.blue`를 떼어 되돌렸다. `paran.blue`는 2026-05에 누군가 다시 등록한 도메인이라 쓸 수 없다. 안드로이드의 확인은 넘김을 따라가지 않으니 넘김 없는 주소여야 한다)
+    2. 소유 증명 (**`assetlinks.json`을 올린다.** 안 올리면 기기마다 설정 → 앱 → Skiff Code → 기본으로 열기 → 링크 추가에서 직접 켜야 하고, 다른 사람에게 배포할 때도 그렇다)
+       - 올린다면: `https://bynaki.github.io/.well-known/assetlinks.json`. 블로그 원본은 `bynaki/paran.blue`(Hugo)이고 빌드 결과가 `public/` 서브모듈로 `bynaki.github.io`에 올라간다. Pages 저장소에 `.nojekyll`이 없어 Jekyll이 점으로 시작하는 폴더를 빼므로, `.nojekyll`이나 `_config.yml`의 `include`가 필요하다. 저장소가 빌드 결과물로 보여(`index.xml`, `posts`) **블로그를 다시 배포할 때 이 파일이 지워지지 않게** 원본 쪽에 넣어야 할 수 있다. 서명 지문은 지금의 디버그 키, 배포할 때의 릴리스 키를 모두 싣는다.
+    3. 앱이 없을 때 볼 페이지 (**둔다:** `/skiffcode/open/` 한 장이 `#` 뒤를 읽어 `intent://` 링크와 "Skiff Code가 필요합니다"를 보여준다. 확인이 안 된 기기에서도 한 번 더 누르면 열린다)
+  - **바꿀 곳:** 매니페스트에 `https` + 호스트 + `pathPrefix` + `autoVerify="true"` 필터 하나. `OpenRequest.of`(또는 `SkiffCodeUri`) 앞에 https → `skiffcode://` 변환 하나. Pages 저장소에 `assetlinks.json`과 대비 페이지(정할 것 2·3에 따라). 블로그 저장소에 올리는 것은 밖으로 공개되는 일이라 **올리기 전에 사용자에게 묻는다.**
+  - 테스트: 변환 — 호스트·경로가 맞는 것만 받고(`/skiffcode/openx`, 다른 호스트, `#`이 없는 것은 거절), `#` 뒤의 `?line=`과 퍼센트 인코딩·한글 경로가 그대로 가는지. 변환된 링크가 `confirmPath`를 거치는지는 `OpenFlow`가 종류마다 답하므로 새 종류를 만들지 않는 것으로 지킨다.
+  - **확인:** 탭에서 `adb shell pm get-app-links com.naki.skiff.code`로 확인 상태(`verified`)를 보고, `am start -a android.intent.action.VIEW -d 'https://…'`로 열어 경로 확인 창이 뜨는지 본다. 폴드8의 Claude 앱에서 링크를 눌러 Skiff Code가 바로 열리는지 사용자가 본다. 블로그의 다른 주소는 여전히 브라우저로 열리는지도 본다.
 - [ ] **확인:** 실기기에서 팔레트 흐름을 녹화하고, 테마를 바꾸면 메뉴, 사이드바, 팔레트, 세 레이어가 한 번에 바뀐다
 
 ### M5. 프로젝트 모드 + git
