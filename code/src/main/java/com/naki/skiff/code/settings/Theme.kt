@@ -100,10 +100,11 @@ object ThemeToml {
 }
 
 /**
- * The themes the app ships, `assets/themes/<name>.toml`, and the ones brought in with Import Theme,
- * `<dir>/<name>.toml` (docs/skiffcode.spec.md "설정과 테마"). Each is read once, the first time it is
- * asked for. The bundled ones are read against nothing — `ThemeTomlTest` holds both to having every
- * key — and an imported one against the bundled theme on its `base` side.
+ * The themes the app ships, `assets/themes/<name>.toml`, and the person's own — brought in with Import
+ * Theme or made with Copy Theme — `<dir>/<name>.toml` (docs/skiffcode.spec.md "설정과 테마"). Each is
+ * read once, the first time it is asked for. The bundled ones are read against nothing —
+ * `ThemeTomlTest` holds both to having every key — and an imported one against the bundled theme on
+ * its `base` side.
  */
 class Themes(private val open: (path: String) -> InputStream, private val dir: File) {
 
@@ -137,15 +138,18 @@ class Themes(private val open: (path: String) -> InputStream, private val dir: F
     fun resolve(choice: String, night: Boolean): Theme {
         val name = nameIn(choice, night)
         bundled[name]?.let { return it.value }
-        return imported.getOrPut(name) { read(File(dir, name + SUFFIX).readText()).theme }
+        return imported.getOrPut(name) { read(file(name).readText()).theme }
     }
 
     /** The theme [choice] shows under [night]: itself, or for `system` the bundled one it follows. */
     fun nameIn(choice: String, night: Boolean): String =
         if (choice == SettingsToml.SYSTEM_THEME) (if (night) "dark" else "light") else choice
 
-    /** Whether Import Theme under [name] would replace a theme already brought in. */
-    fun isImported(name: String): Boolean = name in names && name !in bundled
+    /**
+     * Whether [name] is a theme of the person's own — one Import Theme would replace, and one that can
+     * be edited and deleted. Not `system`, which names a bundled theme.
+     */
+    fun isImported(name: String): Boolean = name in names && name !in bundled && name != SettingsToml.SYSTEM_THEME
 
     /**
      * Keeps [text] as the theme [name] — as it was written, so exporting it gives the person their own
@@ -154,14 +158,42 @@ class Themes(private val open: (path: String) -> InputStream, private val dir: F
     fun import(name: String, text: String): List<SettingsProblem> {
         val read = read(text)
         dir.mkdirs()
-        File(dir, name + SUFFIX).writeText(text)
+        file(name).writeText(text)
         imported[name] = read.theme
         importedNames = null
         return read.problems
     }
 
     /** The file behind the theme [name], as Export Theme writes it out. */
-    fun text(name: String): String = if (name in bundled) bundledText(name) else File(dir, name + SUFFIX).readText()
+    fun text(name: String): String = if (name in bundled) bundledText(name) else file(name).readText()
+
+    /** Where the theme [name] is kept when it is the person's own, which Edit Theme opens. */
+    fun file(name: String): File = File(dir, name + SUFFIX)
+
+    /** The theme a file at [path] is, when it is one of the person's own; null for any other file. */
+    fun ownAt(path: String): String? {
+        val file = File(path)
+        if (file.parentFile?.path != dir.path) return null
+        return nameOf(file.name)?.takeIf { isImported(it) && file(it).path == path }
+    }
+
+    /**
+     * Reads the theme [name] from its file again, which is what saving it in the app does, and says
+     * what in it was passed over.
+     */
+    fun reread(name: String): List<SettingsProblem> {
+        val read = read(file(name).readText())
+        imported[name] = read.theme
+        return read.problems
+    }
+
+    /** Removes the theme [name]. Only one of the person's own: a bundled theme is part of the app. */
+    fun delete(name: String) {
+        require(isImported(name)) { "not a theme of the person's own: $name" }
+        file(name).delete()
+        imported.remove(name)
+        importedNames = null
+    }
 
     companion object {
         const val SUFFIX = ".toml"

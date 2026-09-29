@@ -74,6 +74,19 @@ suspend fun Activity.confirm(title: String, message: String, action: String): Bo
         setNegativeButton(android.R.string.cancel) { _, _ -> finish(false) }
     }
 
+/** One line of text, started at [value]. Null is "cancel". */
+suspend fun Activity.askText(title: String, message: String, value: String, action: String): String? {
+    val form = Form(this)
+    form.text(message)
+    val field = form.field("", value, password = false)
+    return await(null, required = listOf(field)) { finish ->
+        setTitle(title)
+        setView(form.root)
+        setPositiveButton(action) { _, _ -> finish(field.text.toString()) }
+        setNegativeButton(android.R.string.cancel) { _, _ -> finish(null) }
+    }
+}
+
 data class UnknownServerAnswer(val user: String, val password: String, val saveAsProfile: Boolean)
 
 /** Shows the address the link points at, and asks what connecting to it needs. Null is "don't open". */

@@ -90,12 +90,13 @@ class OpenFlow(
     }
 
     /**
-     * The app's own `settings.toml`, for the palette's `Open Settings`. It is in the app's files, so
-     * none of what a link needs applies: no all-files grant, no question about the path — the person
-     * asked for this file by name — and no directory for the file mode, since what sits beside it is
-     * the store with the server profiles. It is not a recent file either: it has a command of its own.
+     * A file of the app's own — `settings.toml` for the palette's `Open Settings`, a theme for `Edit
+     * Theme`. It is in the app's files, so none of what a link needs applies: no all-files grant, no
+     * question about the path — the person asked for this file by name — and no directory for the file
+     * mode, since what sits beside `settings.toml` is the store with the server profiles. It is not a
+     * recent file either: it has a command of its own.
      */
-    suspend fun openSettings(file: File): Opened? = try {
+    suspend fun openOwn(file: File): Opened? = try {
         val request = OpenRequest.LocalPath(file.path, OpenAt())
         val fs = LocalFileSystem(file.name)
         val result = loader.load(fs, file.path)
@@ -106,7 +107,7 @@ class OpenFlow(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w(TAG, "settings did not open", e)
+        Log.w(TAG, "${file.name} did not open", e)
         fail(R.string.error_open, describe(e))
     }
 

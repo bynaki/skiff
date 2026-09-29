@@ -83,6 +83,18 @@
     <string name="theme_replace_title">Replace theme?</string>
     <string name="theme_replace">There is already a theme called %1$s. Replace it with this file?</string>
 
+    <string name="action_copy">Copy</string>
+    <string name="action_delete">Delete</string>
+    <string name="theme_copy_title">Copy theme</string>
+    <string name="theme_copy_body">A copy of %1$s, under this name. It opens to be edited.</string>
+    <string name="theme_copy_name" translatable="false">%1$s copy</string>
+    <string name="theme_copy_refused">\"%1$s\" cannot be a theme\'s name: use letters, digits, spaces, _, - and parentheses, and not system, light or dark.</string>
+    <string name="theme_copy_replace">There is already a theme called %1$s. Replace it with a copy of %2$s?</string>
+    <string name="theme_bundled_title">Copy this theme?</string>
+    <string name="theme_bundled">%1$s comes with the app and cannot be changed. Make a copy to edit instead?</string>
+    <string name="theme_delete_title">Delete theme?</string>
+    <string name="theme_delete">Delete %1$s? The screen goes back to the system theme.</string>
+
     <string name="watch_changed">This file changed somewhere else.</string>
     <string name="watch_gone">This file is no longer there.</string>
     <string name="watch_unreadable">This file changed into something that cannot be shown here.</string>

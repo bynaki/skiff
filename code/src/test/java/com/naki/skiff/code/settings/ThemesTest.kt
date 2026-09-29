@@ -3,6 +3,7 @@ package com.naki.skiff.code.settings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -90,5 +91,70 @@ class ThemesTest {
         assertEquals("dark", themes.nameIn("system", night = true))
         assertEquals("light", themes.nameIn("system", night = false))
         assertEquals("ocean", themes.nameIn("ocean", night = false))
+    }
+
+    @Test
+    fun `a copy of a bundled theme is the person's own, with the bundled file's text`() {
+        val themes = themes()
+        themes.import("dark copy", themes.text("dark"))
+        assertTrue(themes.isImported("dark copy"))
+        assertEquals(File("src/main/assets/themes/dark.toml").readText(), themes.text("dark copy"))
+        assertEquals(themes.resolve("dark", night = false), themes.resolve("dark copy", night = false))
+    }
+
+    @Test
+    fun `a copy of a theme of the person's own does not change with it`() {
+        val themes = themes()
+        themes.import("ocean", "[ui]\nbackground = \"#111\"\n")
+        themes.import("ocean copy", themes.text("ocean"))
+        themes.file("ocean").writeText("[ui]\nbackground = \"#222\"\n")
+        themes.reread("ocean")
+        assertEquals("#111", themes.resolve("ocean copy", night = false).colors["ui.background"])
+    }
+
+    @Test
+    fun `saving an edited theme is read again, with what was passed over`() {
+        val themes = themes()
+        themes.import("ocean", "[ui]\nbackground = \"#111\"\n")
+        themes.resolve("ocean", night = false)
+        themes.file("ocean").writeText("[ui]\nbackground = \"#222\"\n")
+        assertEquals(emptyList<SettingsProblem>(), themes.reread("ocean"))
+        assertEquals("#222", themes.resolve("ocean", night = false).colors["ui.background"])
+        // A typo is the same as it is on import: the whole base, and the key named.
+        themes.file("ocean").writeText("[ui]\nbackgrund = \"#333\"\n")
+        assertEquals(listOf(SettingsProblem.UnknownKey("ui.backgrund")), themes.reread("ocean"))
+        assertEquals(themes.resolve("light", night = false).colors, themes.resolve("ocean", night = false).colors)
+    }
+
+    @Test
+    fun `a deleted theme is no longer offered or kept`() {
+        val themes = themes()
+        themes.import("ocean", "base = \"dark\"\n")
+        themes.resolve("ocean", night = false)
+        themes.delete("ocean")
+        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertFalse(themes.isImported("ocean"))
+        assertFalse(themes.file("ocean").exists())
+        assertEquals(listOf("system", "light", "dark"), themes().names)
+    }
+
+    @Test
+    fun `a bundled theme cannot be deleted`() {
+        val themes = themes()
+        for (name in listOf("light", "dark", "system", "ocean")) {
+            assertThrows(name, IllegalArgumentException::class.java) { themes.delete(name) }
+        }
+        assertEquals(listOf("system", "light", "dark"), themes.names)
+    }
+
+    @Test
+    fun `only a file of the person's own themes is one`() {
+        val themes = themes()
+        themes.import("ocean", "base = \"dark\"\n")
+        assertEquals("ocean", themes.ownAt(themes.file("ocean").path))
+        assertNull(themes.ownAt(themes.file("sea").path))
+        assertNull(themes.ownAt(File(dir, "ocean.TOML").path))
+        assertNull(themes.ownAt(File(dir.parentFile, "ocean.toml").path))
+        assertNull(themes.ownAt(File(dir, "dark.toml").path))
     }
 }

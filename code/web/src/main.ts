@@ -80,6 +80,8 @@ let chosenFontSize = DEFAULT_FONT_SIZE
 let keptBuffers = RETAINED_BUFFERS
 /** The palette's Theme commands, until Kotlin says which themes there are: the ones every install has. */
 let themes = ['system', 'light', 'dark']
+/** Whether the theme on the screen is the person's own; until Kotlin says, it is a bundled one. */
+let ownTheme = false
 /**
  * Whether the page was left at a size of its own, read before anything here writes one. Without
  * one — a first launch — the page opens at the size the settings chose.
@@ -204,6 +206,10 @@ const palette: CommandSource = {
   exportSettings: () => void rpc('exportSettings').catch((error) => console.log(`exportSettings: ${error}`)),
   importTheme: () => void rpc('importTheme').catch((error) => console.log(`importTheme: ${error}`)),
   exportTheme: () => void rpc('exportTheme').catch((error) => console.log(`exportTheme: ${error}`)),
+  ownTheme: () => ownTheme,
+  copyTheme: () => void rpc('copyTheme').catch((error) => console.log(`copyTheme: ${error}`)),
+  editTheme: () => void rpc('editTheme').catch((error) => console.log(`editTheme: ${error}`)),
+  deleteTheme: () => void rpc('deleteTheme').catch((error) => console.log(`deleteTheme: ${error}`)),
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
 }
@@ -403,6 +409,7 @@ function applySettings(settings: Settings, first: boolean): void {
   chosenFontSize = settings.fontSize
   keptBuffers = settings.keptBuffers
   themes = settings.themes
+  ownTheme = settings.ownTheme
   showSettings(settings)
   pane?.settingsChanged()
   forgetOldBuffers(memories, keptBuffers)

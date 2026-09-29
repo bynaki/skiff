@@ -21,6 +21,8 @@ export interface Settings {
   theme: Theme
   /** Every name `theme` may take, imported themes included, for the palette's Theme commands. */
   themes: string[]
+  /** Whether the theme on the screen is the person's own, which the palette can delete. */
+  ownTheme: boolean
 }
 
 type Shown = Pick<Settings, 'tabSize' | 'wrap'>

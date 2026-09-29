@@ -41,6 +41,12 @@ export interface CommandSource {
   importTheme(): void
   /** The theme on the screen, which for `system` is the bundled one it is following. */
   exportTheme(): void
+  /** Whether the theme on the screen is the person's own — imported or copied — rather than bundled. */
+  ownTheme(): boolean
+  /** Each on the theme on the screen, as Export Theme is. Edit on a bundled theme offers a copy instead. */
+  copyTheme(): void
+  editTheme(): void
+  deleteTheme(): void
   undo(): void
   redo(): void
 }
@@ -75,7 +81,11 @@ export function commands(source: CommandSource): PaletteItem[] {
     ...source.themes().map((theme) => ({ name: `Theme: ${THEME_TITLES[theme] ?? theme}`, run: () => source.setTheme(theme) })),
     { name: 'Import Theme', run: () => source.importTheme() },
     { name: 'Export Theme', run: () => source.exportTheme() },
+    { name: 'Copy Theme', run: () => source.copyTheme() },
+    { name: 'Edit Theme', run: () => source.editTheme() },
   )
+  // A bundled theme is part of the app: there is nothing to delete.
+  if (source.ownTheme()) items.push({ name: 'Delete Theme', run: () => source.deleteTheme() })
   if (source.open()) {
     items.push(
       { name: 'Reload File', run: () => source.reload() },

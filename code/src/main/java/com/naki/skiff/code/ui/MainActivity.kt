@@ -40,6 +40,7 @@ import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
+import com.naki.skiff.code.settings.SettingsToml
 import com.naki.skiff.code.settings.Theme
 import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.code.skiffCode
@@ -184,6 +185,14 @@ class MainActivity : Activity() {
                         bridge.notify("settingsChanged", pageSettings(read))
                         answer.putOpt("warning", describe(read.problems))
                     }
+                    // A theme of the person's own is applied by saving it too, by the same rules. Only
+                    // the file in this app's own files: a server's path could read the same.
+                    val local = entry.key == keyOf(OpenRequest.LocalPath(target.path, OpenAt()))
+                    container.themes.ownAt(target.path)?.takeIf { local }?.let { theme ->
+                        val problems = withContext(Dispatchers.IO) { container.themes.reread(theme) }
+                        bridge.notify("settingsChanged", pageSettings(container.settings.current()))
+                        answer.putOpt("warning", describe(problems, theme = true))
+                    }
                     answer
                 }
                 // Told, not offered: the watch is what brings the other change in, and it asks.
@@ -282,7 +291,21 @@ class MainActivity : Activity() {
         // to open and something in it to read.
         bridge.method("openSettings") {
             container.settings.ensureExists()
-            startOpening { openFlow().openSettings(container.settings.file) }
+            startOpening { openFlow().openOwn(container.settings.file) }
+            JSONObject()
+        }
+        // The theme on the screen, as Export Theme takes it. A bundled theme is part of the app, so it
+        // is copied rather than edited or deleted, and the page leaves Delete Theme out for one.
+        bridge.method("copyTheme") {
+            copyTheme(shownTheme())
+            JSONObject()
+        }
+        bridge.method("editTheme") {
+            editTheme(shownTheme())
+            JSONObject()
+        }
+        bridge.method("deleteTheme") {
+            deleteTheme(shownTheme())
             JSONObject()
         }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
@@ -338,6 +361,7 @@ class MainActivity : Activity() {
             .put("keptBuffers", files.keptBuffers)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
             .put("themes", JSONArray(container.themes.names))
+            .put("ownTheme", container.themes.isImported(container.themes.nameIn(editor.theme, night)))
     }
 
     /** The theme on the screen by name: the one chosen, or for `system` the bundled one it follows now. */
@@ -398,6 +422,56 @@ class MainActivity : Activity() {
         val problems = withContext(Dispatchers.IO) { container.themes.import(name, text) }
         bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
         notice(getString(R.string.import_theme_done, name), describe(problems, theme = true))
+    }
+
+    /**
+     * Copies the theme [from] under a name the person gives, puts the copy on the screen and opens it
+     * to be edited — which is what a copy is almost always made for. The copy is theirs: it does not
+     * follow the bundled colors when the app is updated.
+     */
+    private suspend fun copyTheme(from: String) {
+        val name = askCopyName(from) ?: return
+        if (container.themes.isImported(name) &&
+            !confirm(getString(R.string.theme_replace_title), getString(R.string.theme_copy_replace, name, from), getString(R.string.action_replace))
+        ) return
+        withContext(Dispatchers.IO) { container.themes.import(name, container.themes.text(from)) }
+        bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
+        startOpening { openFlow().openOwn(container.themes.file(name)) }
+    }
+
+    /** A name for a copy of [from], asked again with the reason for as long as it is not one a theme can have. */
+    private suspend fun askCopyName(from: String): String? {
+        var typed = getString(R.string.theme_copy_name, from)
+        var refused: String? = null
+        while (true) {
+            val message = listOfNotNull(refused, getString(R.string.theme_copy_body, from)).joinToString("\n\n")
+            typed = askText(getString(R.string.theme_copy_title), message, typed, getString(R.string.action_copy))?.trim() ?: return null
+            Themes.nameOf(typed)?.let { return it }
+            refused = getString(R.string.theme_copy_refused, typed)
+        }
+    }
+
+    /** Opens the theme [name] to be edited, or offers a copy of it when it is one of the bundled ones. */
+    private suspend fun editTheme(name: String) {
+        if (container.themes.isImported(name)) return startOpening { openFlow().openOwn(container.themes.file(name)) }
+        if (confirm(getString(R.string.theme_bundled_title), getString(R.string.theme_bundled, name), getString(R.string.action_copy))) {
+            copyTheme(name)
+        }
+    }
+
+    /**
+     * Deletes the theme [name] and goes back to `system`. Its file is closed if it is open, typing and
+     * all — that is what deleting it means — rather than left on the screen saying it is gone.
+     */
+    private suspend fun deleteTheme(name: String) {
+        require(container.themes.isImported(name)) { "a bundled theme cannot be deleted: $name" }
+        if (!confirm(getString(R.string.theme_delete_title), getString(R.string.theme_delete, name), getString(R.string.action_delete))) return
+        docs.byKey(keyOf(OpenRequest.LocalPath(container.themes.file(name).path, OpenAt())))?.let {
+            docs.close(it.id)
+            documentsChanged()
+        }
+        withContext(Dispatchers.IO) { container.themes.delete(name) }
+        bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(SettingsToml.SYSTEM_THEME)))
     }
 
     /** The picked document as text, or null — said on the banner — when it is too large to be either file. */

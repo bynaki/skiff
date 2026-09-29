@@ -4,7 +4,7 @@ import { type CommandSource, commands } from '../src/commands'
 import type { LayerName } from '../src/layers/pane'
 
 /** A source that says what it was asked to do, over a screen described by [state]. */
-function source(state: { open: boolean; layer: LayerName | null; themes?: string[] }) {
+function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean }) {
   const ran: string[] = []
   const command: CommandSource = {
     open: () => state.open,
@@ -24,13 +24,17 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
     exportSettings: () => ran.push('exportSettings'),
     importTheme: () => ran.push('importTheme'),
     exportTheme: () => ran.push('exportTheme'),
+    ownTheme: () => state.ownTheme ?? false,
+    copyTheme: () => ran.push('copyTheme'),
+    editTheme: () => ran.push('editTheme'),
+    deleteTheme: () => ran.push('deleteTheme'),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
   }
   return { command, ran }
 }
 
-const names = (state: { open: boolean; layer: LayerName | null; themes?: string[] }) =>
+const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean }) =>
   commands(source(state).command).map((item) => item.name)
 
 describe('what the palette offers', () => {
@@ -54,6 +58,8 @@ describe('what the palette offers', () => {
       'Theme: Dark',
       'Import Theme',
       'Export Theme',
+      'Copy Theme',
+      'Edit Theme',
       'Reload File',
       'Close File',
     ])
@@ -79,6 +85,8 @@ describe('what the palette offers', () => {
       'Theme: Dark',
       'Import Theme',
       'Export Theme',
+      'Copy Theme',
+      'Edit Theme',
       'Reload File',
       'Close File',
     ])
@@ -98,6 +106,8 @@ describe('what the palette offers', () => {
       'Theme: Dark',
       'Import Theme',
       'Export Theme',
+      'Copy Theme',
+      'Edit Theme',
     ])
   })
 
@@ -123,6 +133,8 @@ describe('what the palette offers', () => {
       'setTheme dark',
       'importTheme',
       'exportTheme',
+      'copyTheme',
+      'editTheme',
       'reload',
       'close',
     ])
@@ -140,5 +152,14 @@ describe('what the palette offers', () => {
     ])
     themes[3].run()
     expect(ran).toEqual(['setTheme ocean (1)'])
+  })
+
+  test("offers Delete Theme only on a theme of the person's own", () => {
+    expect(names({ open: false, layer: null })).not.toContain('Delete Theme')
+    const { command, ran } = source({ open: false, layer: null, ownTheme: true })
+    const listed = commands(command)
+    expect(listed.map((item) => item.name).slice(-4)).toEqual(['Export Theme', 'Copy Theme', 'Edit Theme', 'Delete Theme'])
+    listed[listed.length - 1].run()
+    expect(ran).toEqual(['deleteTheme'])
   })
 })
