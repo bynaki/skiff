@@ -26,7 +26,7 @@ data class Settings(
         @SerialName("tab_size") val tabSize: Int = 4,
         /** On, because a phone's cover screen is too narrow to read code that runs off to the right. */
         val wrap: Boolean = true,
-        /** A bundled theme's name, or `system` for the one that matches the device's dark mode. */
+        /** A bundled or imported theme's name, or `system` for the one that matches the device's dark mode. */
         val theme: String = SettingsToml.SYSTEM_THEME,
     )
 
@@ -70,6 +70,7 @@ object SettingsToml {
 
     /** The theme that follows the device's dark mode rather than being one of its own. */
     const val SYSTEM_THEME = "system"
+    /** The themes every install has; [read] is told of any imported beside them. */
     val THEMES = setOf(SYSTEM_THEME, "light", "dark")
 
     /**
@@ -80,8 +81,10 @@ object SettingsToml {
      *
      * A key that is not known is a failure rather than something skipped, because the likeliest
      * one is a misspelling of a key that is — and skipping it would look like the setting not working.
+     *
+     * [themes] is every name `theme` may say, imported themes included.
      */
-    fun read(text: String): SettingsRead {
+    fun read(text: String, themes: Collection<String> = THEMES): SettingsRead {
         val parsed = try {
             Toml.decodeFromString(Settings.serializer(), text)
         } catch (e: SerializationException) {
@@ -104,7 +107,7 @@ object SettingsToml {
             problems += SettingsProblem.Refused("editor.font", "\"${editor.font}\"", "\"${defaults.editor.font}\"", null)
             defaults.editor.font
         }
-        val theme = if (editor.theme in THEMES) editor.theme else {
+        val theme = if (editor.theme in themes) editor.theme else {
             problems += SettingsProblem.Refused("editor.theme", "\"${editor.theme}\"", "\"${defaults.editor.theme}\"", null)
             defaults.editor.theme
         }
@@ -178,8 +181,8 @@ object SettingsToml {
         tab_size = 4
         # Wrap long lines at the edge of the screen instead of scrolling sideways.
         wrap = true
-        # "system" follows the device's dark mode; "light" and "dark" stay put. The palette's Theme
-        # commands write this line.
+        # "system" follows the device's dark mode; "light" and "dark" stay put. A theme brought in
+        # with Import Theme goes by its file's name. The palette's Theme commands write this line.
         theme = "system"
 
         [files]

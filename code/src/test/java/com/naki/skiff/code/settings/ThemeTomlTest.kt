@@ -9,7 +9,7 @@ import java.io.File
 class ThemeTomlTest {
 
     /** The bundled files as the app ships them; unit tests run in the module's directory. */
-    private val themes = Themes { path -> File("src/main/assets", path).inputStream() }
+    private val themes = Themes({ path -> File("src/main/assets", path).inputStream() }, File("build/no-imported-themes"))
 
     private fun bundled(name: String) =
         ThemeToml.read(File("src/main/assets/themes/$name.toml").readText()) { emptyMap() }

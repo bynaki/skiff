@@ -39,9 +39,9 @@ class SkiffCodeContainer(app: Application) {
 
     val sessions = RemoteSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
 
-    val settings = SettingsFile(File(app.filesDir, "settings.toml"))
+    val themes = Themes(app.assets::open, File(app.filesDir, "themes"))
 
-    val themes = Themes(app.assets::open)
+    val settings = SettingsFile(File(app.filesDir, "settings.toml")) { themes.names }
 }
 
 val Application.skiffCode: SkiffCodeContainer get() = (this as SkiffCodeApplication).container

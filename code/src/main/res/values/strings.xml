@@ -7,6 +7,7 @@
 
     <string name="action_close">Close</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_replace">Replace</string>
 
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
@@ -69,7 +70,18 @@
     <string name="settings_unknown_key">settings.toml has no key called %1$s, so every setting is at its default.</string>
     <string name="settings_out_of_range">%1$s = %2$s is outside %3$d to %4$d, so it is at its default, %5$s.</string>
     <string name="settings_refused">%1$s = %2$s cannot be used, so it is at its default, %3$s.</string>
+    <string name="theme_unreadable">The theme could not be read, so every color is its base\'s: %1$s</string>
+    <string name="theme_unknown_key">The theme has no color called %1$s, so every color is its base\'s.</string>
     <string name="reload_failed">The file could not be read again.</string>
+
+    <string name="import_settings_done">Settings imported.</string>
+    <string name="import_theme_done">Theme %1$s imported.</string>
+    <string name="export_done">Exported.</string>
+    <string name="transfer_failed">The file could not be read or written.</string>
+    <string name="import_too_large">A file larger than %1$d KB is not imported.</string>
+    <string name="theme_name_refused">A theme is named after its file, and \"%1$s\" cannot be one: use letters, digits, spaces, _, - and parentheses, and not system, light or dark.</string>
+    <string name="theme_replace_title">Replace theme?</string>
+    <string name="theme_replace">There is already a theme called %1$s. Replace it with this file?</string>
 
     <string name="watch_changed">This file changed somewhere else.</string>
     <string name="watch_gone">This file is no longer there.</string>

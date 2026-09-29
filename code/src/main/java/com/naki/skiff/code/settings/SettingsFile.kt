@@ -12,7 +12,7 @@ import java.io.IOException
  * `Open Settings`, and saving it is what applies it. Getting it in and out of the app is SAF's job
  * (docs/skiffcode.plan.md M4, import/export), not a shared folder's.
  */
-class SettingsFile(val file: File) {
+class SettingsFile(val file: File, private val themes: () -> Collection<String>) {
 
     private val lock = Mutex()
 
@@ -32,7 +32,7 @@ class SettingsFile(val file: File) {
     suspend fun reload(): SettingsRead = lock.withLock {
         withContext(Dispatchers.IO) {
             try {
-                if (file.exists()) SettingsToml.read(file.readText()) else SettingsRead(Settings(), emptyList())
+                if (file.exists()) SettingsToml.read(file.readText(), themes()) else SettingsRead(Settings(), emptyList())
             } catch (e: IOException) {
                 SettingsRead(Settings(), listOf(SettingsProblem.Unreadable(e.message ?: e.javaClass.simpleName)))
             }
@@ -52,6 +52,20 @@ class SettingsFile(val file: File) {
             }
         }
         return reload()
+    }
+
+    /**
+     * Puts [text] in place of the file, as Import Settings does, and reads it — by the same rules as
+     * saving it in the app, so what cannot be used is reported rather than refused.
+     */
+    suspend fun import(text: String): SettingsRead {
+        lock.withLock { withContext(Dispatchers.IO) { file.writeText(text) } }
+        return reload()
+    }
+
+    /** What Export Settings writes out: the file, or the one `Open Settings` would make when there is none. */
+    suspend fun text(): String = lock.withLock {
+        withContext(Dispatchers.IO) { if (file.exists()) file.readText() else SettingsToml.TEMPLATE }
     }
 
     /** Writes [SettingsToml.TEMPLATE] if there is no file yet, so there is something to open. */

@@ -19,6 +19,8 @@ export interface Settings {
   keptBuffers: number
   /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
   theme: Theme
+  /** Every name `theme` may take, imported themes included, for the palette's Theme commands. */
+  themes: string[]
 }
 
 type Shown = Pick<Settings, 'tabSize' | 'wrap'>

@@ -78,6 +78,8 @@ let labels: Labels | null = null
 let chosenFontSize = DEFAULT_FONT_SIZE
 /** How many files off the screen keep their buffer, as `settings.toml` says. */
 let keptBuffers = RETAINED_BUFFERS
+/** The palette's Theme commands, until Kotlin says which themes there are: the ones every install has. */
+let themes = ['system', 'light', 'dark']
 /**
  * Whether the page was left at a size of its own, read before anything here writes one. Without
  * one — a first launch — the page opens at the size the settings chose.
@@ -196,7 +198,12 @@ const palette: CommandSource = {
   resetZoom,
   toggleSidebar,
   openSettings: () => void rpc('openSettings').catch((error) => console.log(`openSettings: ${error}`)),
+  themes: () => themes,
   setTheme: (name) => void rpc('setTheme', { name }).catch((error) => console.log(`setTheme: ${error}`)),
+  importSettings: () => void rpc('importSettings').catch((error) => console.log(`importSettings: ${error}`)),
+  exportSettings: () => void rpc('exportSettings').catch((error) => console.log(`exportSettings: ${error}`)),
+  importTheme: () => void rpc('importTheme').catch((error) => console.log(`importTheme: ${error}`)),
+  exportTheme: () => void rpc('exportTheme').catch((error) => console.log(`exportTheme: ${error}`)),
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
 }
@@ -395,6 +402,7 @@ function applySettings(settings: Settings, first: boolean): void {
   const moved = settings.fontSize !== chosenFontSize
   chosenFontSize = settings.fontSize
   keptBuffers = settings.keptBuffers
+  themes = settings.themes
   showSettings(settings)
   pane?.settingsChanged()
   forgetOldBuffers(memories, keptBuffers)
@@ -412,6 +420,10 @@ rpc<Labels>('labels').then((answer) => {
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
+// What came of an import or export, which Kotlin finishes after the file picker has gone.
+onNotify<{ message: string; lasting: boolean }>('notice', (params) =>
+  params.lasting ? banner.tell(params.message) : banner.flash(params.message),
+)
 // The settings before the first document, so it is not laid out once without them and again with.
 rpc<Settings>('settings')
   .then((settings) => applySettings(settings, true))

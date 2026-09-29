@@ -11,6 +11,7 @@ import android.hardware.input.InputManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.InputDevice
 import android.view.WindowInsets
@@ -39,9 +40,10 @@ import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
-import com.naki.skiff.code.settings.SettingsToml
 import com.naki.skiff.code.settings.Theme
+import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.code.skiffCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,7 +55,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import okio.buffer
+import okio.source
 import java.io.ByteArrayInputStream
+import java.io.FileNotFoundException
 import java.text.DecimalFormat
 
 private const val TAG = "SkiffCode"
@@ -250,8 +255,27 @@ class MainActivity : Activity() {
         // The palette's Theme commands. Writing the file is what applies it, the same as saving it.
         bridge.method("setTheme") { params ->
             val name = params.getString("name")
-            require(name in SettingsToml.THEMES) { "no theme called $name" }
+            require(name in container.themes.names) { "no theme called $name" }
             bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
+            JSONObject()
+        }
+        // In and out through the system's file picker (SAF), so the file is one the person chose and
+        // no storage permission is asked for. What follows the pick is [onActivityResult]'s, keyed by
+        // the request alone: a picker that outlives this instance answers the next one.
+        bridge.method("importSettings") {
+            startActivityForResult(picker(Intent.ACTION_OPEN_DOCUMENT), REQUEST_IMPORT_SETTINGS)
+            JSONObject()
+        }
+        bridge.method("importTheme") {
+            startActivityForResult(picker(Intent.ACTION_OPEN_DOCUMENT), REQUEST_IMPORT_THEME)
+            JSONObject()
+        }
+        bridge.method("exportSettings") {
+            startActivityForResult(picker(Intent.ACTION_CREATE_DOCUMENT, "settings.toml"), REQUEST_EXPORT_SETTINGS)
+            JSONObject()
+        }
+        bridge.method("exportTheme") {
+            startActivityForResult(picker(Intent.ACTION_CREATE_DOCUMENT, shownTheme() + Themes.SUFFIX), REQUEST_EXPORT_THEME)
             JSONObject()
         }
         // Created on first use, with every key at its default and what it does, so there is a file
@@ -313,7 +337,92 @@ class MainActivity : Activity() {
             .put("wrap", editor.wrap)
             .put("keptBuffers", files.keptBuffers)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
+            .put("themes", JSONArray(container.themes.names))
     }
+
+    /** The theme on the screen by name: the one chosen, or for `system` the bundled one it follows now. */
+    private suspend fun shownTheme() = container.themes.nameIn(container.settings.current().settings.editor.theme, night)
+
+    /** The picker for a `.toml`: any type to open, since providers disagree on what TOML's is. */
+    private fun picker(action: String, title: String? = null) = Intent(action)
+        .addCategory(Intent.CATEGORY_OPENABLE)
+        .setType(if (action == Intent.ACTION_OPEN_DOCUMENT) "*/*" else "application/toml")
+        .apply { if (title != null) putExtra(Intent.EXTRA_TITLE, title) }
+
+    /** Backing out of the picker does nothing and says nothing. */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return
+        scope.launch {
+            try {
+                when (requestCode) {
+                    REQUEST_IMPORT_SETTINGS -> importSettings(uri)
+                    REQUEST_IMPORT_THEME -> importTheme(uri)
+                    REQUEST_EXPORT_SETTINGS -> export(uri, container.settings.text())
+                    REQUEST_EXPORT_THEME -> export(uri, withContext(Dispatchers.IO) { container.themes.text(shownTheme()) })
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A provider that went away, a document revoked or deleted under the picker, a full disk.
+                Log.w(TAG, "import or export failed: $requestCode", e)
+                notice(getString(R.string.transfer_failed), lasting = true)
+            }
+        }
+    }
+
+    /** Saving an imported file is what applies it, by the same rules as saving it in the app. */
+    private suspend fun importSettings(uri: Uri) {
+        val text = readPicked(uri) ?: return
+        val read = container.settings.import(text)
+        bridge.notify("settingsChanged", pageSettings(read))
+        notice(getString(R.string.import_settings_done), describe(read.problems))
+    }
+
+    /**
+     * Keeps the file as a theme named after it and puts it on the screen. A name already brought in is
+     * asked about first; one of the bundled themes' is refused by [Themes.nameOf] before that.
+     */
+    private suspend fun importTheme(uri: Uri) {
+        val fileName = withContext(Dispatchers.IO) {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        } ?: uri.lastPathSegment.orEmpty()
+        val name = Themes.nameOf(fileName)
+            ?: return notice(getString(R.string.theme_name_refused, fileName), lasting = true)
+        val text = readPicked(uri) ?: return
+        if (container.themes.isImported(name) &&
+            !confirm(getString(R.string.theme_replace_title), getString(R.string.theme_replace, name), getString(R.string.action_replace))
+        ) return
+        val problems = withContext(Dispatchers.IO) { container.themes.import(name, text) }
+        bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
+        notice(getString(R.string.import_theme_done, name), describe(problems, theme = true))
+    }
+
+    /** The picked document as text, or null — said on the banner — when it is too large to be either file. */
+    private suspend fun readPicked(uri: Uri): String? {
+        val text = withContext(Dispatchers.IO) {
+            val input = contentResolver.openInputStream(uri) ?: throw FileNotFoundException(uri.toString())
+            input.source().buffer().use { if (it.request(IMPORT_LIMIT + 1L)) null else it.readUtf8() }
+        }
+        if (text == null) notice(getString(R.string.import_too_large, IMPORT_LIMIT / 1024), lasting = true)
+        return text
+    }
+
+    private suspend fun export(uri: Uri, text: String) {
+        withContext(Dispatchers.IO) {
+            val output = contentResolver.openOutputStream(uri, "wt") ?: throw FileNotFoundException(uri.toString())
+            output.use { it.write(text.encodeToByteArray()) }
+        }
+        notice(getString(R.string.export_done), lasting = false)
+    }
+
+    /** What was done, and what in the file was passed over, on the banner: kept there when there was any. */
+    private fun notice(done: String, problems: String?) = notice(listOfNotNull(done, problems).joinToString(" "), lasting = problems != null)
+
+    private fun notice(message: String, lasting: Boolean) =
+        bridge.notify("notice", JSONObject().put("message", message).put("lasting", lasting))
 
     /**
      * Paints what is outside the page — the strips the frame keeps clear under the system bars, and
@@ -344,11 +453,14 @@ class MainActivity : Activity() {
     private fun isNight(config: Configuration) =
         config.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
-    /** What in `settings.toml` was passed over, as one line for the banner, or null when nothing was. */
-    private fun describe(problems: List<SettingsProblem>): String? = problems.takeIf { it.isNotEmpty() }?.joinToString(" ") {
+    /**
+     * What in `settings.toml` — or in a theme, when [theme] — was passed over, as one line for the
+     * banner, or null when nothing was.
+     */
+    private fun describe(problems: List<SettingsProblem>, theme: Boolean = false): String? = problems.takeIf { it.isNotEmpty() }?.joinToString(" ") {
         when (it) {
-            is SettingsProblem.Unreadable -> getString(R.string.settings_unreadable, it.reason)
-            is SettingsProblem.UnknownKey -> getString(R.string.settings_unknown_key, it.key)
+            is SettingsProblem.Unreadable -> getString(if (theme) R.string.theme_unreadable else R.string.settings_unreadable, it.reason)
+            is SettingsProblem.UnknownKey -> getString(if (theme) R.string.theme_unknown_key else R.string.settings_unknown_key, it.key)
             is SettingsProblem.Refused -> if (it.allowed == null) {
                 getString(R.string.settings_refused, it.key, it.value, it.default)
             } else {
@@ -640,6 +752,13 @@ class MainActivity : Activity() {
 }
 
 private const val REQUEST_PERMISSION = 1
+private const val REQUEST_IMPORT_SETTINGS = 2
+private const val REQUEST_IMPORT_THEME = 3
+private const val REQUEST_EXPORT_SETTINGS = 4
+private const val REQUEST_EXPORT_THEME = 5
+
+/** Larger than either file has any reason to be; what is picked is read whole, into memory. */
+private const val IMPORT_LIMIT = 256 * 1024
 
 private fun refused() = WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
 

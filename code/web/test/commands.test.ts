@@ -4,7 +4,7 @@ import { type CommandSource, commands } from '../src/commands'
 import type { LayerName } from '../src/layers/pane'
 
 /** A source that says what it was asked to do, over a screen described by [state]. */
-function source(state: { open: boolean; layer: LayerName | null }) {
+function source(state: { open: boolean; layer: LayerName | null; themes?: string[] }) {
   const ran: string[] = []
   const command: CommandSource = {
     open: () => state.open,
@@ -18,14 +18,19 @@ function source(state: { open: boolean; layer: LayerName | null }) {
     resetZoom: () => ran.push('resetZoom'),
     toggleSidebar: () => ran.push('toggleSidebar'),
     openSettings: () => ran.push('openSettings'),
+    themes: () => state.themes ?? ['system', 'light', 'dark'],
     setTheme: (name) => ran.push(`setTheme ${name}`),
+    importSettings: () => ran.push('importSettings'),
+    exportSettings: () => ran.push('exportSettings'),
+    importTheme: () => ran.push('importTheme'),
+    exportTheme: () => ran.push('exportTheme'),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
   }
   return { command, ran }
 }
 
-const names = (state: { open: boolean; layer: LayerName | null }) =>
+const names = (state: { open: boolean; layer: LayerName | null; themes?: string[] }) =>
   commands(source(state).command).map((item) => item.name)
 
 describe('what the palette offers', () => {
@@ -42,9 +47,13 @@ describe('what the palette offers', () => {
       'Reset Zoom',
       'Toggle Sidebar',
       'Open Settings',
+      'Import Settings',
+      'Export Settings',
       'Theme: System',
       'Theme: Light',
       'Theme: Dark',
+      'Import Theme',
+      'Export Theme',
       'Reload File',
       'Close File',
     ])
@@ -63,9 +72,13 @@ describe('what the palette offers', () => {
       'Reset Zoom',
       'Toggle Sidebar',
       'Open Settings',
+      'Import Settings',
+      'Export Settings',
       'Theme: System',
       'Theme: Light',
       'Theme: Dark',
+      'Import Theme',
+      'Export Theme',
       'Reload File',
       'Close File',
     ])
@@ -78,9 +91,13 @@ describe('what the palette offers', () => {
       'Reset Zoom',
       'Toggle Sidebar',
       'Open Settings',
+      'Import Settings',
+      'Export Settings',
       'Theme: System',
       'Theme: Light',
       'Theme: Dark',
+      'Import Theme',
+      'Export Theme',
     ])
   })
 
@@ -99,11 +116,29 @@ describe('what the palette offers', () => {
       'resetZoom',
       'toggleSidebar',
       'openSettings',
+      'importSettings',
+      'exportSettings',
       'setTheme system',
       'setTheme light',
       'setTheme dark',
+      'importTheme',
+      'exportTheme',
       'reload',
       'close',
     ])
+  })
+
+  test('offers an imported theme by its own name, after the ones every install has', () => {
+    const { command, ran } = source({ open: false, layer: null, themes: ['system', 'light', 'dark', 'ocean (1)', '바다'] })
+    const themes = commands(command).filter((item) => item.name.startsWith('Theme: '))
+    expect(themes.map((item) => item.name)).toEqual([
+      'Theme: System',
+      'Theme: Light',
+      'Theme: Dark',
+      'Theme: ocean (1)',
+      'Theme: 바다',
+    ])
+    themes[3].run()
+    expect(ran).toEqual(['setTheme ocean (1)'])
   })
 })

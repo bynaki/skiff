@@ -17,6 +17,9 @@
 
 - 시리얼은 `adb devices`로 얻고 레포에 적지 않는다. 두 대가 붙어 있을 수 있으므로 `ANDROID_SERIAL`
   또는 `adb -s`를 **항상** 쓴다. Gradle도 `ANDROID_SERIAL`을 본다.
+- **SAF 파일 선택기(DocumentsUI)도 `uiautomator dump`로 다룬다.** `adb push`로 `Download`에 둔 파일은
+  `content call --uri content://media --method scan_volume --arg external_primary` 뒤에 선택기에 보인다.
+  **목록은 최근 순이라 칸이 바뀌므로** 좌표는 매번 파일 이름(`title`)으로 찾는다.
 - **네이티브 다이얼로그는 `uiautomator dump`로 읽고 두드린다.** `adb shell uiautomator dump /sdcard/ui.xml`
   → `text`와 `bounds`를 뽑아 중앙을 `input tap`. **앞선 창이 막 닫힌 직후의 탭은 먹히지 않을 때가
   있어** 1초쯤 두고 누른다. **끝나면 `/sdcard/ui.xml`을 지운다.**
@@ -52,8 +55,8 @@
 - 가로 방향(2304x1440), 화면 하나라 `screencap`에 display id가 필요 없다.
 - 상단 메뉴 좌표: ② `tap 2088 117`, ③ `tap 2160 117`. 확인 대화상자: 취소 `tap 975 1310`,
   열기/신뢰 `tap 1328 1310`. 본문에 포커스를 주려면 `tap 600 300`쯤을 누른다.
-- **화면은 5분 뒤 꺼진다(300000).** 긴 확인 전에 `settings put system screen_off_timeout 1800000`으로
-  올렸다가 **끝나고 300000으로 되돌린다.** 깨우기는 `input keyevent KEYCODE_WAKEUP`.
+- **화면은 몇 분 뒤 꺼진다**(300000이던 것이 2026-09-28에는 600000이었다). 긴 확인 전에
+  `settings get system screen_off_timeout`으로 지금 값을 읽어 두고 `1800000`으로 올렸다가 **끝나고 읽어 둔 값으로 되돌린다.** 깨우기는 `input keyevent KEYCODE_WAKEUP`.
 - **외장 키보드가 연결돼 있으면 화면 키보드가 뜨지 않는다.** `dumpsys input`은 떼어낸 뒤에도 항목이
   남아 믿을 수 없다 — `am get-config`의 `nokeys`/`qwerty`로 본다(이 값도 블루투스 키보드를 못 볼 때가
   있다. 앱은 `InputDevice`에 묻는다). 떼지 않고 화면 키보드를 보려면

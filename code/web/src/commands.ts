@@ -11,8 +11,8 @@
 import type { LayerName } from './layers/pane'
 import type { PaletteItem } from './palette'
 
-/** What `settings.toml`'s `theme` may say: the bundled themes, or the one matching the device. */
-export type ThemeChoice = 'system' | 'light' | 'dark'
+/** How the themes every install has are named in the palette; an imported one goes by its own name. */
+const THEME_TITLES: Record<string, string> = { system: 'System', light: 'Light', dark: 'Dark' }
 
 /** What the commands act on, and what says which of them there is anything to act on. */
 export interface CommandSource {
@@ -31,8 +31,16 @@ export interface CommandSource {
   toggleSidebar(): void
   /** Opens `settings.toml`, which saving applies. */
   openSettings(): void
+  /** What `settings.toml`'s `theme` may say, from Kotlin: `system`, the bundled themes, then the imported ones. */
+  themes(): string[]
   /** Writes `theme` into `settings.toml`, which applies it. */
-  setTheme(name: ThemeChoice): void
+  setTheme(name: string): void
+  /** Each through the system's file picker; what came of it arrives later, on the banner. */
+  importSettings(): void
+  exportSettings(): void
+  importTheme(): void
+  /** The theme on the screen, which for `system` is the bundled one it is following. */
+  exportTheme(): void
   undo(): void
   redo(): void
 }
@@ -62,9 +70,11 @@ export function commands(source: CommandSource): PaletteItem[] {
     { name: 'Reset Zoom', run: () => source.resetZoom() },
     { name: 'Toggle Sidebar', run: () => source.toggleSidebar() },
     { name: 'Open Settings', run: () => source.openSettings() },
-    { name: 'Theme: System', run: () => source.setTheme('system') },
-    { name: 'Theme: Light', run: () => source.setTheme('light') },
-    { name: 'Theme: Dark', run: () => source.setTheme('dark') },
+    { name: 'Import Settings', run: () => source.importSettings() },
+    { name: 'Export Settings', run: () => source.exportSettings() },
+    ...source.themes().map((theme) => ({ name: `Theme: ${THEME_TITLES[theme] ?? theme}`, run: () => source.setTheme(theme) })),
+    { name: 'Import Theme', run: () => source.importTheme() },
+    { name: 'Export Theme', run: () => source.exportTheme() },
   )
   if (source.open()) {
     items.push(

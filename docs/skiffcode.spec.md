@@ -239,7 +239,11 @@ method로 구독한다(M0에서 확인).
   - **고르는 것은 `settings.toml`의 `[editor] theme`이고 기본값은 `system`이다**(2026-09-28 사용자 결정). `system`은 기기의 다크 모드에 맞는 번들을 쓴다. 팔레트의 `Theme: …` 명령이 그 줄을 고쳐 쓴다. 사용자 테마는 import와 함께 들어온다.
   - 검사와 폴백은 Kotlin(`settings/Theme.kt`)이 한다. 빠진 색과 쓸 수 없는 색은 같은 `base`의 번들 값이고, 모르는 키가 있으면 base 전체다 — `settings.toml`과 같은 규칙이다. 페이지는 온전한 한 벌을 받아 변수로 쓴다.
   - 다크 모드는 `uiMode`로 Kotlin이 읽는다. WebView의 `prefers-color-scheme`는 앱 테마를 따르지 기기를 따르지 않을 수 있고, 액티비티를 다시 만들지 않으려면 어차피 `onConfigurationChanged`를 받아야 한다.
-- 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다.
+- 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다. 팔레트의 `Import Settings`, `Export Settings`, `Import Theme`, `Export Theme`.
+  - **가져온 테마의 이름은 파일 이름이다**(2026-09-28 사용자 결정). `ocean.toml`은 `filesDir/themes/ocean.toml`에 쓴 그대로 들어가고, 팔레트에 `Theme: ocean`이 생기며 바로 그 테마가 된다(`theme = "ocean"`). 같은 이름이 있으면 덮어쓸지 묻는다. 이름은 글자·숫자·공백·`_`·`-`·괄호만(`ocean (1).toml`도 들어오게), `system`/`light`/`dark`는 안 된다 — 파일 경로와 `theme = "…"`에 그대로 쓰이기 때문이다.
+  - **설정과 테마를 따로 내보낸다**(2026-09-28 사용자 결정). `Export Theme`는 지금 화면의 테마(`system`이면 따르고 있는 번들)를 원문 그대로 낸다. 번들을 내보내 고쳐서 들이는 것이 사용자 테마를 만드는 길이다.
+  - **가져온 파일은 저장과 같은 규칙이다**(2026-09-28 사용자 결정). 문제가 있어도 들이고, 버린 값은 닫기 붙은 배너로 알린다. 잘 되면 2.5초 배너다.
+  - 가져온 테마를 지우거나 앱 안에서 고치는 방법은 아직 없다. 복사·편집·삭제와 기본 테마 보호는 `skiffcode.plan.md` M4의 다음 항목으로 잡았다(2026-09-29 사용자 요청) — 대상, 복사본 이름, 편집 중 오타 규칙은 그때 정한다.
 - TOML 파싱은 Kotlin의 ktoml(`com.akuleshov7:ktoml-core` 0.7.1)로 한다. M0에서 확인했다.
   - 중첩 테이블, 문자열 리스트, 언어로 키를 삼은 테이블(`[lsp.python]` → `Map<String, …>`),
     빠진 키의 생성자 기본값이 모두 된다.

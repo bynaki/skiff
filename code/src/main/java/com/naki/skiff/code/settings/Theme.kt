@@ -3,7 +3,9 @@ package com.naki.skiff.code.settings
 import com.akuleshov7.ktoml.Toml
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
+import java.io.File
 import java.io.InputStream
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A theme's colors, keyed `section.name` the way the file spells them (`ui.background`), which the
@@ -98,24 +100,88 @@ object ThemeToml {
 }
 
 /**
- * The themes the app ships, `assets/themes/<name>.toml`. Each is read once, the first time it is
- * asked for, against nothing: `ThemeTomlTest` holds both to having every key.
+ * The themes the app ships, `assets/themes/<name>.toml`, and the ones brought in with Import Theme,
+ * `<dir>/<name>.toml` (docs/skiffcode.spec.md "설정과 테마"). Each is read once, the first time it is
+ * asked for. The bundled ones are read against nothing — `ThemeTomlTest` holds both to having every
+ * key — and an imported one against the bundled theme on its `base` side.
  */
-class Themes(private val open: (path: String) -> InputStream) {
+class Themes(private val open: (path: String) -> InputStream, private val dir: File) {
 
     private val bundled = mapOf(
         "light" to lazy { bundledRead("light") },
         "dark" to lazy { bundledRead("dark") },
     )
 
-    val names: Set<String> get() = bundled.keys
+    private val imported = ConcurrentHashMap<String, Theme>()
+
+    @Volatile
+    private var importedNames: List<String>? = null
+
+    /** What `settings.toml`'s `theme` may say: `system`, the bundled themes, then the imported ones. */
+    val names: List<String>
+        get() = listOf(SettingsToml.SYSTEM_THEME) + bundled.keys + (importedNames ?: listImported().also { importedNames = it })
+
+    private fun listImported(): List<String> =
+        dir.listFiles { file -> file.isFile && file.name.endsWith(SUFFIX) }.orEmpty()
+            .map { it.name.removeSuffix(SUFFIX) }.filter { nameOf(it + SUFFIX) == it }.sorted()
 
     private fun bundledRead(name: String): Theme =
-        ThemeToml.read(open("themes/$name.toml").use { it.readBytes().decodeToString() }) { emptyMap() }.theme
+        ThemeToml.read(bundledText(name)) { emptyMap() }.theme
+
+    private fun bundledText(name: String) = open("themes/$name$SUFFIX").use { it.readBytes().decodeToString() }
+
+    private fun read(text: String): ThemeRead =
+        ThemeToml.read(text) { dark -> bundled.getValue(if (dark) "dark" else "light").value.colors }
 
     /** [choice] as `settings.toml` says it, where `system` is the bundled theme that matches [night]. */
     fun resolve(choice: String, night: Boolean): Theme {
-        val name = if (choice == SettingsToml.SYSTEM_THEME) (if (night) "dark" else "light") else choice
-        return (bundled[name] ?: error("no theme called $name")).value
+        val name = nameIn(choice, night)
+        bundled[name]?.let { return it.value }
+        return imported.getOrPut(name) { read(File(dir, name + SUFFIX).readText()).theme }
+    }
+
+    /** The theme [choice] shows under [night]: itself, or for `system` the bundled one it follows. */
+    fun nameIn(choice: String, night: Boolean): String =
+        if (choice == SettingsToml.SYSTEM_THEME) (if (night) "dark" else "light") else choice
+
+    /** Whether Import Theme under [name] would replace a theme already brought in. */
+    fun isImported(name: String): Boolean = name in names && name !in bundled
+
+    /**
+     * Keeps [text] as the theme [name] — as it was written, so exporting it gives the person their own
+     * file back — and says what in it was passed over. [name] is one [nameOf] gave.
+     */
+    fun import(name: String, text: String): List<SettingsProblem> {
+        val read = read(text)
+        dir.mkdirs()
+        File(dir, name + SUFFIX).writeText(text)
+        imported[name] = read.theme
+        importedNames = null
+        return read.problems
+    }
+
+    /** The file behind the theme [name], as Export Theme writes it out. */
+    fun text(name: String): String = if (name in bundled) bundledText(name) else File(dir, name + SUFFIX).readText()
+
+    companion object {
+        const val SUFFIX = ".toml"
+
+        /**
+         * Letters (any script), digits, spaces, `_`, `-` and parentheses — the last so that a copy
+         * the file picker named `ocean (1).toml` still comes in. Nothing that reaches outside the
+         * directory, nothing TOML would need to escape in `theme = "…"`.
+         */
+        private val NAME = Regex("""[\p{L}\p{N}][\p{L}\p{N} _()-]{0,63}""")
+
+        /**
+         * The theme a file called [fileName] comes in as: its name without `.toml`, or null when that
+         * is not a name a theme can have — including the ones `settings.toml` already means something by.
+         */
+        fun nameOf(fileName: String): String? {
+            val name = (if (fileName.endsWith(SUFFIX, ignoreCase = true)) fileName.dropLast(SUFFIX.length) else fileName).trim()
+            if (!NAME.matches(name)) return null
+            if (name.lowercase() in setOf(SettingsToml.SYSTEM_THEME, "light", "dark")) return null
+            return name
+        }
     }
 }

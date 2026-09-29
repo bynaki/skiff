@@ -115,6 +115,13 @@ class SettingsTomlTest {
     }
 
     @Test
+    fun `an imported theme is a theme the file may name`() {
+        val themes = SettingsToml.THEMES + "ocean"
+        assertEquals("ocean", SettingsToml.read("[editor]\ntheme = \"ocean\"\n", themes).settings.editor.theme)
+        assertEquals("system", SettingsToml.read("[editor]\ntheme = \"ocean\"\n").settings.editor.theme)
+    }
+
+    @Test
     fun `choosing a theme changes only its line, and the file reads as that theme`() {
         val changed = SettingsToml.withTheme(SettingsToml.TEMPLATE, "dark")
         assertEquals(Settings(Settings().editor.copy(theme = "dark")), SettingsToml.read(changed).settings)
