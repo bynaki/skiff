@@ -61,6 +61,38 @@ class OpenDocumentsTest {
     }
 
     @Test
+    fun `one server reached by two addresses is one file, because its host key is the same`() {
+        // A domain and a tailnet address resolve to two profiles, but the machine answering is one.
+        val byName = ServerProfile(id = "name", name = "name", host = "host.example", username = "someone")
+        val byAddress = ServerProfile(id = "address", name = "someone@192.0.2.10", host = "192.0.2.10", username = "other")
+        val first = OpenRequest.Remote(byName, "/srv/app.py", OpenAt(), hostKey = "SHA256:same-key")
+        val second = OpenRequest.Remote(byAddress, "/srv/app.py", OpenAt(line = 7), hostKey = "SHA256:same-key")
+
+        assertEquals(keyOf(first), keyOf(second))
+
+        val docs = OpenDocuments()
+        val entry = docs.open("app.py", keyOf(first))
+        assertEquals(entry.id, docs.byKey(keyOf(second))?.id)
+    }
+
+    @Test
+    fun `two host keys are two machines, whatever the profile`() {
+        val server = ServerProfile(id = "one", name = "one", host = "192.0.2.10", username = "someone")
+
+        assertFalse(
+            keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), hostKey = "SHA256:one-key")) ==
+                keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), hostKey = "SHA256:other-key")),
+        )
+    }
+
+    @Test
+    fun `without a host key the profile says which server it is`() {
+        val server = ServerProfile(id = "one", name = "one", host = "192.0.2.10", username = "someone")
+
+        assertEquals("remote:one:/srv/app.py", keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt())))
+    }
+
+    @Test
     fun `closing the file on screen moves to the one after it, and to the one before when it was last`() {
         val docs = OpenDocuments()
         val first = docs.open("a.py")

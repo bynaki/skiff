@@ -43,6 +43,13 @@ class FolderTest {
     }
 
     @Test
+    fun `a file beside keeps the host key, so it is the same file as when a link opens it`() {
+        val folder = Folder.of(fs, OpenRequest.Remote(server, "/srv/app/main.py", OpenAt(), hostKey = "SHA256:same-key"))!!
+
+        assertEquals("SHA256:same-key", (folder.request("util.py") as OpenRequest.Remote).hostKey)
+    }
+
+    @Test
     fun `nothing but a plain name is taken, so the page cannot reach outside the directory`() {
         val folder = Folder.of(fs, OpenRequest.LocalPath("/sdcard/notes/a.md", OpenAt()))!!
 

@@ -223,7 +223,10 @@ class OpenFlow(
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
                 else -> {
                     val result = loader.load(fs, request.path)
-                    val opened = request.copy(profile = profile)
+                    // The `stat` above got past the host key gate, which keeps every key it lets
+                    // through, so this is the key of the machine that answered.
+                    val hostKey = container.store.knownHost(profile.host, profile.port)?.fingerprint
+                    val opened = request.copy(profile = profile, hostKey = hostKey)
                     Opened(
                         link, node.name, opened, result, request.at.line,
                         // The same filesystem the file was read through: `stat` goes over the browse

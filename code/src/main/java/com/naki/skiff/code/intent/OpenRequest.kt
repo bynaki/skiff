@@ -22,8 +22,16 @@ sealed interface OpenRequest {
     /** `content://…` from another app's ACTION_VIEW or ACTION_EDIT. */
     data class Content(val uri: String, val writable: Boolean) : OpenRequest
 
-    /** A link that named a server we have a profile for. */
-    data class Remote(val profile: ServerProfile, val path: String, val at: OpenAt) : OpenRequest
+    /**
+     * A link that named a server we have a profile for. [hostKey] is the SHA256 fingerprint of the
+     * machine that answered, filled in once the file has been opened; a link never carries one.
+     */
+    data class Remote(
+        val profile: ServerProfile,
+        val path: String,
+        val at: OpenAt,
+        val hostKey: String? = null,
+    ) : OpenRequest
 
     /**
      * A link to a server with no matching profile. Nothing is connected until the user has seen

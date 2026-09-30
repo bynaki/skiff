@@ -147,11 +147,16 @@ class OpenDocuments {
  * What makes two links the same open file. The request is the resolved one — an unknown server has
  * become a profile by the time a file is opened through it — so a remote file is its server and its
  * path, and the alias or address the link happened to use does not come into it.
+ *
+ * The server is its host key, not its profile: a domain and a tailnet address for one machine
+ * resolve to two profiles, and the same path on both is one file (2026-09-30 사용자 결정). Nor is
+ * the user name part of it. Two machines cloned from one image share a key and would be taken for
+ * one; without a key the profile is all there is to go on.
  */
 fun keyOf(request: OpenRequest): String = when (request) {
     is OpenRequest.LocalPath -> "local:${request.path}"
     is OpenRequest.Content -> "content:${request.uri}"
-    is OpenRequest.Remote -> "remote:${request.profile.id}:${request.path}"
+    is OpenRequest.Remote -> "remote:${request.hostKey ?: request.profile.id}:${request.path}"
     // Neither reaches an opened file: UnknownServer becomes Remote once the user has agreed, and
     // Invalid never gets as far as reading one.
     is OpenRequest.UnknownServer -> "server:${request.user}@${request.host}:${request.port}:${request.path}"
