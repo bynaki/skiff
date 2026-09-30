@@ -242,7 +242,11 @@ too, which renders a cancelled load's cancellation message as a user-facing erro
 
 ### Links that arrive from outside
 
-`skiffcode://` is `BROWSABLE`, so any app — and any web page — can send one. **A link's path is
+`skiffcode://` is `BROWSABLE`, so any app — and any web page — can send one. So is its https
+form, `https://bynaki.github.io/skiffcode/open#<the rest of a skiffcode:// link>`, which exists
+for apps that pass only https on (Claude's). That is a second way in to the same gate, not a
+second gate: `MainActivity.handleLink` turns it back into `skiffcode://` with
+`SkiffCodeUri.fromWebLink` before anything else reads it. **A link's path is
 never opened without the user seeing it, unless the sender is Skiff.** Matching an `alias` decides
 only *which server*; the path stays the link's own, so a link that guesses a profile's name would
 otherwise reach any file on that server with the stored credentials. `OpenFlow.confirmPath` is the

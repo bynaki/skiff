@@ -56,6 +56,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="skiffcode" />
             </intent-filter>
+            <!--
+              The same link carried in https, for apps (Claude's) that pass only https on:
+              https://bynaki.github.io/skiffcode/open#<the rest of a skiffcode:// link>.
+              SkiffCodeUri.fromWebLink converts it; one exact path, so the blog's other pages still
+              go to the browser. autoVerify checks /.well-known/assetlinks.json on that host.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="bynaki.github.io" />
+                <data android:path="/skiffcode/open" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />

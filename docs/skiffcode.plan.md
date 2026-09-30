@@ -304,6 +304,18 @@
   - **바꿀 곳:** 매니페스트에 `https` + 호스트 + `pathPrefix` + `autoVerify="true"` 필터 하나. `OpenRequest.of`(또는 `SkiffCodeUri`) 앞에 https → `skiffcode://` 변환 하나. Pages 저장소에 `assetlinks.json`과 대비 페이지(정할 것 2·3에 따라). 블로그 저장소에 올리는 것은 밖으로 공개되는 일이라 **올리기 전에 사용자에게 묻는다.**
   - 테스트: 변환 — 호스트·경로가 맞는 것만 받고(`/skiffcode/openx`, 다른 호스트, `#`이 없는 것은 거절), `#` 뒤의 `?line=`과 퍼센트 인코딩·한글 경로가 그대로 가는지. 변환된 링크가 `confirmPath`를 거치는지는 `OpenFlow`가 종류마다 답하므로 새 종류를 만들지 않는 것으로 지킨다.
   - **확인:** 탭에서 `adb shell pm get-app-links com.naki.skiff.code`로 확인 상태(`verified`)를 보고, `am start -a android.intent.action.VIEW -d 'https://…'`로 열어 경로 확인 창이 뜨는지 본다. 폴드8의 Claude 앱에서 링크를 눌러 Skiff Code가 바로 열리는지 사용자가 본다. 블로그의 다른 주소는 여전히 브라우저로 열리는지도 본다.
+  - **정할 것 셋은 제안대로**(2026-09-29 사용자 결정): 호스트 `bynaki.github.io`, `assetlinks.json`을 올린다, 대비 페이지를 둔다.
+  - **앱 쪽 끝(2026-09-29).** 매니페스트는 `pathPrefix` 대신 `path="/skiffcode/open"`으로 좁혔다. 변환(`SkiffCodeUri.fromWebLink`)은 `MainActivity.handleLink`에서 한다 — `OpenRequest.of` 안에서 하면 최근 파일에 https 형태가 남는다. 테스트 둘(`OpenRequestTest`)을 더했다. 탭에서 사용자 선택으로 링크를 켜 두고 `am start`로 열어 경로 확인 창이 뜨고 파일이 열리는 것, 최근 파일에 `skiffcode:///…`로 남는 것, 블로그 첫 화면과 `/skiffcode/openx`는 Chrome만 받는 것을 봤다. 시험 뒤 사용자 선택은 다시 껐다.
+  - **블로그에 올림(2026-09-29 사용자 승인).** `.nojekyll`, `.well-known/assetlinks.json`(디버그 키 지문), `skiffcode/open.html`을 Pages 저장소(`bynaki.github.io`)와 원본(`bynaki/paran.blue`의 `static/`)에 커밋했다. 셋 다 200으로 열리고 Google의 Digital Asset Links API도 문구를 읽는다. 탭에서 `pm verify-app-links --re-verify` 뒤 `verified`, 홈 화면에서 연 https 링크가 고르는 창 없이 Skiff Code의 경로 확인 창으로 바로 갔다.
+  - **남은 것:** 폴드8의 Claude 앱에서 링크 누르기(폴드8에 이 빌드를 먼저 설치해야 한다). 원본을 Hugo로 다시 빌드했을 때 `static/`의 점 파일이 `public/`에 따라가는지는 이 Mac에 Hugo가 없어 보지 못했다 — 다음 배포 뒤 `assetlinks.json`이 200인지 본다.
+- [ ] 같은 기기를 호스트 키로 알아보기 — 주소가 달라도 같은 파일은 한 파일로 (2026-09-30 사용자 요청)
+  - **왜:** 한 서버를 도메인과 테일스케일 IP 두 주소로 열면, 같은 경로라도 열린 파일 목록에 둘로 뜬다. `keyOf`가 `remote:<프로필 id>:<경로>`인데, 두 주소는 프로필 찾기에서 다른 프로필(Skiff에서 온 것, 알 수 없는 서버로 만든 `user@IP`)로 풀리기 때문이다.
+  - **모양(사용자가 B안을 골랐다):** 원격 파일의 키를 `remote:<호스트 키 SHA256 지문>:<경로>`로 바꾼다. 지문은 파일을 열 때 이미 접속해 `HostKeyGate`가 확인한 것이라 새로 묻지 않는다 — 그 `host:port`의 known host에서 읽는다. 사용자 이름은 키에 넣지 않는다(같은 기기의 같은 경로면 같은 파일).
+  - 버린 안(A): 링크에 `alias=<폰의 프로필 이름>`을 붙여 한 프로필로 모으기. 앱은 그대로지만 폰의 프로필 이름을 알아야 하고, alias 없는 링크와 이미 생긴 두 프로필은 여전히 갈린다.
+  - **주의:** 같은 이미지로 복제한 VM처럼 서로 다른 기기가 같은 호스트 키를 쓰면 한 파일로 합쳐진다(드묾, 알려진 한계로 적는다). 지문을 못 읽는 경우(known host가 없는 경로가 있는지 확인)에는 지금의 프로필 id로 물러선다.
+  - **같이 볼 것:** 최근 파일 목록, 페이지가 `localStorage`에 파일마다 두는 것(레이어, 줄, 줌)이 무엇을 키로 쓰는지 — 같은 기준으로 묶이는지 확인하고, 다르면 이 항목에서 맞출지 사용자에게 묻는다. 두 프로필로 이미 열린 파일에서 저장·감시가 어느 세션으로 가는지도 본다.
+  - 테스트: `keyOf` — 다른 프로필·같은 지문·같은 경로는 같은 키, 다른 지문은 다른 키, 지문이 없으면 프로필 id. `OpenDocuments.byKey`로 두 번째 링크가 새 항목 대신 기존 파일을 켜는지.
+  - **확인:** 폴드8에서 한 서버의 같은 파일을 두 주소의 링크로 차례로 열어, 열린 파일 메뉴에 하나만 있고 두 번째 링크가 그 파일로 옮겨 가는지 본다.
 - [ ] **확인:** 실기기에서 팔레트 흐름을 녹화하고, 테마를 바꾸면 메뉴, 사이드바, 팔레트, 세 레이어가 한 번에 바뀐다
 
 ### M5. 프로젝트 모드 + git

@@ -98,4 +98,39 @@ class OpenRequestTest {
         assertTrue(open("skiffcode:///a", action = "android.intent.action.SEND") is OpenRequest.Invalid)
         assertTrue(open(null) is OpenRequest.Invalid)
     }
+
+    /** What MainActivity does with a link: the https form first becomes a skiffcode:// one. */
+    private fun openWeb(link: String) = open(SkiffCodeUri.fromWebLink(link))
+
+    @Test
+    fun `an https link carries a skiffcode link after the hash, query and all`() {
+        assertEquals(
+            OpenRequest.Remote(home, "/srv/demo/a.md", OpenAt(line = 3)),
+            openWeb("https://bynaki.github.io/skiffcode/open#alice@192.0.2.10/srv/demo/a.md?line=3"),
+        )
+        assertEquals(
+            OpenRequest.LocalPath("/storage/emulated/0/메모 %.md", OpenAt()),
+            openWeb("https://bynaki.github.io/skiffcode/open#/storage/emulated/0/%EB%A9%94%EB%AA%A8%20%25.md"),
+        )
+        assertEquals(
+            OpenRequest.LocalPath("/storage/emulated/0/메모.md", OpenAt()),
+            openWeb("HTTPS://Bynaki.GitHub.io/skiffcode/open#/storage/emulated/0/메모.md"),
+        )
+    }
+
+    @Test
+    fun `an https link opens only from its one address`() {
+        for (link in listOf(
+            "https://bynaki.github.io/skiffcode/openx#/a",
+            "https://bynaki.github.io/skiffcode/open/#/a",
+            "https://bynaki.github.io/skiffcode/open?x=1#/a",
+            "https://bynaki.github.io.example/skiffcode/open#/a",
+            "https://example.com/skiffcode/open#/a",
+            "http://bynaki.github.io/skiffcode/open#/a",
+            "https://bynaki.github.io/skiffcode/open",
+            "https://bynaki.github.io/skiffcode/open#",
+        )) {
+            assertTrue(link, openWeb(link) is OpenRequest.Invalid)
+        }
+    }
 }

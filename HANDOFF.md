@@ -12,29 +12,29 @@
 
 ---
 
-## 마지막 세션 (2026-09-29)
+## 마지막 세션 (2026-09-29 ~ 09-30)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 세션 시작 때 `origin`과 같았고, 이 세션의 커밋 둘은 **push하지 않았다** — 사용자에게 물었지만 답을 받지 못했다.
-  1. `a2f6377` 테마 복사·편집·삭제와 기본 테마 보호(정할 것 셋은 모두 제안대로).
-  2. 색 문자열 옆의 색 네모(`.toml`·`.css`·`.json`만, 보기만) — 인수인계와 같은 커밋.
-  결정과 탭 확인 결과는 `docs/skiffcode.plan.md`의 각 항목 아래, 설계는 `docs/skiffcode.spec.md`의 "설정과 테마"와 "레이어"에 있다.
-  린트(에러 없음, 경고 11은 기존 것)와 테스트(JVM 163, vitest 94) 통과.
-- 탭에 색 네모까지 든 빌드가 설치돼 있다. 시험 테마·시험 파일은 지웠고 `theme = "system"`, 화면 꺼짐은 600000으로 되돌렸다.
-- **폴드8은 테일스케일로 설치하지 못했다.** 무선 디버깅의 연결 포트는 테일스케일로 열리지만 페어링 포트는 창이 떠 있어도 닫혀 있었다.
-  같은 와이파이에서 한 번 페어링해 두어야 한다. APK(색 네모 포함)와 시험 파일, 개발 Mac의 `~/skiffcode-test`를 SFTP로 여는 링크 모음 HTML을
-  `SendUserFile`로 보냈다. 폴드8에서 확인했는지는 모른다.
-- **https 링크로 Skiff Code 열기를 계획에 넣었다(아직 시작 안 함).** 폴드8의 Claude 앱은 `skiffcode://`를 "지원되지 않는 링크"라며 넘기지 않지만
-  https 링크는 시스템에 넘긴다(YouTube 링크 → YouTube 앱, 사용자 확인). 설계와 정할 것은 계획의 그 항목에 있다.
-  - 그 준비로 사용자 요청에 따라 블로그(`bynaki.github.io`, 원본 `bynaki/paran.blue`)의 GitHub Pages 사용자 지정 도메인 `paran.blue`를 뗐다.
-    GitHub이 `CNAME`을 지우는 커밋을 만들었고 `https://bynaki.github.io/`가 넘김 없이 200으로 열린다. `paran.blue`는 2026-05에 다시 등록된 도메인이라 쓸 수 없다.
+- 브랜치 `plan/skiffcode`(git worktree). 세션 시작 때 `origin`과 같았다(지난 세션의 두 커밋은 이미 올라가 있었다).
+  이 세션의 작업은 커밋 하나로 묶었고 **push는 사용자에게 묻는 중**이다.
+- **https 링크로 Skiff Code 열기(계획 항목)** — 앱 쪽과 블로그 쪽 모두 끝.
+  - 앱: 매니페스트 https 필터(`path="/skiffcode/open"`, `autoVerify`), `SkiffCodeUri.fromWebLink`(`MainActivity.handleLink`에서 변환),
+    `OpenRequestTest`에 두 테스트. 린트 에러 없음(경고 11은 기존 것), JVM 165, vitest 94 통과.
+  - 블로그: 사용자 승인으로 `bynaki/bynaki.github.io`와 `bynaki/paran.blue`(`static/`)에 `.nojekyll`, `.well-known/assetlinks.json`,
+    `skiffcode/open.html`을 커밋·push했다. 탭에서 `verified`, 홈에서 연 https 링크가 고르는 창 없이 경로 확인 창으로 갔다.
+  - 폴드8에는 APK를 `SendUserFile`로 보냈고, 사용자가 그 뒤 원격 파일을 https 링크로 열어 보며 질문을 이어 갔다 — 동작하는 것으로 보이지만
+    **"Claude 앱에서 바로 열렸다"는 명시적 확인은 받지 않았다.** 그래서 항목은 아직 `- [ ]`다. 새 세션에서 한 번 물어 확인되면 체크한다.
+- 사용자 개인 스킬 `/skiffcode`(레포 밖, `~/.claude/skills/skiffcode/`)를 만들었다. 파일을 이 기기의 테일스케일 주소와 현재 계정으로
+  https 링크로 만들어 준다(`link.py <파일> [--line N] [--layer …]`). 범위(`50-60`)는 링크에 담을 수 없어 시작 줄만 쓴다.
+  같은 스킬을 사용자의 리눅스 서버(`tailscale status`에 보이는 것)에도 설치했다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. push할지 묻는다(`plan/skiffcode`가 `origin`보다 2커밋 앞서 있다).
-3. 계획의 첫 `- [ ]`는 **https 링크로 Skiff Code 열기**다. 항목 안의 "정할 것"을 **시작 전에 사용자에게 묻는다.** 호스트는 `bynaki.github.io`로
-   사실상 정해졌지만(블로그를 그리로 되돌렸다) 명시적인 답은 받지 않았다. 소유 증명(`assetlinks.json`)과 대비 페이지는 묻다가 중단됐다.
-   블로그 저장소에 무엇을 올리는 것은 공개되는 일이라 올리기 전에 묻는다.
-4. 그다음이 M4의 **확인** 항목(실기기에서 팔레트 흐름 녹화, 테마를 바꾸면 메뉴·사이드바·팔레트·세 레이어가 한 번에 바뀜)이다.
-5. 기기에서 아직 못 본 것: 다크의 사이드바·열린 파일 메뉴, 탭 아래 내비게이션 줄 색, `poll_seconds`·`kept_buffers`, 폴드8 커버 화면 줄바꿈,
-   import/export와 테마 복사·편집·삭제를 라이트 모드와 폴드8에서, 색 네모의 **모양**(탭의 `screencap`이 WebView를 비워 찍어 DOM으로만 봤다).
+2. push 여부가 아직 답을 못 받았다면 묻는다.
+3. https 링크 항목: 폴드8의 Claude 앱에서 바로 열렸는지 사용자에게 묻고, 그렇다면 체크한다.
+4. 계획의 다음 `- [ ]`는 **같은 기기를 호스트 키로 알아보기**(사용자가 B안 선택). 항목 안의 "같이 볼 것"을 먼저 읽는다.
+5. 그다음이 M4의 **확인** 항목이다. 기기에서 아직 못 본 것은 계획의 "아직 확인하지 않은 것"과 지난 목록 그대로다
+   (다크의 사이드바·열린 파일 메뉴, 내비게이션 줄 색, `poll_seconds`·`kept_buffers`, 폴드8 커버 화면 줄바꿈,
+   라이트 모드·폴드8에서 import/export와 테마 복사·편집·삭제, 색 네모의 모양).
+6. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다
+   (이 Mac에 Hugo가 없어 `static/`의 점 파일이 따라가는지 확인하지 못했다).

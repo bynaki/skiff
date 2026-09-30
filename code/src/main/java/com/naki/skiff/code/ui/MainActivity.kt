@@ -37,6 +37,7 @@ import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.code.intent.SkiffCodeUri
 import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
@@ -692,7 +693,8 @@ class MainActivity : Activity() {
     }
 
     private fun handleLink(intent: Intent, sender: String?) {
-        val link = intent.dataString ?: return
+        // Converted here rather than in OpenRequest.of, so the recent files keep the skiffcode:// form.
+        val link = SkiffCodeUri.fromWebLink(intent.dataString ?: return)
         val fromSkiff = sentBySkiff(sender)
         startOpening {
             var request = OpenRequest.of(intent.action, link, container.store.profiles.first())

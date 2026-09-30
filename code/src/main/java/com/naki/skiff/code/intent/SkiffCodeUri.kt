@@ -54,6 +54,22 @@ data class SkiffCodeUri(
         const val DEFAULT_PORT = 22
         private const val HEX_DIGITS = "0123456789abcdefABCDEF"
 
+        /** The https address that carries a link, for apps that pass only https on. The manifest names it too. */
+        const val WEB_HOST = "bynaki.github.io"
+        const val WEB_PATH = "/skiffcode/open"
+
+        /**
+         * `https://bynaki.github.io/skiffcode/open#alice@host/a.md?line=3` becomes
+         * `skiffcode://alice@host/a.md?line=3`: everything after `#` is the rest of a `skiffcode://`
+         * link, and stays behind the `#` so a browser never sends it to the web server. Anything else,
+         * including an https link to another address, is returned as it is, for [parse] to refuse.
+         */
+        fun fromWebLink(link: String): String {
+            val prefix = "https://$WEB_HOST$WEB_PATH#"
+            if (!link.startsWith(prefix, ignoreCase = true) || link.length == prefix.length) return link
+            return "$SCHEME://" + link.substring(prefix.length)
+        }
+
         /** @throws IllegalArgumentException with a message naming what is wrong with [uri]. */
         fun parse(uri: String): SkiffCodeUri {
             val prefix = "$SCHEME://"
