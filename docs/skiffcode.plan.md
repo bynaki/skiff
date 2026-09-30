@@ -291,7 +291,7 @@
   - `web/src/swatches.ts`: `MatchDecorator`로 `#rgb`·`#rgba`·`#rrggbb`·`#rrggbbaa` 앞에 위젯을 넣는다. 레이어 compartment 밖에 두어 세 레이어에 다 보인다.
   - 알려진 것: CSS의 id 선택자가 16진 글자로만 되어 있으면(`#fade`, `#add`) 색으로 잡힌다.
   - **2026-09-29 탭에서 DevTools로 확인했다:** `swatch.css`에서 `#0b3d5c`, `#fff`, `#e5484d80`(반투명) 앞에 11px 네모가 그 색으로 붙었고, 위의 id 선택자 `#fade`에도 붙었다. `swatch.json`은 `#0b3d5c`·`#abcd` 둘(5자리 `#abcde`는 없음), `swatch.toml`은 `[ui]` 네 줄(`#abcde`와 `x#abc`는 없음), `swatch.py`는 0개였다. 탭의 `screencap`은 이때 WebView를 비워 찍었고 CDP `Page.captureScreenshot`은 답이 없어 모양은 눈으로 보지 못했다.
-- [ ] https 링크로 Skiff Code 열기 — Claude 앱에서 탭 한 번에 (2026-09-29 사용자 요청)
+- [x] https 링크로 Skiff Code 열기 — Claude 앱에서 탭 한 번에 (2026-09-29 사용자 요청)
   - **왜:** 폴드8의 Claude 앱은 `skiffcode://` 링크를 "지원되지 않는 링크"라며 넘기지 않는다. 대신 https 링크는 시스템에 넘긴다 — YouTube 링크를 누르니 YouTube 앱이 열렸다(2026-09-29 사용자 확인). 그러니 Skiff Code가 https 링크 하나를 자기 것으로 받으면 된다.
   - **모양(제안):** `https://<호스트>/skiffcode/open#<skiffcode:// 뒤의 나머지>`. 예: `…/open#alice@host/srv/demo/a.md?line=3`, 로컬은 `…/open#/storage/emulated/0/a.md`. 받은 쪽은 `#` 뒤를 `skiffcode://`에 붙여 **지금의 `OpenRequest.of` 그대로** 태운다 — 파서도 경로 확인 창도 하나다.
     - 경로를 `#` 뒤에 두는 까닭: 앱이 없거나 링크가 브라우저로 새면, `#` 앞까지만 웹 서버로 간다. 서버 이름과 경로가 블로그의 접속 기록에 남지 않는다.
@@ -307,7 +307,8 @@
   - **정할 것 셋은 제안대로**(2026-09-29 사용자 결정): 호스트 `bynaki.github.io`, `assetlinks.json`을 올린다, 대비 페이지를 둔다.
   - **앱 쪽 끝(2026-09-29).** 매니페스트는 `pathPrefix` 대신 `path="/skiffcode/open"`으로 좁혔다. 변환(`SkiffCodeUri.fromWebLink`)은 `MainActivity.handleLink`에서 한다 — `OpenRequest.of` 안에서 하면 최근 파일에 https 형태가 남는다. 테스트 둘(`OpenRequestTest`)을 더했다. 탭에서 사용자 선택으로 링크를 켜 두고 `am start`로 열어 경로 확인 창이 뜨고 파일이 열리는 것, 최근 파일에 `skiffcode:///…`로 남는 것, 블로그 첫 화면과 `/skiffcode/openx`는 Chrome만 받는 것을 봤다. 시험 뒤 사용자 선택은 다시 껐다.
   - **블로그에 올림(2026-09-29 사용자 승인).** `.nojekyll`, `.well-known/assetlinks.json`(디버그 키 지문), `skiffcode/open.html`을 Pages 저장소(`bynaki.github.io`)와 원본(`bynaki/paran.blue`의 `static/`)에 커밋했다. 셋 다 200으로 열리고 Google의 Digital Asset Links API도 문구를 읽는다. 탭에서 `pm verify-app-links --re-verify` 뒤 `verified`, 홈 화면에서 연 https 링크가 고르는 창 없이 Skiff Code의 경로 확인 창으로 바로 갔다.
-  - **남은 것:** 폴드8의 Claude 앱에서 링크 누르기(폴드8에 이 빌드를 먼저 설치해야 한다). 원본을 Hugo로 다시 빌드했을 때 `static/`의 점 파일이 `public/`에 따라가는지는 이 Mac에 Hugo가 없어 보지 못했다 — 다음 배포 뒤 `assetlinks.json`이 200인지 본다.
+  - **폴드8 확인(2026-09-30 사용자 확인):** Claude 앱에서 https 링크를 눌러 Skiff Code로 원격 파일이 열렸다.
+  - **남은 것:** 원본을 Hugo로 다시 빌드했을 때 `static/`의 점 파일이 `public/`에 따라가는지는 이 Mac에 Hugo가 없어 보지 못했다 — 다음 배포 뒤 `assetlinks.json`이 200인지 본다.
 - [ ] 같은 기기를 호스트 키로 알아보기 — 주소가 달라도 같은 파일은 한 파일로 (2026-09-30 사용자 요청)
   - **왜:** 한 서버를 도메인과 테일스케일 IP 두 주소로 열면, 같은 경로라도 열린 파일 목록에 둘로 뜬다. `keyOf`가 `remote:<프로필 id>:<경로>`인데, 두 주소는 프로필 찾기에서 다른 프로필(Skiff에서 온 것, 알 수 없는 서버로 만든 `user@IP`)로 풀리기 때문이다.
   - **모양(사용자가 B안을 골랐다):** 원격 파일의 키를 `remote:<호스트 키 SHA256 지문>:<경로>`로 바꾼다. 지문은 파일을 열 때 이미 접속해 `HostKeyGate`가 확인한 것이라 새로 묻지 않는다 — 그 `host:port`의 known host에서 읽는다. 사용자 이름은 키에 넣지 않는다(같은 기기의 같은 경로면 같은 파일).

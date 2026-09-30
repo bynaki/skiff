@@ -34,6 +34,12 @@
   `adb shell date`와 맞춰 본다. 같은 때 CDP `Page.captureScreenshot`은 답이 없었다.
 - **`screencap`이 다이얼로그가 떠 있는 화면을 비게 찍은 적이 있다.** 화면 대신
   `uiautomator dump`(네이티브)와 DevTools(페이지)를 믿는다.
+- **2026-09-30에는 `screencap` 자체는 멀쩡했다.** 다이얼로그와 WebView(마크다운 뷰어)가 다 찍혔고 시계도
+  맞았다. 깨지는 쪽은 **가져오는 USB**다(아래 "환경"의 USB 항목). 화면이 꺼져 있으면(`dumpsys power`의
+  `mWakefulness=Dozing`) 까만 PNG가 나오는 것은 정상이다.
+- **CDP `Page.captureScreenshot`·`Page.startScreencast`는 이 탭에서 쓸 수 없다.** 요청하는 순간 adb USB가
+  끊겨(`adb.$UID.log`에 같은 밀리초로 `connection terminated: read failed`) 웹소켓이 닫히고 답이 오지 않는다 —
+  답이 수 MB라서다. 두 번 해서 두 번 다 그랬다. 끊기면 `adb forward`도 사라지므로 다시 건다.
 - **`adb shell run-as … sh -c '…'`는 명령 전체를 한 번 더 따옴표로 감싸야 한다.** 안 그러면 adb가
   인자를 공백으로 이어 붙여 `sh -c cd`만 실행되고 나머지가 기기 셸에서 돈다. 저장 파일을 고칠 때는
   먼저 `am force-stop`하고, `adb push`로 `/data/local/tmp`에 둔 뒤 `chmod 644`하고 넘긴다.
@@ -95,6 +101,13 @@
 - **`adb pull`이 이 샌드박스에서 아무 말 없이 실패한다**(종료 코드 1, 출력 없음). 기기의 파일은
   `adb shell base64 <경로> | base64 -d > <파일>`로 가져온다. `adb exec-out screencap -p`는 360바이트짜리
   깨진 PNG를 준 적이 있어 믿지 않는다 — 기기에 `screencap -p <경로>`로 쓰고 base64로 가져오는 쪽이 된다.
+- **탭의 USB 연결은 큰 전송 중에 끊긴다**(2026-09-30 측정). `adb shell "head -c N /dev/zero | base64"`를
+  다섯 번씩: 100KB 5/5, 1MB 2/5, 5MB 0/5 성공. adb 서버를 다시 띄워도(1MB 4/5, 5MB 0/5), `ADB_LIBUSB=1`로
+  띄워도(3/5, 2/5) 남는다. 탭은 이 맥 안쪽 USB2 허브에 480Mb/s로 붙어 있다 — **케이블이나 포트를 바꿔 보는 것은
+  아직 안 했다.** 끊기면 1초쯤 뒤 다시 붙는다(`adb wait-for-device`). 그래서 base64로 가져온 PNG는 **잘려
+  있을 수 있다**(스크린샷 하나가 세 번째에야 온 적이 있다). 기기의 `md5sum`과 맞을 때까지 다시 가져온다.
+  서버 로그는 `$TMPDIR/adb.$UID.log`이고, 1초마다 찍히는 `Unable to create an interface plug-in (e00002be)`는
+  2026-09-13부터 끊김이 적은 날에도 같은 수로 찍혀 왔다 — 끊김과 관계가 있는지는 모른다.
 - **폴드8은 무선 디버깅으로 붙인다.** 페어링은 이미 돼 있다(기기의 "페어링된 기기"에 이 맥이 있다). 단 **Wi-Fi가 없으면
   포트 자체가 열리지 않는다** — LTE + 테일스케일만으로는 안 된다(기기 화면이 "사용할 수 없음(Wi-Fi 연결
   해제됨)"). Wi-Fi에 붙기만 하면 같은 공유기가 아니어도 되고, 기기의 테일스케일 주소(`<테일스케일 주소>`,
