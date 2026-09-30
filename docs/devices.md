@@ -37,9 +37,12 @@
 - **2026-09-30에는 `screencap` 자체는 멀쩡했다.** 다이얼로그와 WebView(마크다운 뷰어)가 다 찍혔고 시계도
   맞았다. 깨지는 쪽은 **가져오는 USB**다(아래 "환경"의 USB 항목). 화면이 꺼져 있으면(`dumpsys power`의
   `mWakefulness=Dozing`) 까만 PNG가 나오는 것은 정상이다.
-- **CDP `Page.captureScreenshot`·`Page.startScreencast`는 이 탭에서 쓸 수 없다.** 요청하는 순간 adb USB가
-  끊겨(`adb.$UID.log`에 같은 밀리초로 `connection terminated: read failed`) 웹소켓이 닫히고 답이 오지 않는다 —
-  답이 수 MB라서다. 두 번 해서 두 번 다 그랬다. 끊기면 `adb forward`도 사라지므로 다시 건다.
+- **CDP `Page.captureScreenshot`은 화면이 바뀌지 않으면 답하지 않을 때가 있다.** WebView는 새 프레임을
+  그릴 때만 찍어 준다. 케이블을 바꾼 뒤(2026-10-01) USB가 한 번도 끊기지 않은 채로 그냥 요청은 5번 중 3번만
+  답했고, 기다리는 동안 150ms마다 `document.body.style.opacity`를 `0.99`와 `''` 사이로 바꾸면 5번 다
+  0.4초 안에 답했다(끝나면 `''`로 되돌린다). **본문은 제대로 찍히지만 상단 메뉴와 오른쪽 아래 버튼 같은
+  고정 요소는 납작하게 눌려 나온다** — 그것들의 모양은 `screencap`으로 본다. 케이블을 바꾸기 전에는 요청하는
+  순간 USB가 끊겨 아예 답이 없었다(아래 USB 항목).
 - **`adb shell run-as … sh -c '…'`는 명령 전체를 한 번 더 따옴표로 감싸야 한다.** 안 그러면 adb가
   인자를 공백으로 이어 붙여 `sh -c cd`만 실행되고 나머지가 기기 셸에서 돈다. 저장 파일을 고칠 때는
   먼저 `am force-stop`하고, `adb push`로 `/data/local/tmp`에 둔 뒤 `chmod 644`하고 넘긴다.
@@ -101,14 +104,22 @@
 - **`adb pull`이 이 샌드박스에서 아무 말 없이 실패한다**(종료 코드 1, 출력 없음). 기기의 파일은
   `adb shell base64 <경로> | base64 -d > <파일>`로 가져온다. `adb exec-out screencap -p`는 360바이트짜리
   깨진 PNG를 준 적이 있어 믿지 않는다 — 기기에 `screencap -p <경로>`로 쓰고 base64로 가져오는 쪽이 된다.
-- **탭의 USB 연결은 큰 전송 중에 끊긴다**(2026-09-30 측정). `adb shell "head -c N /dev/zero | base64"`를
-  다섯 번씩: 100KB 5/5, 1MB 2/5, 5MB 0/5 성공. adb 서버를 다시 띄워도(1MB 4/5, 5MB 0/5), `ADB_LIBUSB=1`로
-  띄워도(3/5, 2/5) 남는다. 탭은 이 맥 안쪽 USB2 허브에 480Mb/s로 붙어 있다 — **케이블이나 포트를 바꿔 보는 것은
-  아직 안 했다.** 끊기면 1초쯤 뒤 다시 붙는다(`adb wait-for-device`). 그래서 base64로 가져온 PNG는 **잘려
-  있을 수 있다**(스크린샷 하나가 세 번째에야 온 적이 있다). 기기의 `md5sum`과 맞을 때까지 다시 가져온다.
-  서버 로그는 `$TMPDIR/adb.$UID.log`이고, 1초마다 찍히는 `Unable to create an interface plug-in (e00002be)`는
-  2026-09-13부터 끊김이 적은 날에도 같은 수로 찍혀 왔다 — 끊김과 관계가 있는지는 모른다.
-- **폴드8은 무선 디버깅으로 붙인다.** 페어링은 이미 돼 있다(기기의 "페어링된 기기"에 이 맥이 있다). 단 **Wi-Fi가 없으면
+- **탭의 USB가 큰 전송 중에 끊기던 것은 케이블 탓이었다.** 2026-09-30에 `adb shell "head -c N /dev/zero | base64"`를
+  다섯 번씩 돌리면 100KB 5/5, 1MB 2/5, 5MB 0/5 성공이었고, adb 서버를 다시 띄워도 `ADB_LIBUSB=1`로 띄워도
+  남았다. 2026-10-01 사용자가 케이블을 바꾸자 같은 포트(이 맥 안쪽 USB2 허브, 480Mb/s)에서 세 크기 모두 5/5,
+  끊김 0번이었다. **스크린샷이 잘리거나 CDP가 통째로 멈추면 이 시험부터 돌린다.** 끊기면 1초쯤 뒤 다시 붙고
+  (`adb wait-for-device`) `adb forward`는 사라진다. base64로 가져온 파일은 기기의 `md5sum`과 맞춰 보는 것이 싸다.
+  서버 로그는 `$TMPDIR/adb.$UID.log`(`connection terminated: read failed`가 끊김)이고, 1초마다 찍히는
+  `Unable to create an interface plug-in (e00002be)`는 케이블을 바꾼 뒤에도 그대로라 끊김과는 관계가 없어 보인다.
+- **폴드8의 페어링은 풀릴 수 있다.** 2026-10-01에 같은 Wi-Fi의 mDNS에는 폰의 `_adb-tls-connect`가 보이고
+  포트도 열려 있었는데, `adb connect`가 TLS 핸드셰이크에서 `SSLV3_ALERT_CERTIFICATE_UNKNOWN`으로 끊겼다
+  (서버 로그 `$TMPDIR/adb.$UID.log`). 폰이 이 맥의 키를 잊은 것이고, 9-29에도 같은 거절이 있었다. 이 맥의 키는
+  그대로였으니 폰 쪽 문제다 — 오래 안 붙으면 권한을 자동으로 취소하는 기능 탓일 수 있다(확인 못 함. 개발자 옵션의
+  "adb 권한 자동 취소 사용 안 함"이 막는다). **다시 페어링:** 폰에서 "페어링 코드로 기기 페어링" 창을 **띄운 채로**
+  `adb pair <폰의 Wi-Fi 주소>:<창의 포트> <코드>`. 창이 닫히면 포트가 닫혀 `Connection refused`다. 창에 테일스케일
+  주소가 나와도 페어링은 Wi-Fi 주소로 해야 닿는다. 페어링되면 adb가 mDNS로 알아서 붙는다(`adb devices`에
+  `adb-<serialno>-<임의 글자>._adb-tls-connect._tcp`).
+- **폴드8은 무선 디버깅으로 붙인다.** 페어링은 위처럼 한 번 해 둔다. 단 **Wi-Fi가 없으면
   포트 자체가 열리지 않는다** — LTE + 테일스케일만으로는 안 된다(기기 화면이 "사용할 수 없음(Wi-Fi 연결
   해제됨)"). Wi-Fi에 붙기만 하면 같은 공유기가 아니어도 되고, 기기의 테일스케일 주소(`<테일스케일 주소>`,
   로컬 메모에 있다)에 그 화면의 포트를 붙여 `adb connect` 한다. mDNS(`adb mdns services`)는 테일스케일을 타지
@@ -118,7 +129,7 @@
   `aapt2`, `zipalign`, `apksigner`는 `…/build-tools/37.0.0/`에 있다.
 - macOS에는 `timeout`이 없다. 오래 걸릴 수 있는 node 스크립트는 끝에 `process.exit(0)`를 둔다.
 - **USB 허브를 지나는 연결이 불안정하다.** `unauthorized`로 떨어지거나 명령 도중 끊긴 적이 있다
-  (몇 초 기다렸다 `adb forward`부터 다시 걸면 된다).
+  (몇 초 기다렸다 `adb forward`부터 다시 걸면 된다). 탭은 2026-10-01 케이블을 바꾼 뒤로 끊기지 않았다(위 USB 항목).
 - 이 맥의 원격 로그인(SSH)은 켜져 있다. 기기에서 실제 서버로 확인할 때 쓴다. **탭에는 이 맥을 가리키는
   프로필이 비밀번호까지 저장돼 있어** 링크 하나로 원격 파일을 열 수 있다(프로필은
   `run-as com.naki.skiff.code cat files/datastore/skiffcode.json`으로 확인하고, **거기서 읽은 것은
