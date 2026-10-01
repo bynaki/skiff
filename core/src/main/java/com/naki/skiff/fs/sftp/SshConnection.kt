@@ -70,13 +70,13 @@ class SshConnection(
                 // Translate before deciding. A rejected host key reaches us as a plain
                 // TransportException, so a check against the raw exception never matches it and
                 // the retry below asks the user the same question a second time.
-                val failure = e.toFsError()
-                if (isFatalAuth(failure)) throw failure
+                val failure = e.toConnectionError(host)
+                if (failure.isFatalAuth()) throw failure
                 disconnectQuietly()
                 try {
                     block(ensureConnected(secret))
                 } catch (retry: IOException) {
-                    throw retry.toFsError()
+                    throw retry.toConnectionError(host)
                 }
             }
             }
@@ -120,17 +120,20 @@ class SshConnection(
         sftp = null
         client = null
     }
+}
 
-    /** Asking again cannot change either answer, so neither is worth a reconnect. */
-    private fun isFatalAuth(e: Throwable): Boolean =
-        e is FsError.AuthFailed || e is FsError.HostKeyRejected
+/** Asking again cannot change either answer, so neither is worth a reconnect. */
+fun Throwable.isFatalAuth(): Boolean = this is FsError.AuthFailed || this is FsError.HostKeyRejected
 
-    private fun IOException.toFsError(): Throwable = when {
-        this is UserAuthException -> FsError.AuthFailed(this)
-        // A connect timeout is not a lost connection: the server was never reached.
-        this is SocketTimeoutException || this is ConnectException -> FsError.Unreachable(host, this)
-        message?.contains("host key", ignoreCase = true) == true ->
-            FsError.HostKeyRejected(message ?: "")
-        else -> FsError.NetworkLost(this)
-    }
+/**
+ * What a failed connect or a dropped link means to the user. Shared with Skiff Code's remote
+ * commands, which run over a client of their own and must not ask the host key question twice either.
+ */
+fun IOException.toConnectionError(host: String): Throwable = when {
+    this is UserAuthException -> FsError.AuthFailed(this)
+    // A connect timeout is not a lost connection: the server was never reached.
+    this is SocketTimeoutException || this is ConnectException -> FsError.Unreachable(host, this)
+    message?.contains("host key", ignoreCase = true) == true ->
+        FsError.HostKeyRejected(message ?: "")
+    else -> FsError.NetworkLost(this)
 }

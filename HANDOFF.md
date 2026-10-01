@@ -12,22 +12,28 @@
 
 ---
 
-## 마지막 세션 (2026-10-01)
+## 마지막 세션 (2026-10-01, 두 번째)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 이 세션의 커밋 하나(M4 확인과 고친 셋, 이 문서)가 있고
-  **push하지 않았다** — origin보다 커밋 1개 앞선다. push는 사용자가 하라고 할 때만 한다.
-- **M4의 마지막 항목(확인) — 끝, 체크함.** 결과와 고친 것은 `docs/skiffcode.plan.md` M4 맨 끝 항목에 있다.
-  고친 셋: 라이트 테마의 내비게이션 줄(`MainActivity`의 `isNavigationBarContrastEnforced = false`), 팔레트의
-  Enter가 편집기에 줄바꿈을 넣던 것(`chrome/palette.ts`), 팔레트 입력칸 포커스 테두리를 `ui.accent`로(`index.html`,
-  사용자 결정). 린트 에러 0(경고 11 기존), JVM 169, vitest 94 통과.
-- 탭과 폴드8 모두에 이 세션의 마지막 빌드가 설치돼 있다. 두 기기의 설정·테마·다크 모드·화면 꺼짐 시간은 시험 전으로
-  되돌렸다. 폴드8은 사용자가 쓰는 설정(가져온 테마 둘, `wrap = false`)이라 백업했다가 md5까지 같게 되돌렸다.
-- 탭의 외장 키보드는 세션 끝 무렵 떨어져 있었다(화면 키보드가 올라온다). Enter 수정은 키보드가 붙어 있을 때
-  adb `input keyevent`로만 확인했고, 진짜 외장 키보드로는 누르지 않았다.
+- 브랜치 `plan/skiffcode`(git worktree). 이 세션의 커밋은 셋이다 — `GitScopeFinder`, `ShellQuote`, `RemoteExec`(이 문서 포함).
+  **push하지 않았다** — origin보다 커밋 3개 앞선다. push는 사용자가 하라고 할 때만 한다.
+- M5의 앞 세 항목이 끝났다. 사용자 동의로 M5 순서를 바꿨다: `ShellQuote`와 `RemoteExec`를 `ProjectStore` 앞으로 옮기고
+  (활성화가 exec로 git을 확인하므로), `ProjectStore`와 사이드바 트리를 두 항목으로 나눴다.
+- 세 항목 모두 JVM 테스트로만 확인했다. **아직 앱 어디에서도 부르지 않으므로 기기에는 아무것도 설치하지 않았다.**
+  린트 에러 0(경고 core 15, app 4, code 11 — 기준과 같다), JVM core 38, app 32, code 189 통과.
+- `:core`도 조금 바뀌었다: `SshConnection`의 오류 번역을 공개 함수(`toConnectionError`, `isFatalAuth`)로 꺼냈고,
+  `SftpTestServer`가 `CommandFactory`를 받는다(안 주면 지금처럼 exec를 모두 거절).
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 M5의 `GitScopeFinder` + `GitScopeFinderTest`다(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일,
-   홈 밖 경로는 찾지 않음). M5부터 `exec`가 들어오니 `AGENTS.md`의 exec 원칙(첫 exec는 `RemoteExec`에만)을 먼저 본다.
-3. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.
+2. 계획의 첫 `- [ ]`는 `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)다.
+   - `GitScopeFinder.find`, `RemoteExec.supported()`/`run`을 여기서 처음 `OpenFlow`에 붙인다. **exec 판별은 `supported()`로
+     하고, 그 뒤에 `command -v git`을 본다** — `command -v` 하나로는 "git 없음"과 "exec 안 됨"을 가를 수 없다(spec).
+   - `GitScopeFinder`는 홈 자신의 `.git`도 본다. 홈을 dotfiles 레포로 쓰면 홈 아래 거의 모든 파일에서 묻는 창이 뜬다 —
+     "단일 파일로 열기"를 고른 답을 기억할지 이 항목에서 정한다(사용자에게 묻는다).
+   - `GitScopeFinder`는 파일 폴더를 `canonicalize`한 경로로 루트를 돌려준다. 2단계 "저장된 프로젝트의 루트 아래인지"도
+     같은 기준(canonical)으로 비교해야 링크 경로와 어긋나지 않는다.
+   - 경로를 git에 넘길 때는 `--` 뒤에 둔다. `-`로 시작하는 경로는 셸 따옴표로 막을 수 없다(`GitService` 항목에서도 같다).
+3. 사용자에게 아직 묻지 않은 것: git 없는 프로젝트의 파일 검색 대체(계획의 `ls-files` 항목 "정할 것"), M5 확인에 쓸
+   internal-sftp 계정을 어디에 만들지.
+4. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

@@ -1,6 +1,7 @@
 package com.naki.skiff
 
 import org.apache.sshd.server.SshServer
+import org.apache.sshd.server.command.CommandFactory
 import org.apache.sshd.server.auth.keyboard.UserAuthKeyboardInteractiveFactory
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import org.apache.sshd.sftp.server.SftpSubsystemFactory
@@ -23,6 +24,8 @@ class SftpTestServer(
     val password: String = "s3cret",
     /** Offers keyboard-interactive and not the password method, as some PAM setups do. */
     private val keyboardInteractiveOnly: Boolean = false,
+    /** What an `exec` request runs. Left null, the server refuses every one, as `internal-sftp` can. */
+    private val commands: CommandFactory? = null,
 ) {
     /** Every password the server has checked, over either method. */
     val passwordChecks = AtomicInteger()
@@ -49,6 +52,7 @@ class SftpTestServer(
             }
             if (keyboardInteractiveOnly) userAuthFactories = listOf(UserAuthKeyboardInteractiveFactory.INSTANCE)
             subsystemFactories = listOf(SftpSubsystemFactory())
+            commandFactory = commands
             fileSystemFactory = VirtualFileSystemFactory(root)
         }
         server.start()

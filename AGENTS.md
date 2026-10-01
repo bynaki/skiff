@@ -163,9 +163,10 @@ stands, the reason was wrong.
 Skiff Code (`:code`) is allowed `exec`, because git and language servers need it. It stays
 confined: M5 puts it in `RemoteExec` alone, on its own `SSHClient`, in project mode only, with
 every argument quoted through `ShellQuote`, and a refusal is handled by opening the project
-without git and LSP rather than failing. There is no `exec` in the tree yet — M0 reached a real
-language server through one and then deleted the harness. **The first one to land belongs in
-`RemoteExec`; a call site anywhere else is a design change, not an implementation detail.**
+without git and LSP rather than failing. `session/RemoteExec` is now the one place a command runs,
+and `RemoteExec.supported()` is how a refusal is told apart. **A call site anywhere else is a design
+change, not an implementation detail.** `SftpTestServer` refuses every `exec` unless it is given a
+`CommandFactory`; `RemoteExecTest` hands the line to `/bin/sh -c`, as sshd hands it to the login shell.
 
 `SFTPClient` is not thread safe, so `SshConnection` pins every call to a single-threaded
 dispatcher it owns. Each profile gets **two** connections, browse and transfer, so a large
