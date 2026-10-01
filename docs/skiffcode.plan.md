@@ -335,10 +335,12 @@
   - **아직 못 본 것:** 다크에서 앱을 켤 때 페이지가 답을 받기 전 잠깐 라이트(`:root`)로 그려지는지. 로딩 표시의 `prefers-reduced-motion` 쪽.
 
 ### M5. 프로젝트 모드 + git
-- [ ] `GitScopeFinder` + `GitScopeFinderTest`(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일, 홈 밖 경로는 찾지 않음)
-- [ ] `ProjectStore`와 파일 여는 흐름 2~3단계(프로젝트 활성화, 묻는 창), 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
+- [x] `GitScopeFinder` + `GitScopeFinderTest`(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일, 홈 밖 경로는 찾지 않음)
 - [ ] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
 - [ ] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지). `AGENTS.md`의 exec 원칙 수정은 M0에서 이미 했다
+- [ ] `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)
+  - 활성화가 exec로 git을 확인하므로 `RemoteExec` 뒤에 둔다(2026-10-01 사용자 동의로 순서를 바꿨다).
+- [ ] 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
 - [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
 - [ ] git 거터(viewer, editor, diff 공통)
 - [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
@@ -392,6 +394,9 @@
 - **서명이 다른 앱이 끼어드는 경로**(가짜 Skiff Code, 가짜 provider)는 그런 앱을 만들지 않아 보지 못했다.
 - **Android 15 미만에서 링크가 전부 확인창을 받는 것.** 두 기기 다 15 이상이다.
 - release APK의 배포용 서명. 지난번에는 debug 키로 서명해서 확인만 했다.
+- **`GitScopeFinder`가 홈 밖을 가리키는 심볼릭 링크를 "홈 밖"으로 보는 것은 실제 sshd에서만 볼 수 있다.**
+  MINA의 REALPATH는 경로를 정규화만 하고 링크를 따라가지 않아서 테스트로 만들 수 없었다. OpenSSH는 `realpath(3)`로
+  풀어 준다. 이 맥의 원격 로그인으로 `~/link → /tmp/…` 아래 파일을 열어 보면 된다.
 - **실제 SSH 서버로 LSP를 띄워 본 적은 없다.** M0의 확인은 이 맥 안의 MINA 루프백이다.
 - 진단이 수백~수천 개일 때의 비용. 큰 파일에서 편집 중 동기화 비용. **2MB 파일에서 병합 diff가 얼마나
   드는지도 아직 안 쟀다.**
