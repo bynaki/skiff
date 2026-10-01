@@ -28,49 +28,18 @@ whole diff (`git diff HEAD`, plus every new file) before going on.
 
 ## 2. Personal information
 
-Run this from the repo root. It prints every added line (tracked changes and new files) that
-matches, with its file and what it matched. Before running it, read `~/private/skiff.md` and put
-every value there (addresses, MagicDNS names, pairing names) into `PRIVATE`, `|`-separated with
-dots escaped — **in the command only, never in a file in the repo.**
+Run `check.sh` (next to this file) from the repo root. It prints every added line (tracked
+changes and new files) that matches, with its file and what it matched. Before running it, read
+`~/private/skiff.md` and put every value there (addresses, MagicDNS names, pairing names) into
+`PRIVATE`, `|`-separated with dots escaped — **in the command only, never in a file in the repo.**
 
 ```bash
-export PATH=/opt/homebrew/share/android-commandlinetools/platform-tools:$PATH
-PRIVATE='<values from ~/private/skiff.md>'
-SERIALS=$(adb devices 2>/dev/null | awk 'NR>1 && $1 {split($1,a,":"); print a[1]}' | paste -sd'|' -)
-SELF=.claude/skills/commit/SKILL.md   # holds the patterns themselves
-added() {
-  git diff HEAD -U0 --no-color -- . ":(exclude)$SELF" \
-    | awk '/^\+\+\+ b\//{f=substr($0,7)} /^\+[^+]/{print f"\t"substr($0,2)}'
-  git ls-files --others --exclude-standard | grep -vxF "$SELF" | while read -r f; do
-    if file -b --mime "$f" | grep -q text; then awk -v f="$f" '{print f"\t"$0}' "$f"
-    else printf '%s\t<binary>\n' "$f"; fi
-  done
-}
-scan() {
-  HOST=$(hostname -s) SERIALS="$SERIALS" PRIVATE="$PRIVATE" perl -ne '
-    BEGIN {
-      @m = (["host name", qr/\Q$ENV{HOST}\E/i], ["home path", qr{/(Users|home)/[^/\s]+}],
-            # bounded, so the package path com.naki.skiff / com/naki/skiff does not match
-            ["user name", qr/(?<![.\/\w])\Q$ENV{USER}\E(?![.\/\w])/]);
-      push @m, ["device serial", qr/$ENV{SERIALS}/] if $ENV{SERIALS};
-      push @m, ["private value", qr/$ENV{PRIVATE}/i] if $ENV{PRIVATE};
-    }
-    chomp; my ($f, $t) = split /\t/, $_, 2; next unless defined $t;
-    if ($t eq "<binary>") { print "$f  [binary: open it before it goes in]\n"; next }
-    for (@m) { print "$f  [$_->[0]]  $t\n" if $t =~ $_->[1] }
-    while ($t =~ /(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})(?![\d.])/g) {
-      print "$f  [IPv4 $1]  $t\n"
-        unless $1 =~ /^(192\.0\.2\.|198\.51\.100\.|203\.0\.113\.|127\.0\.0\.1$|0\.0\.0\.0$)/ }
-    while ($t =~ /([\w.%+-]+\@[\w.-]+\.[A-Za-z]{2,})/g) {
-      print "$f  [e-mail $1]  $t\n" unless $1 =~ /\@example\.|\.example$|^noreply\@anthropic\.com$/ }
-    print "$f  [key or secret]  $t\n"
-      if $t =~ /BEGIN [A-Z ]*PRIVATE KEY|ssh-(rsa|ed25519|dss) AAAA|SHA256:[A-Za-z0-9+\/]{30}|(password|passwd|secret|token)\s*[:=]/i;
-  '
-}
-echo "--- added lines that match";                   hits=$(added | scan); echo "${hits:-none}"
-echo "--- new images, logs, dumps";                   git ls-files --others --exclude-standard | grep -Ei '\.(png|jpe?g|webp|log|hprof|xml|json|pem|key|jks|keystore)$' || echo none
-echo "--- local.properties tracked";                  git ls-files | grep -E '(^|/)local\.properties$' || echo no
+PRIVATE='<values from ~/private/skiff.md>' .claude/skills/commit/check.sh changes
 ```
+
+The patterns are in the script, not here, because a skill's text has its positional references
+replaced by the arguments it was invoked with — awk's and perl's own ones came out as the user's
+words. Keep shell code that needs them in the script.
 
 A hit is fixed at the source (`192.0.2.x`, `.example`, a placeholder) and the whole check run
 again — never committed around. A password in a test is fine only when it authenticates nothing
@@ -131,8 +100,11 @@ yes `AGENTS.md` asks for; it covers the commits ahead now, not later ones.
 
 After a commit, say how many commits the branch is ahead of its upstream and **ask whether to
 push** — a commit, whether it asked or not, is not a yes to push. Before a push, run step 2
-against the commits being pushed, messages included: replace `added` with
-`{ git log -p --no-color --format= @{u}..HEAD | awk '/^\+\+\+ b\//{f=substr($0,7)} /^\+[^+]/{print f"\t"substr($0,2)}'; git log --format=%B @{u}..HEAD | awk '{print "commit message\t"$0}'; }`.
+against the commits being pushed, messages included:
+
+```bash
+PRIVATE='<values from ~/private/skiff.md>' .claude/skills/commit/check.sh pushed
+```
 
 Then the same rule as a commit: when that check prints `none`, `git push` and report in Korean which
 commits went up (`git log --oneline` of them) and to where; when it finds something, say what and
