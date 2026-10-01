@@ -336,7 +336,8 @@
 
 ### M5. 프로젝트 모드 + git
 - [x] `GitScopeFinder` + `GitScopeFinderTest`(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일, 홈 밖 경로는 찾지 않음)
-- [ ] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
+- [x] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
+  - 테스트는 실제 `/bin/sh`로 돌리므로 `rm -rf ~` 대신 같은 모양의 `touch`로 표시 파일이 생기지 않는지 본다. 따옴표를 큰따옴표로 바꾸면 실패하는 것도 확인했다.
 - [ ] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지). `AGENTS.md`의 exec 원칙 수정은 M0에서 이미 했다
 - [ ] `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)
   - 활성화가 exec로 git을 확인하므로 `RemoteExec` 뒤에 둔다(2026-10-01 사용자 동의로 순서를 바꿨다).
