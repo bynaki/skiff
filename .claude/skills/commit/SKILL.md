@@ -1,6 +1,8 @@
 ---
 name: commit
-description: Use only when the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit) — never on your own when work is finished; ask "커밋할까요?" instead. Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and commits on its own when every check is clean — it asks only when one is not. Also use when the user asks whether privacy or security was checked.
+description: Use only when the user asks to commit in this repo ("커밋해", "커밋하자", "commit this", /commit) — never on your own when work is finished; ask "커밋할까요?" instead. Checks what is about to be committed for personal information and security weaknesses, reports the result in Korean, and commits on its own when every check is clean — it asks only when one is not. Also use when the user asks whether privacy or security was checked. Also use when the user asks to push ("push해", "푸시하자", "push this", or a yes to "push할까요?") — then only step 5 runs; never push without that request.
+model: sonnet
+effort: medium
 ---
 
 # Commit: check, report, commit
@@ -124,7 +126,14 @@ asks for changes, make them and run steps 1–4 again.
 
 ## 5. Push
 
+**Invoked for a push request, start here and skip steps 1–4.** The request itself is the explicit
+yes `AGENTS.md` asks for; it covers the commits ahead now, not later ones.
+
 After a commit, say how many commits the branch is ahead of its upstream and **ask whether to
 push** — a commit, whether it asked or not, is not a yes to push. Before a push, run step 2
 against the commits being pushed, messages included: replace `added` with
 `{ git log -p --no-color --format= @{u}..HEAD | awk '/^\+\+\+ b\//{f=substr($0,7)} /^\+[^+]/{print f"\t"substr($0,2)}'; git log --format=%B @{u}..HEAD | awk '{print "commit message\t"$0}'; }`.
+
+Then the same rule as a commit: when that check prints `none`, `git push` and report in Korean which
+commits went up (`git log --oneline` of them) and to where; when it finds something, say what and
+where, ask, and push only on a yes. Either way, send a push notification with a one-line version.
