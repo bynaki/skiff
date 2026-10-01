@@ -12,28 +12,28 @@
 
 ---
 
-## 마지막 세션 (2026-10-01, 두 번째)
+## 마지막 세션 (2026-10-01, 세 번째)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 이 세션의 커밋은 셋이다 — `GitScopeFinder`, `ShellQuote`, `RemoteExec`(이 문서 포함).
-  **push하지 않았다** — origin보다 커밋 3개 앞선다. push는 사용자가 하라고 할 때만 한다.
-- M5의 앞 세 항목이 끝났다. 사용자 동의로 M5 순서를 바꿨다: `ShellQuote`와 `RemoteExec`를 `ProjectStore` 앞으로 옮기고
-  (활성화가 exec로 git을 확인하므로), `ProjectStore`와 사이드바 트리를 두 항목으로 나눴다.
-- 세 항목 모두 JVM 테스트로만 확인했다. **아직 앱 어디에서도 부르지 않으므로 기기에는 아무것도 설치하지 않았다.**
-  린트 에러 0(경고 core 15, app 4, code 11 — 기준과 같다), JVM core 38, app 32, code 189 통과.
-- `:core`도 조금 바뀌었다: `SshConnection`의 오류 번역을 공개 함수(`toConnectionError`, `isFatalAuth`)로 꺼냈고,
-  `SftpTestServer`가 `CommandFactory`를 받는다(안 주면 지금처럼 exec를 모두 거절).
+- 브랜치 `plan/skiffcode`(git worktree). 이 세션의 커밋은 하나다(이 문서 포함). origin보다 커밋 4개 앞서고
+  **push하지 않았다** — push는 사용자가 하라고 할 때만 한다.
+- M5의 `ProjectStore`와 파일 여는 흐름 2~4단계를 끝냈다: `project/ProjectStore`(프로필 id + canonical 루트, `SkiffCodeData.projects`),
+  `project/ProjectSessions`(프로젝트마다 `RemoteExec` 하나, `checkGit` → `GitState`), `OpenFlow.activateProject`, 묻는 창
+  `askCreateProject`, git이 안 될 때의 배너(`Opened.notice`).
+- 사용자 결정: "단일 파일로 열기"는 **기억하지 않는다**(spec에 적었다). 저장하지 않은 프로필에는 프로젝트를 만들지 않는다(spec).
+- 린트 에러 0(code 경고 11, 기준과 같다), JVM code 196(새로 `ProjectStoreTest` 4, `CheckGitTest` 3), vitest 94 통과.
+- 탭에 설치해 이 맥의 원격 로그인으로 확인했다(계획 항목 아래에 적었다). **탭의 store에 이 worktree를 루트로 한 프로젝트가 하나 남아 있다** —
+  다음 항목(사이드바)에서 쓸 수 있다. 지우는 기능은 아직 없다.
+- 폴드8은 무선 디버깅이 닿지 않아(Wi-Fi·테일스케일 둘 다) 설치하지 못하고 debug APK를 사용자에게 보냈다. 폴드8에서 확인했는지는 듣지 못했다.
+- 사용자 요청으로 계획 맨 끝에 **M7. 마무리 — 팔레트의 store 초기화 명령**을 넣었다. store에 들어갈 것이 다 정해진 뒤에 하려고
+  맨 끝에 뒀다. 범위와 이름은 그 항목에서 사용자에게 묻는다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)다.
-   - `GitScopeFinder.find`, `RemoteExec.supported()`/`run`을 여기서 처음 `OpenFlow`에 붙인다. **exec 판별은 `supported()`로
-     하고, 그 뒤에 `command -v git`을 본다** — `command -v` 하나로는 "git 없음"과 "exec 안 됨"을 가를 수 없다(spec).
-   - `GitScopeFinder`는 홈 자신의 `.git`도 본다. 홈을 dotfiles 레포로 쓰면 홈 아래 거의 모든 파일에서 묻는 창이 뜬다 —
-     "단일 파일로 열기"를 고른 답을 기억할지 이 항목에서 정한다(사용자에게 묻는다).
-   - `GitScopeFinder`는 파일 폴더를 `canonicalize`한 경로로 루트를 돌려준다. 2단계 "저장된 프로젝트의 루트 아래인지"도
-     같은 기준(canonical)으로 비교해야 링크 경로와 어긋나지 않는다.
-   - 경로를 git에 넘길 때는 `--` 뒤에 둔다. `-`로 시작하는 경로는 셸 따옴표로 막을 수 없다(`GitService` 항목에서도 같다).
+2. 계획의 첫 `- [ ]`는 사이드바의 프로젝트 목록과 SFTP 지연 로딩 파일 트리다.
+   - 활성 프로젝트는 아직 어디에도 들고 있지 않다: `OpenFlow`가 `ProjectSessions`에 세션을 만들고 git을 확인할 뿐, 열린 문서
+     (`OpenDocuments.Entry`)나 페이지는 어느 프로젝트인지 모른다. 사이드바가 그것을 처음 필요로 한다.
+   - 프로젝트를 지우는 길(`ProjectStore`에 remove가 없다)도 이 항목에서 정한다.
 3. 사용자에게 아직 묻지 않은 것: git 없는 프로젝트의 파일 검색 대체(계획의 `ls-files` 항목 "정할 것"), M5 확인에 쓸
    internal-sftp 계정을 어디에 만들지.
 4. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

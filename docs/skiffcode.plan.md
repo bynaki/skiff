@@ -339,8 +339,9 @@
 - [x] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
   - 테스트는 실제 `/bin/sh`로 돌리므로 `rm -rf ~` 대신 같은 모양의 `touch`로 표시 파일이 생기지 않는지 본다. 따옴표를 큰따옴표로 바꾸면 실패하는 것도 확인했다.
 - [x] `RemoteExec`(프로젝트 전용 SSHClient, exec 거부 감지). `AGENTS.md`의 exec 원칙 수정은 M0에서 이미 했다
-- [ ] `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)
+- [x] `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)
   - 활성화가 exec로 git을 확인하므로 `RemoteExec` 뒤에 둔다(2026-10-01 사용자 동의로 순서를 바꿨다).
+  - 탭에서 이 맥의 원격 로그인으로 확인했다: worktree(`.git`이 파일) 안 파일에서 묻는 창 → 프로젝트 만들기 → `git Available`, 앱을 다시 띄워 같은 레포의 다른 파일은 묻지 않고 활성화, 다른 레포에서 "파일만 열기"는 프로젝트를 남기지 않음.
 - [ ] 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
 - [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
 - [ ] git 거터(viewer, editor, diff 공통)
@@ -368,6 +369,13 @@
 - [ ] **확인:** 실제 서버의 파이썬 프로젝트에서 정의 이동, 진단, 심볼 검색이 동작하고, 앱을 백그라운드에 오래 두면 원격 LSP 프로세스가 종료된다(`ps`로 확인)
 - [ ] **데몬 판정 측정:** 와이파이↔LTE를 전환한 뒤 재접속부터 진단이 다시 뜰 때까지를 재고, 그중
       서버 재인덱싱이 차지하는 몫을 나눠서 `skiffcode.spec.md`의 "범위 밖" 표에 적는다. 데몬 결정의 유일한 실데이터다
+
+### M7. 마무리
+- [ ] 팔레트에 store 초기화 명령(2026-10-01 사용자 요청, **store에 들어갈 것이 다 정해진 뒤에 하려고 맨 끝에 둔다**)
+  - 대상은 `files/datastore/skiffcode.json`(프로필과 비밀번호, 호스트키, 최근 파일, 프로젝트). `settings.toml`, 테마, 페이지의 `localStorage`는 store가 아니다.
+  - 제안: 프로젝트만 지우는 `Reset Projects`와 전체를 지우는 `Reset Store` 둘. 네이티브 확인 창에서 지울 것을 보여 주고, 메모리의 프로젝트 세션(전체면 SFTP 세션도)을 닫는다. 열린 파일은 그대로 둔다.
+  - 정할 것(사용자에게 묻는다): 범위(프로젝트만 / 전체 / 둘 다), 명령 이름. **호스트키를 지우면 다음 접속이 "키가 바뀜"이 아니라 "처음 보는 서버"로 묻는다** — 이것을 알리고 정한다. Skiff에 있는 서버는 다음 링크 때 비밀번호 없이 다시 들어온다.
+  - 사이드바 항목에서 프로젝트를 하나씩 지우는 길이 생기면 `Reset Projects`가 아직 필요한지도 다시 본다.
 
 ## 아직 확인하지 않은 것
 
@@ -401,6 +409,8 @@
 - **`RemoteExec.supported()`가 진짜 `internal-sftp`와 `nologin` 계정에서 아니라고 답하는지 못 봤다.** 테스트는
   그 둘처럼 구는 MINA 명령으로 흉내 냈다(강제된 `internal-sftp`는 stdin을 기다리고 0, `nologin`은 문구와 1). M5 확인 항목에서
   실제 계정으로 본다. **신호로 죽은 명령의 `exitStatus`가 null인 것**도 MINA가 128+n을 종료 코드로 보내 테스트하지 못했다.
+- **git이 없거나 exec가 안 되는 서버의 배너를 기기에서 보지 못했다.** 이 맥의 계정은 둘 다 된다. JVM 테스트(`CheckGitTest`)는 `GitState`까지만 본다.
+  M5 확인 항목의 internal-sftp 계정에서 같이 본다. 확인이 실패했을 때의 배너(`project_unchecked`)도 같다.
 - **로그인 셸이 POSIX가 아니면(fish, csh) 따옴표가 맞는지 모른다.** `ShellQuote`는 sh 기준이고, sshd는 명령 줄을 사용자의 로그인 셸에 넘긴다.
   csh는 작은따옴표 안의 줄바꿈을 받지 않는다.
 - **실제 SSH 서버로 LSP를 띄워 본 적은 없다.** M0의 확인은 이 맥 안의 MINA 루프백이다.

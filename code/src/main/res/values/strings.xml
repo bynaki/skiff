@@ -45,6 +45,14 @@
     <string name="error_local_network">Local network access was not allowed.</string>
     <string name="error_no_user">A user name is needed to connect.</string>
 
+    <string name="project_ask_title">Open as a project?</string>
+    <string name="project_ask_body">This file is in a git repository:\n\n%1$s\n\nAs a project, the repository opens with git and language servers.</string>
+    <string name="action_create_project">Create project</string>
+    <string name="action_open_file_only">Open file only</string>
+    <string name="project_no_exec">This account cannot run commands on the server, so %1$s opens without git and language servers.</string>
+    <string name="project_no_git">git is not installed on the server, so %1$s opens without git.</string>
+    <string name="project_unchecked">Could not check whether the server runs git (%2$s), so %1$s opens without git for now.</string>
+
     <string name="viewer_empty">No file is open.</string>
     <string name="refused_too_large">Files larger than %1$s are not opened.</string>
     <string name="refused_binary">This is not a text file.</string>

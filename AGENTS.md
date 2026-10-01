@@ -167,6 +167,8 @@ without git and LSP rather than failing. `session/RemoteExec` is now the one pla
 and `RemoteExec.supported()` is how a refusal is told apart. **A call site anywhere else is a design
 change, not an implementation detail.** `SftpTestServer` refuses every `exec` unless it is given a
 `CommandFactory`; `RemoteExecTest` hands the line to `/bin/sh -c`, as sshd hands it to the login shell.
+**MINA's `ProcessShellFactory` runs `/bin/sh -c` on its first argument and ignores the list after it**,
+so a test that changes the environment (`CheckGitTest`'s PATH) has to do it inside that first string.
 
 `SFTPClient` is not thread safe, so `SshConnection` pins every call to a single-threaded
 dispatcher it owns. Each profile gets **two** connections, browse and transfer, so a large

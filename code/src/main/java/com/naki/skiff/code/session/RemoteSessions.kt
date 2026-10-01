@@ -49,9 +49,12 @@ private fun ServerProfile.connection(gate: HostKeyVerifier, label: String) = Ssh
     host = host,
     port = port,
     username = username,
-    // Decrypted per connect rather than held in memory for the session.
-    password = { (auth as? AuthMethod.Password)?.encryptedPassword?.let(SecretStore::decrypt) },
+    password = { decryptedPassword() },
     startPathRequest = startPath,
     hostKeyVerifier = gate,
     label = label,
 )
+
+/** Decrypted per connect rather than held in memory for the session. */
+internal fun ServerProfile.decryptedPassword(): String? =
+    (auth as? AuthMethod.Password)?.encryptedPassword?.let(SecretStore::decrypt)

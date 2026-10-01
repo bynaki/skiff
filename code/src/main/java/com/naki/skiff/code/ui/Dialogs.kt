@@ -74,6 +74,18 @@ suspend fun Activity.confirm(title: String, message: String, action: String): Bo
         setNegativeButton(android.R.string.cancel) { _, _ -> finish(false) }
     }
 
+/**
+ * Whether to make the git working tree at [root] a project or open the one file. Going back is the
+ * one file, since that is how it would have opened had there been no question.
+ */
+suspend fun Activity.askCreateProject(root: String): Boolean =
+    await(false) { finish ->
+        setTitle(R.string.project_ask_title)
+        setMessage(getString(R.string.project_ask_body, root))
+        setPositiveButton(R.string.action_create_project) { _, _ -> finish(true) }
+        setNegativeButton(R.string.action_open_file_only) { _, _ -> finish(false) }
+    }
+
 /** One line of text, started at [value]. Null is "cancel". */
 suspend fun Activity.askText(title: String, message: String, value: String, action: String): String? {
     val form = Form(this)

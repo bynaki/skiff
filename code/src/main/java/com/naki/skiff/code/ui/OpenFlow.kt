@@ -19,11 +19,14 @@ import com.naki.skiff.code.doc.WatchedLocalPath
 import com.naki.skiff.code.doc.WatchedPath
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.code.project.GitScopeFinder
+import com.naki.skiff.code.project.GitState
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.ServerProfile
 import com.naki.skiff.fs.FileSystem
 import com.naki.skiff.fs.FsError
+import com.naki.skiff.fs.FsPath
 import com.naki.skiff.fs.LocalNetworkAccess
 import com.naki.skiff.fs.local.LocalFileSystem
 import kotlinx.coroutines.CancellationException
@@ -65,6 +68,8 @@ class OpenFlow(
         val save: SaveTarget?,
         /** The directory it is in, for the palette's file mode; null for `content://`. */
         val folder: Folder?,
+        /** What to say on the banner once it is on screen: why its project opened without git. */
+        val notice: String? = null,
     )
 
     /**
@@ -222,6 +227,7 @@ class OpenFlow(
                 node == null -> fail(R.string.error_open, describe(FsError.NotFound(request.path)))
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
                 else -> {
+                    val notice = activateProject(fs, profile, request.path)
                     val result = loader.load(fs, request.path)
                     // The `stat` above got past the host key gate, which keeps every key it lets
                     // through, so this is the key of the machine that answered.
@@ -233,10 +239,53 @@ class OpenFlow(
                         // connection while reading and saving go over transfer, so a poll every two
                         // seconds never waits behind either of them.
                         WatchedPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
-                        Folder.of(fs, opened),
+                        Folder.of(fs, opened), notice,
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Steps 2 to 4 of opening a remote file (`docs/skiffcode.spec.md`): the saved project the file is
+     * under, or — when it is in a git working tree — one made now if the user wants it, then activated
+     * by asking what the server runs. Returns what to tell about that, the first time only.
+     *
+     * Nothing here stops the file opening. A project that cannot be found or checked leaves it opening
+     * as a single file, or as a project without git, which is how it would have opened anyway.
+     */
+    private suspend fun activateProject(fs: FileSystem, profile: ServerProfile, path: String): String? {
+        // A profile held only in memory is gone when the app restarts, and the project with it.
+        if (container.store.profiles.first().none { it.id == profile.id }) return null
+        val project = try {
+            // Canonical, as the roots are: a link's path may go through a symlink the root does not.
+            container.projects.containing(profile.id, fs.canonicalize(FsPath.parent(path)))
+                ?: GitScopeFinder.find(fs, path)
+                    ?.takeIf { activity.askCreateProject(it) }
+                    ?.let { container.projects.add(profile.id, it) }
+                ?: return null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "no project looked for: $path", e)
+            return null
+        }
+        val session = container.projectSessions.get(project, profile)
+        // Told once per process: every file opened in the project would otherwise say it again.
+        if (session.git != null) return null
+        val git = try {
+            session.checkGit()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "git not checked for ${project.root}", e)
+            return activity.getString(R.string.project_unchecked, project.name, describe(e))
+        }
+        Log.i(TAG, "project ${project.name}: git $git")
+        return when (git) {
+            GitState.Available -> null
+            GitState.Missing -> activity.getString(R.string.project_no_git, project.name)
+            GitState.NoExec -> activity.getString(R.string.project_no_exec, project.name)
         }
     }
 

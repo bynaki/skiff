@@ -45,6 +45,14 @@
     <string name="error_local_network">로컬 네트워크 접근이 허용되지 않았습니다.</string>
     <string name="error_no_user">연결하려면 사용자 이름이 필요합니다.</string>
 
+    <string name="project_ask_title">프로젝트로 열까요?</string>
+    <string name="project_ask_body">이 파일은 git 레포 안에 있습니다.\n\n%1$s\n\n프로젝트로 열면 레포를 git과 언어 서버와 함께 엽니다.</string>
+    <string name="action_create_project">프로젝트 만들기</string>
+    <string name="action_open_file_only">파일만 열기</string>
+    <string name="project_no_exec">이 계정은 서버에서 명령을 실행할 수 없어서 %1$s을(를) git과 언어 서버 없이 엽니다.</string>
+    <string name="project_no_git">서버에 git이 없어서 %1$s을(를) git 없이 엽니다.</string>
+    <string name="project_unchecked">서버가 git을 실행하는지 확인하지 못해서(%2$s) %1$s을(를) 일단 git 없이 엽니다.</string>
+
     <string name="viewer_empty">열린 파일이 없습니다.</string>
     <string name="refused_too_large">%1$s보다 큰 파일은 열지 않습니다.</string>
     <string name="refused_binary">텍스트 파일이 아닙니다.</string>

@@ -3,6 +3,8 @@ package com.naki.skiff.code
 import android.app.Application
 import com.naki.skiff.code.data.SkiffCodeStore
 import com.naki.skiff.code.data.openSkiffCodeDataStore
+import com.naki.skiff.code.project.ProjectSessions
+import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.session.RemoteSessions
 import com.naki.skiff.code.settings.SettingsFile
 import com.naki.skiff.code.settings.Themes
@@ -33,11 +35,17 @@ class SkiffCodeApplication : Application() {
  */
 class SkiffCodeContainer(app: Application) {
 
-    val store = SkiffCodeStore(openSkiffCodeDataStore(app))
+    private val data = openSkiffCodeDataStore(app)
+
+    val store = SkiffCodeStore(data)
+
+    val projects = ProjectStore(data)
 
     val hostKeyPrompter = HostKeyPrompter()
 
     val sessions = RemoteSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
+
+    val projectSessions = ProjectSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
 
     val themes = Themes(app.assets::open, File(app.filesDir, "themes"))
 

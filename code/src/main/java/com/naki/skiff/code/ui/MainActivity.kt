@@ -733,6 +733,7 @@ class MainActivity : Activity() {
                 opened.watched.close()
                 docs.activate(already.id)
                 documentsChanged(goToLine = opened.line)
+                opened.notice?.let { notice(it, lasting = true) }
                 return@launch
             }
             val watcher = if (opened.result is LoadResult.Text) {
@@ -752,6 +753,7 @@ class MainActivity : Activity() {
                 opened.save, (opened.stamp as? Stamped.At)?.stamp, opened.folder,
             )
             documentsChanged()
+            opened.notice?.let { notice(it, lasting = true) }
         }
         opening = job
         // However it ended — opened, refused, or cancelled by a newer link. A link that was

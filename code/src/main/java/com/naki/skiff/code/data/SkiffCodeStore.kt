@@ -3,6 +3,7 @@ package com.naki.skiff.code.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStoreFile
+import com.naki.skiff.code.project.Project
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.KnownHostStore
@@ -26,6 +27,8 @@ data class SkiffCodeData(
     val profiles: List<ServerProfile> = emptyList(),
     val knownHosts: List<KnownHost> = emptyList(),
     val recentFiles: List<RecentFile> = emptyList(),
+    /** Read and written by [com.naki.skiff.code.project.ProjectStore]. */
+    val projects: List<Project> = emptyList(),
 )
 
 /** Opens Skiff Code's store. Call it once per process, from whatever holds the process's singletons. */
