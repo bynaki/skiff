@@ -12,26 +12,22 @@
 
 ---
 
-## 마지막 세션 (2026-09-30 ~ 10-01)
+## 마지막 세션 (2026-10-01)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). **push하지 않았다** — origin보다 커밋 4개 앞선다
-  (`87faea8` https 링크, `4b85d5a` 폴드8 확인·탭 스크린샷 문서, 그리고 이 세션 끝의 두 커밋: 호스트 키 항목, 문서 정리).
-  push는 사용자가 하라고 할 때만 한다.
-- **같은 기기를 호스트 키로 알아보기(계획 항목) — 끝, 체크함.** `OpenRequest.Remote.hostKey`를 `OpenFlow.openRemote`가
-  known host에서 채우고, `keyOf`가 `remote:<지문 또는 프로필 id>:<경로>`. 탭(이 맥의 LAN IP·테일스케일 이름 두 프로필)과
-  폴드8(테일스케일 IP·MagicDNS 링크, 사용자 확인)에서 두 주소로 연 같은 파일이 열린 파일 메뉴에 한 줄만 남았다.
-  최근 파일은 사용자 결정으로 링크 그대로다(스펙 "열린 파일"). 린트 에러 0(경고 11 기존), JVM 169, vitest 94 통과.
-- **탭 스크린샷이 깨지던 원인은 USB 케이블이었다.** 사용자가 케이블을 바꾼 뒤 5MB 전송 5/5, 끊김 0.
-  CDP `Page.captureScreenshot`은 페이지를 다시 그리게 하며 요청하면 답한다(고정 요소는 눌려 나온다). `docs/devices.md`에 적었다.
-- **폴드8 페어링이 풀려 있었다.** 사용자가 다시 페어링했고(2026-10-01), 지금은 같은 Wi-Fi에서 mDNS로 자동 연결된다.
-  폴드8과 탭 모두에 이 세션의 빌드(호스트 키 변경 포함)가 설치돼 있다.
+- 브랜치 `plan/skiffcode`(git worktree). 이 세션의 커밋 하나(M4 확인과 고친 셋, 이 문서)가 있고
+  **push하지 않았다** — origin보다 커밋 1개 앞선다. push는 사용자가 하라고 할 때만 한다.
+- **M4의 마지막 항목(확인) — 끝, 체크함.** 결과와 고친 것은 `docs/skiffcode.plan.md` M4 맨 끝 항목에 있다.
+  고친 셋: 라이트 테마의 내비게이션 줄(`MainActivity`의 `isNavigationBarContrastEnforced = false`), 팔레트의
+  Enter가 편집기에 줄바꿈을 넣던 것(`chrome/palette.ts`), 팔레트 입력칸 포커스 테두리를 `ui.accent`로(`index.html`,
+  사용자 결정). 린트 에러 0(경고 11 기존), JVM 169, vitest 94 통과.
+- 탭과 폴드8 모두에 이 세션의 마지막 빌드가 설치돼 있다. 두 기기의 설정·테마·다크 모드·화면 꺼짐 시간은 시험 전으로
+  되돌렸다. 폴드8은 사용자가 쓰는 설정(가져온 테마 둘, `wrap = false`)이라 백업했다가 md5까지 같게 되돌렸다.
+- 탭의 외장 키보드는 세션 끝 무렵 떨어져 있었다(화면 키보드가 올라온다). Enter 수정은 키보드가 붙어 있을 때
+  adb `input keyevent`로만 확인했고, 진짜 외장 키보드로는 누르지 않았다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 M4의 **확인**이다: 실기기에서 팔레트 흐름을 녹화하고, 테마를 바꾸면 메뉴·사이드바·팔레트·세
-   레이어가 한 번에 바뀌는지 본다. 기기에서 아직 못 본 것도 이때 같이 본다(다크의 사이드바·열린 파일 메뉴,
-   내비게이션 줄 색, `poll_seconds`·`kept_buffers`, 폴드8 커버 화면 줄바꿈, 라이트 모드·폴드8에서 import/export와
-   테마 복사·편집·삭제, 색 네모의 모양 — 탭 USB가 고쳐졌으니 이제 `screencap`으로 볼 수 있다).
-3. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다
-   (이 Mac에 Hugo가 없어 `static/`의 점 파일이 따라가는지 확인하지 못했다).
+2. 계획의 첫 `- [ ]`는 M5의 `GitScopeFinder` + `GitScopeFinderTest`다(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일,
+   홈 밖 경로는 찾지 않음). M5부터 `exec`가 들어오니 `AGENTS.md`의 exec 원칙(첫 exec는 `RemoteExec`에만)을 먼저 본다.
+3. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

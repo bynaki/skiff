@@ -186,8 +186,12 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], o
   input.addEventListener('keydown', (event) => {
     const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
     if (step !== 0) machine.move(step)
-    else if (event.key === 'Enter') return void run()
-    else if (event.key === 'Escape') return cancel()
+    else if (event.key === 'Enter') {
+      // The key's own line break lands wherever the focus is once the command has run: a command
+      // that entered the editor layer with a keyboard attached put one at the top of the document.
+      event.preventDefault()
+      return void run()
+    } else if (event.key === 'Escape') return cancel()
     else return
     event.preventDefault()
     render()

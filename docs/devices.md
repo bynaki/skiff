@@ -92,6 +92,9 @@
 - **접었다 펴면 USB가 재열거되어 adb가 1~2초 끊긴다.** 명령 하나가 "device not found"로 실패한 것을
   결과로 읽지 말고 재시도한다.
 - 프로필 하나(이 맥)와 호스트키 하나가 저장돼 있고 `ACCESS_LOCAL_NETWORK`도 허용돼 있다.
+- **사용자가 실제로 쓰는 기기다.** `settings.toml`과 `files/themes/`에 사용자가 고른 값과 가져온 테마가 있으니,
+  설정을 바꾸는 시험 전에 `run-as … cat`으로 백업하고 끝나면 되돌린다(md5로 맞춰 본다). 시험 중에 사용자가 다른
+  앱을 띄울 수 있으니 화면을 쓰는 시험은 먼저 말하고 한다.
 - 확인용 파일이 `/sdcard/Download/skiffcode-test/`에 있다(`hello.md`, 3MB `big.ts`,
   1.9MB/24,167줄 `near2mb.ts`). 탭의 같은 디렉토리와 내용이 다르다.
 

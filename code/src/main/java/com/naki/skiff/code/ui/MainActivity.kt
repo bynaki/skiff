@@ -327,6 +327,9 @@ class MainActivity : Activity() {
             WindowInsets.CONSUMED
         }
         setContentView(frame)
+        // Otherwise the system lays a dark scrim over the navigation bar strip, and a light theme
+        // ends in a band of grey the frame's color never reaches.
+        window.isNavigationBarContrastEnforced = false
         night = isNight(resources.configuration)
         // Before the page has asked for the settings, so the frame is not white under a dark theme.
         scope.launch { showAround(container.settings.current()) }

@@ -146,6 +146,8 @@
       font: inherit; font-size: 16px; color: var(--ui-foreground); background: var(--ui-background);
       border: 1px solid var(--ui-border); border-radius: 24px; touch-action: pan-x;
     }
+    /* The browser's own focus ring is no color of the theme's: orange on a light one. */
+    #palette input:focus { outline: 2px solid var(--ui-accent); outline-offset: -1px; }
     /* touch-action so the button keeps a finger drawn up or down it: left to itself the browser
        takes such a gesture for a scroll after a few pixels and cancels the pointer, and the mode
        never turns. */
