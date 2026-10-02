@@ -260,8 +260,12 @@ handed us, not a path we chose.
 The palette's file mode opens without that question, because the user picked the file inside the
 app. What keeps that from becoming a way around the gate is that the page sends only a *name*:
 `Folder.request` refuses anything with `/`, `.`, `..` or NUL, so the file opened is always beside
-one the user has already opened. Widening what the page may send — a path, a directory — puts this
-back in scope.
+one the user has already opened. The sidebar's project tree is the one widening so far: a file tapped
+there opens without the question too, and the page names it by a project id and a path relative to
+that project's root. `ProjectTree.resolve` refuses empty segments (so a leading `/`), `.`, `..` and
+NUL rather than resolving them, which keeps it inside a root the user made a project of. Widening what
+the page may send any further — an absolute path, a directory outside a project — puts this back in
+scope.
 
 **Identify the sender with `ComponentCaller`, never `getReferrer()`.** The caller fills in
 `EXTRA_REFERRER` itself, so any app can claim to be Skiff; `ComponentCaller.getPackage()` and

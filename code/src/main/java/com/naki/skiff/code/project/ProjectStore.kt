@@ -43,6 +43,13 @@ class ProjectStore(private val dataStore: DataStore<SkiffCodeData>) {
         return added!!
     }
 
+    /** Forgets the project. Nothing on the server is touched: a project is only this record of it. */
+    suspend fun remove(id: String) {
+        dataStore.updateData { data -> data.copy(projects = data.projects.filterNot { it.id == id }) }
+    }
+
+    suspend fun byId(id: String): Project? = projects.first().firstOrNull { it.id == id }
+
     /** The project [dir] is in, the deepest one when roots nest. [dir] must be canonical. */
     suspend fun containing(profileId: String, dir: String): Project? =
         projects.first()

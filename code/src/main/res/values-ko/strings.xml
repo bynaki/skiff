@@ -64,7 +64,13 @@
     <string name="menu_layer_diff">비교 레이어</string>
     <string name="menu_more">더보기</string>
     <string name="menu_unsaved">저장하지 않은 변경</string>
-    <string name="sidebar_no_projects">열린 프로젝트가 없습니다.</string>
+    <string name="sidebar_no_projects">프로젝트가 없습니다. git 저장소 안의 파일을 열면 프로젝트로 만들 수 있습니다.</string>
+    <string name="sidebar_listing">읽는 중…</string>
+    <string name="sidebar_empty_directory">비어 있음</string>
+    <string name="project_remove_title">프로젝트를 지울까요?</string>
+    <string name="project_remove">이 앱에서 %1$s 프로젝트를 지웁니다. 서버의 파일은 그대로입니다.\n\n%2$s</string>
+    <string name="action_remove">지우기</string>
+    <string name="project_no_profile">%1$s 프로젝트를 만든 서버 프로필이 지워졌습니다.</string>
 
     <string name="close_dirty">이 파일에 쓴 것이 사라집니다. 닫을까요?</string>
 

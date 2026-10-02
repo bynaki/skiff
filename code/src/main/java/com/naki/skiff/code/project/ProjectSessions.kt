@@ -59,4 +59,10 @@ class ProjectSessions(private val newHostKeyGate: () -> HostKeyVerifier) {
         stale?.exec?.close()
         return session
     }
+
+    /** Ends a removed project's session, and the command connection with it. */
+    fun close(projectId: String) {
+        val session = synchronized(lock) { open.remove(projectId)?.second }
+        session?.exec?.close()
+    }
 }

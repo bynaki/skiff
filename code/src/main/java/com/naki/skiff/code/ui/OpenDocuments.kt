@@ -5,6 +5,7 @@ import com.naki.skiff.code.doc.SaveTarget
 import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.WatchedFile
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.code.project.ProjectFile
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -44,6 +45,8 @@ class OpenDocuments {
         base: Stamp?,
         /** The directory the file is in, which the palette's file mode lists; null for `content://`. */
         val folder: Folder?,
+        /** The project it opened in and where in it, which the sidebar unfolds to; null for a single file. */
+        val project: ProjectFile? = null,
     ) {
 
         /**
@@ -103,8 +106,9 @@ class OpenDocuments {
         save: SaveTarget?,
         base: Stamp?,
         folder: Folder?,
+        project: ProjectFile? = null,
     ): Entry {
-        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base, folder)
+        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base, folder, project)
         entries.add(entry)
         active = entry
         return entry

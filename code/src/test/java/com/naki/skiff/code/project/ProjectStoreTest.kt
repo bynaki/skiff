@@ -70,6 +70,20 @@ class ProjectStoreTest {
     }
 
     @Test
+    fun `a removed project is gone, and the others stay`() = runTest {
+        lateinit var kept: Project
+        withStore { store ->
+            val removed = store.add("p1", "/home/alice/demo")
+            kept = store.add("p1", "/home/alice/other")
+            store.remove(removed.id)
+
+            assertNull(store.byId(removed.id))
+            assertNull(store.containing("p1", "/home/alice/demo/src"))
+        }
+        withStore { assertEquals(listOf(kept), it.projects.first()) }
+    }
+
+    @Test
     fun `nested roots match the deepest`() = runTest {
         withStore { store ->
             store.add("p1", "/home/alice")

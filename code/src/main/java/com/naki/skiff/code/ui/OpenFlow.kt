@@ -21,6 +21,8 @@ import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.project.GitScopeFinder
 import com.naki.skiff.code.project.GitState
+import com.naki.skiff.code.project.ProjectFile
+import com.naki.skiff.code.project.ProjectTree
 import com.naki.skiff.data.crypto.SecretStore
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.ServerProfile
@@ -70,7 +72,12 @@ class OpenFlow(
         val folder: Folder?,
         /** What to say on the banner once it is on screen: why its project opened without git. */
         val notice: String? = null,
+        /** The project it opened in and where in it, for the sidebar; null for a single file. */
+        val project: ProjectFile? = null,
     )
+
+    /** What [activateProject] found: the file's place in its project, and what to tell about that. */
+    private data class Activated(val file: ProjectFile, val notice: String?)
 
     /**
      * Null when the user backed out or the file could not be opened; either way they have been
@@ -227,7 +234,7 @@ class OpenFlow(
                 node == null -> fail(R.string.error_open, describe(FsError.NotFound(request.path)))
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
                 else -> {
-                    val notice = activateProject(fs, profile, request.path)
+                    val activated = activateProject(fs, profile, request.path)
                     val result = loader.load(fs, request.path)
                     // The `stat` above got past the host key gate, which keeps every key it lets
                     // through, so this is the key of the machine that answered.
@@ -239,7 +246,7 @@ class OpenFlow(
                         // connection while reading and saving go over transfer, so a poll every two
                         // seconds never waits behind either of them.
                         WatchedPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
-                        Folder.of(fs, opened), notice,
+                        Folder.of(fs, opened), activated?.notice, activated?.file,
                     )
                 }
             }
@@ -249,44 +256,53 @@ class OpenFlow(
     /**
      * Steps 2 to 4 of opening a remote file (`docs/skiffcode.spec.md`): the saved project the file is
      * under, or — when it is in a git working tree — one made now if the user wants it, then activated
-     * by asking what the server runs. Returns what to tell about that, the first time only.
+     * by asking what the server runs. Returns where the file is in it, and what to tell about that the
+     * first time only; null when it opens as a single file.
      *
      * Nothing here stops the file opening. A project that cannot be found or checked leaves it opening
      * as a single file, or as a project without git, which is how it would have opened anyway.
      */
-    private suspend fun activateProject(fs: FileSystem, profile: ServerProfile, path: String): String? {
+    private suspend fun activateProject(fs: FileSystem, profile: ServerProfile, path: String): Activated? {
         // A profile held only in memory is gone when the app restarts, and the project with it.
         if (container.store.profiles.first().none { it.id == profile.id }) return null
-        val project = try {
+        val file = try {
             // Canonical, as the roots are: a link's path may go through a symlink the root does not.
-            container.projects.containing(profile.id, fs.canonicalize(FsPath.parent(path)))
+            val dir = fs.canonicalize(FsPath.parent(path))
+            val project = container.projects.containing(profile.id, dir)
                 ?: GitScopeFinder.find(fs, path)
                     ?.takeIf { activity.askCreateProject(it) }
                     ?.let { container.projects.add(profile.id, it) }
                 ?: return null
+            // Both ways of finding the project start from this directory, so the root is above it.
+            val inProject = checkNotNull(ProjectTree.relative(project.root, FsPath.join(dir, FsPath.name(path)))) {
+                "$dir is not under ${project.root}"
+            }
+            ProjectFile(project, inProject)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "no project looked for: $path", e)
             return null
         }
+        val project = file.project
         val session = container.projectSessions.get(project, profile)
         // Told once per process: every file opened in the project would otherwise say it again.
-        if (session.git != null) return null
+        if (session.git != null) return Activated(file, null)
         val git = try {
             session.checkGit()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "git not checked for ${project.root}", e)
-            return activity.getString(R.string.project_unchecked, project.name, describe(e))
+            return Activated(file, activity.getString(R.string.project_unchecked, project.name, describe(e)))
         }
         Log.i(TAG, "project ${project.name}: git $git")
-        return when (git) {
+        val notice = when (git) {
             GitState.Available -> null
             GitState.Missing -> activity.getString(R.string.project_no_git, project.name)
             GitState.NoExec -> activity.getString(R.string.project_no_exec, project.name)
         }
+        return Activated(file, notice)
     }
 
     /** Asks for a password and stores it, in the saved profile too when there is one. Null is "cancel". */
@@ -323,7 +339,8 @@ class OpenFlow(
         return null
     }
 
-    private fun describe(e: Throwable): String = when (e) {
+    /** A failure in words, for a dialog or the page: the sidebar's listings say theirs the same way. */
+    fun describe(e: Throwable): String = when (e) {
         is FsError.NotFound -> activity.getString(R.string.error_not_found, e.path)
         is FsError.PermissionDenied -> activity.getString(R.string.error_permission, e.path)
         is FsError.Unreachable -> activity.getString(R.string.error_unreachable, e.host)

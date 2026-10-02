@@ -172,8 +172,8 @@
     /* Transparent on purpose: what is being searched for is usually in the document behind it. */
     #palette-scrim { position: fixed; inset: 0; z-index: 15; }
     #palette-scrim:not(.open) { display: none; }
-    /* The drawer behind ①: in M5 the projects and their trees, for now only a line saying there are
-       none. It covers the menu while it is out, so the way back is the scrim over the layer. */
+    /* The drawer behind ①: the projects and their trees. It covers the menu while it is out, so the
+       way back is the scrim over the layer. */
     #scrim {
       position: fixed; inset: 0; z-index: 20; background: var(--ui-scrim);
       opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -195,6 +195,33 @@
     #sidebar header button { width: 40px; height: 40px; padding: 8px; color: var(--ui-foreground); background: none; border: 0; }
     #sidebar header svg { display: block; width: 22px; height: 22px; }
     #sidebar .empty { margin: 0; padding: 16px; color: var(--ui-muted); font-size: 14px; }
+    /* overscroll-behavior so a drag past the end stays in the tree rather than moving the document
+       behind. Lines are not selectable: holding a project down asks to remove it, and a selection
+       or the WebView's own menu would come up under the finger instead. */
+    #sidebar .tree {
+      flex: 1; min-height: 0; margin: 0; padding: 4px 0 16px; list-style: none; overflow: auto;
+      overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    }
+    #sidebar .tree button {
+      width: 100%; display: flex; align-items: center; gap: 4px; box-sizing: border-box;
+      padding: 7px 12px 7px calc(8px + var(--depth) * 16px); color: inherit; font: inherit; font-size: 14px;
+      text-align: left; background: none; border: 0;
+    }
+    #sidebar .tree .project button { padding-top: 10px; padding-bottom: 10px; }
+    #sidebar .tree .project .name { font-weight: 600; }
+    #sidebar .tree li.current { background: var(--ui-subtle); }
+    #sidebar .tree .chevron { flex: none; width: 14px; color: var(--ui-muted); font-size: 13px; text-align: center; }
+    #sidebar .tree .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    #sidebar .tree .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Clipped from the left, like the open files menu's paths: the end is what tells two apart. */
+    #sidebar .tree .where {
+      font-size: 12px; color: var(--ui-muted); direction: rtl; text-align: left;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #sidebar .tree .note {
+      padding: 6px 12px 6px calc(26px + var(--depth) * 16px); color: var(--ui-muted); font-size: 13px;
+      overflow-wrap: anywhere;
+    }
     /* The files that are open, dropped down from behind the menu when the file's name is tapped.
        Under the menu (z-index 10) so it comes out from behind it, and closed it waits above the
        screen by its own height and the menu's too: the menu slides away with the scroll, and a menu

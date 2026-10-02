@@ -64,7 +64,13 @@
     <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
     <string name="menu_unsaved">Unsaved changes</string>
-    <string name="sidebar_no_projects">No project is open.</string>
+    <string name="sidebar_no_projects">No projects yet. Open a file in a git repository to make one.</string>
+    <string name="sidebar_listing">Listing…</string>
+    <string name="sidebar_empty_directory">Empty</string>
+    <string name="project_remove_title">Remove project?</string>
+    <string name="project_remove">%1$s is forgotten by this app. Nothing on the server is changed:\n\n%2$s</string>
+    <string name="action_remove">Remove</string>
+    <string name="project_no_profile">The server profile for %1$s has been deleted.</string>
 
     <string name="close_dirty">What you have typed in this file will be lost. Close it?</string>
 

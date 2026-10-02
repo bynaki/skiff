@@ -50,7 +50,7 @@ describe('the theme', () => {
     const used = new Set(
       [page, ...Object.values(code)].flatMap((text) => [...text.matchAll(/var\((--[\w-]+)/g)].map((match) => match[1])),
     )
-    const layout = ['--topbar-space', '--banner-space', '--code-font', '--code-font-size', '--tab-size', '--diff-alpha']
+    const layout = ['--topbar-space', '--banner-space', '--code-font', '--code-font-size', '--tab-size', '--diff-alpha', '--depth']
     const themed = [...colorsOf(lightToml).keys()].map(variableOf)
     expect([...used].filter((name) => !layout.includes(name)).sort()).toEqual(themed.sort())
   })

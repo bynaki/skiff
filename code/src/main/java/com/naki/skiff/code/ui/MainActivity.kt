@@ -39,12 +39,16 @@ import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.SkiffCodeUri
 import com.naki.skiff.code.intent.sentBySkiff
+import com.naki.skiff.code.project.Project
+import com.naki.skiff.code.project.ProjectStore
+import com.naki.skiff.code.project.ProjectTree
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.settings.SettingsToml
 import com.naki.skiff.code.settings.Theme
 import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.code.skiffCode
+import com.naki.skiff.data.store.ServerProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +56,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -240,6 +246,68 @@ class MainActivity : Activity() {
             startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
             JSONObject()
         }
+        // The sidebar: every project, and where the file on the screen is in one, which it unfolds to.
+        bridge.method("projects") {
+            val profiles = container.store.profiles.first()
+            val projects = container.projects.projects.first().map { project ->
+                val where = profiles.firstOrNull { it.id == project.profileId }
+                    ?.let { "${it.username}@${it.host}:${it.port}${project.root}" } ?: project.root
+                JSONObject().put("id", project.id).put("name", project.name).put("where", where)
+            }
+            val here = docs.active?.project
+            JSONObject()
+                .put("projects", JSONArray(projects))
+                .put("active", here?.let { JSONObject().put("project", it.project.id).put("path", it.path) } ?: JSONObject.NULL)
+        }
+        // One directory of a project's tree. The page names it by the project and a path relative to
+        // the root, which [ProjectTree.resolve] keeps inside it. It goes over the profile's browse
+        // connection, the one a file opened from the tree is polled on. A listing that fails is
+        // answered in words for the tree to show where the directory's contents would be.
+        bridge.method("projectDir") { params ->
+            val project = projectOf(params)
+            val path = params.getString("path")
+            try {
+                val entries = ProjectTree.list(container.sessions.get(profileOf(project)), project.root, path)
+                JSONObject().put(
+                    "entries",
+                    JSONArray(entries.map { JSONObject().put("name", it.name).put("directory", it.directory) }),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IllegalArgumentException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "${project.name}/$path not listed", e)
+                JSONObject().put("failed", openFlow().describe(e))
+            }
+        }
+        // A file tapped in a project's tree. Like the palette's file mode, the user picked it in this
+        // app, so its path is not confirmed the way a link's is — and the page can name only a path
+        // under a root the user made a project of.
+        bridge.method("openFromProject") { params ->
+            val project = projectOf(params)
+            val path = ProjectTree.resolve(project.root, params.getString("path"))
+                ?: throw IllegalArgumentException("not a path in ${project.name}")
+            val request = OpenRequest.Remote(profileOf(project), path, OpenAt())
+            startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
+            JSONObject()
+        }
+        // A project held down in the sidebar, asked first. Only the record goes: nothing on the server
+        // is touched, and the project's files that are open stay open.
+        bridge.method("removeProject") { params ->
+            val project = projectOf(params)
+            val remove = confirm(
+                getString(R.string.project_remove_title),
+                getString(R.string.project_remove, project.name, project.root),
+                getString(R.string.action_remove),
+            )
+            if (remove) {
+                container.projects.remove(project.id)
+                // Disconnecting writes to the socket, which the main thread may not.
+                withContext(Dispatchers.IO) { container.projectSessions.close(project.id) }
+            }
+            JSONObject()
+        }
         bridge.method("labels") {
             JSONObject()
                 .put("sidebar", getString(R.string.menu_sidebar))
@@ -254,6 +322,8 @@ class MainActivity : Activity() {
                 .put("dismiss", getString(R.string.watch_dismiss))
                 .put("noFiles", getString(R.string.viewer_empty))
                 .put("noProjects", getString(R.string.sidebar_no_projects))
+                .put("listing", getString(R.string.sidebar_listing))
+                .put("emptyDirectory", getString(R.string.sidebar_empty_directory))
                 .put("close", getString(R.string.action_close))
                 .put("closeDirty", getString(R.string.close_dirty))
                 .put("cancel", getString(R.string.action_cancel))
@@ -343,8 +413,23 @@ class MainActivity : Activity() {
                 hostKeyDialog = prompt?.let { hostKeyDialog(it, container.hostKeyPrompter::respond).apply { show() } }
             }
         }
+        // A project made while a file was opened, or removed from the sidebar: the tree lists again.
+        scope.launch {
+            container.projects.projects.distinctUntilChanged().drop(1).collect {
+                bridge.notify("projectsChanged", JSONObject())
+            }
+        }
         if (docs.all.isEmpty()) handleLink(intent, senderOf(initial = true))
     }
+
+    /** The project the page named, which it can only have had from [projects][ProjectStore.projects]. */
+    private suspend fun projectOf(params: JSONObject): Project =
+        container.projects.byId(params.getString("project")) ?: throw IllegalArgumentException("no such project")
+
+    /** The saved profile a project points at. A project is made only for a saved one, but it can be deleted since. */
+    private suspend fun profileOf(project: Project): ServerProfile =
+        container.store.profiles.first().firstOrNull { it.id == project.profileId }
+            ?: error(getString(R.string.project_no_profile, project.name))
 
     /** Reads with the size limit `settings.toml` says now, which is why each open builds its own. */
     private suspend fun openFlow() =
@@ -750,7 +835,7 @@ class MainActivity : Activity() {
             }
             docs.add(
                 key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher,
-                opened.save, (opened.stamp as? Stamped.At)?.stamp, opened.folder,
+                opened.save, (opened.stamp as? Stamped.At)?.stamp, opened.folder, opened.project,
             )
             documentsChanged()
             opened.notice?.let { notice(it, lasting = true) }

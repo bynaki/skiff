@@ -90,7 +90,16 @@ const pinched = storedFontSize() !== null
 
 const banner = createBanner()
 
-const sidebar = createSidebar()
+/**
+ * The projects and their trees. A file tapped there is opened by Kotlin, which takes the path only
+ * relative to the project's root; a project held down is asked about there too, in a dialog.
+ */
+const sidebar = createSidebar({
+  projects: () => rpc('projects'),
+  list: (project, path) => rpc('projectDir', { project, path }),
+  open: (project, path) => void rpc('openFromProject', { project, path }).catch((error) => console.log(`openFromProject: ${error}`)),
+  remove: (project) => void rpc('removeProject', { project }).catch((error) => console.log(`removeProject: ${error}`)),
+})
 
 const openFiles = createOpenFiles({
   activate: (id) => void rpc('activate', { id }).catch((error) => console.log(`activate: ${error}`)),
@@ -425,8 +434,12 @@ rpc<Labels>('labels').then((answer) => {
   openFiles.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
-onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => refresh(params?.goToLine))
+onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => {
+  refresh(params?.goToLine)
+  sidebar.changed()
+})
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
+onNotify('projectsChanged', () => sidebar.changed())
 // What came of an import or export, which Kotlin finishes after the file picker has gone.
 onNotify<{ message: string; lasting: boolean }>('notice', (params) =>
   params.lasting ? banner.tell(params.message) : banner.flash(params.message),

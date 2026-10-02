@@ -342,7 +342,12 @@
 - [x] `ProjectStore`와 파일 여는 흐름 2~4단계(프로젝트 활성화와 `command -v git`, 묻는 창)
   - 활성화가 exec로 git을 확인하므로 `RemoteExec` 뒤에 둔다(2026-10-01 사용자 동의로 순서를 바꿨다).
   - 탭에서 이 맥의 원격 로그인으로 확인했다: worktree(`.git`이 파일) 안 파일에서 묻는 창 → 프로젝트 만들기 → `git Available`, 앱을 다시 띄워 같은 레포의 다른 파일은 묻지 않고 활성화, 다른 레포에서 "파일만 열기"는 프로젝트를 남기지 않음.
-- [ ] 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
+- [x] 사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리
+  - 정한 것(2026-10-02 사용자 결정): 프로젝트가 트리의 맨 위 줄, 화면의 파일을 따라 펼침, 줄을 길게 눌러 지우기(확인 창, 기록만 지운다), `.git`만 숨김. 자세한 것은 spec의 ① 사이드바.
+  - Kotlin: `project/ProjectTree`(상대 경로 검사, 목록, 정렬), `ProjectStore.remove`, `ProjectSessions.close`, 열린 파일이 자기 프로젝트와 그 안의 경로를 든다(`OpenDocuments.Entry.project`). 브리지 `projects`·`projectDir`·`openFromProject`·`removeProject`, 알림 `projectsChanged`.
+  - 페이지: 상태는 `tree.ts`(vitest 8), 그리는 것은 `chrome/sidebar.ts`.
+  - 탭에서 이 맥의 원격 로그인으로 확인했다: 프로젝트 줄 → 루트 목록 약 1초(접속 포함), 폴더 약 0.1초, 파일을 탭하면 경로 확인 없이 열리고 사이드바가 닫힘, 다시 열면 그 파일까지 펼치고 표시, 길게 누르기(실제 터치) → 확인 창 → 취소면 남고 지우기면 사이드바와 store에서 빠짐, 사이드바를 연 채로 링크가 와도 새 파일을 따라감, 권한 없는 폴더는 "권한이 없습니다: …"를 그 자리에 보여줌. 지운 프로젝트는 링크로 다시 만들어 탭에 남겨 두었다.
+  - 폴드8에서도 사용자가 직접 써 보고 확인했다(APK를 보내 손으로 설치).
 - [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
 - [ ] git 거터(viewer, editor, diff 공통)
 - [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
