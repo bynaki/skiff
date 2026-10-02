@@ -16,23 +16,23 @@
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree).
-- M5의 "사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리"를 끝냈다(계획에 체크, 결정은 spec의 ① 사이드바).
-  열린 파일이 이제 자기 프로젝트를 든다(`OpenDocuments.Entry.project` = 프로젝트 + 루트 기준 경로).
-- 사용자 결정(2026-10-02): 프로젝트가 트리의 맨 위 줄, 화면의 파일을 따라 펼침, 길게 눌러 지우기, `.git`만 숨김.
-- 페이지가 보낼 수 있는 것이 넓어졌다: 트리의 파일은 프로젝트 id + 상대 경로로 열고 경로를 묻지 않는다.
-  `ProjectTree.resolve`가 루트 밖으로 못 나가게 한다(`AGENTS.md` "Links that arrive from outside"에 적었다).
-- 린트 에러 0(code 경고 11, 기준과 같다), JVM code 201(새로 `ProjectTreeTest` 4, `ProjectStoreTest` +1), vitest 102(새로 `tree.test.ts` 8).
-- 탭에 설치해 확인했다(계획 항목 아래). 탭의 store에는 이 worktree를 루트로 한 프로젝트가 하나 있다(지우기를 확인한 뒤 다시 만들었다).
-- 폴드8은 무선 디버깅이 닿지 않아 debug APK를 보냈고, 사용자가 손으로 설치해 확인했다.
-- 이어서 `GitService` + `GitServiceTest`를 끝냈다(계획에 체크, 설계는 spec의 "git과 LSP"). `RemoteExec.start`가 생겼다.
-  `GitService`는 아직 앱 어디에도 붙어 있지 않다. 린트 에러 0(경고 11), JVM code 214, vitest 102.
+- M5 항목 둘을 끝냈다(계획에 체크, 기기 확인과 테스트 내역은 각 항목 아래).
+  - **사이드바의 프로젝트 목록과 SFTP 지연 로딩 파일 트리.** 결정은 spec의 ① 사이드바(2026-10-02 사용자 결정 넷).
+    열린 파일이 자기 프로젝트를 든다(`OpenDocuments.Entry.project`). 트리의 파일은 프로젝트 id + 상대 경로로 열고 경로를
+    묻지 않는다 — `ProjectTree.resolve`가 루트 밖을 막는다(`AGENTS.md` "Links that arrive from outside"). 탭과 폴드8에서 확인했다.
+  - **`GitService` + `GitServiceTest`.** 설계는 spec의 "git과 LSP". `RemoteExec.start`로 연 `cat-file --batch` 하나로 내용을 읽는다.
+    **아직 앱 어디에도 붙어 있지 않다.**
+- `AGENTS.md`에 "HANDOFF에는 커밋·푸시 상태를 적지 않는다"를 넣었다(사용자 결정).
+- 린트 에러 0(code 경고 11, 기준과 같다), JVM code 214, vitest 102.
+- 탭의 store에는 이 worktree를 루트로 한 프로젝트가 하나 있다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 git 거터다. `GitService`를 `ProjectSession`에 붙이고(세션을 닫거나 바꿀 때 `GitService.close()`도),
-   HEAD 내용은 `TextLoader`처럼 파일의 인코딩으로 읽어야 한다 — `show`는 바이트를 돌려준다.
+2. 계획의 첫 `- [ ]`는 git 거터다.
+   - `GitService`를 `ProjectSession`에 붙이고, 세션을 닫거나 바꿀 때 `GitService.close()`도 부른다(소켓에 쓰므로 IO에서).
+   - `show`는 바이트를 돌려준다. HEAD 내용은 그 파일과 같은 인코딩으로 읽어야 한다(`TextLoader` 참고).
+   - 시작할 때 사용자에게 물을 것: **지운 프로젝트의 열린 파일**(`Entry.project`를 그대로 든다)에 거터를 계속 보일지,
+     **HEAD가 바뀐 것을 언제 다시 볼지**(파일 감시 폴링에 붙일지, 전환·앱 복귀 때만 볼지).
 3. 사용자에게 아직 묻지 않은 것: git 없는 프로젝트의 파일 검색 대체(계획의 `ls-files` 항목 "정할 것"), M5 확인에 쓸
    internal-sftp 계정을 어디에 만들지.
-4. 지운 프로젝트의 열린 파일은 `Entry.project`를 그대로 든다. 사이드바에는 영향이 없지만(목록에 없는 프로젝트는 무시한다),
-   git 거터가 `Entry.project`를 쓰기 시작하면 지운 프로젝트를 어떻게 볼지 정해야 한다.
-5. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.
+4. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.
