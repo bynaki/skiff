@@ -15,8 +15,7 @@
 ## 마지막 세션 (2026-10-02)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree). 시작할 때 origin과 같았다(push 완료). 이 세션의 작업은 **아직 커밋하지 않았다** —
-  커밋은 사용자가 하라고 할 때만 한다.
+- 브랜치 `plan/skiffcode`(git worktree).
 - M5의 "사이드바에 프로젝트 목록과 SFTP 지연 로딩 파일 트리"를 끝냈다(계획에 체크, 결정은 spec의 ① 사이드바).
   열린 파일이 이제 자기 프로젝트를 든다(`OpenDocuments.Entry.project` = 프로젝트 + 루트 기준 경로).
 - 사용자 결정(2026-10-02): 프로젝트가 트리의 맨 위 줄, 화면의 파일을 따라 펼침, 길게 눌러 지우기, `.git`만 숨김.
@@ -24,7 +23,7 @@
   `ProjectTree.resolve`가 루트 밖으로 못 나가게 한다(`AGENTS.md` "Links that arrive from outside"에 적었다).
 - 린트 에러 0(code 경고 11, 기준과 같다), JVM code 201(새로 `ProjectTreeTest` 4, `ProjectStoreTest` +1), vitest 102(새로 `tree.test.ts` 8).
 - 탭에 설치해 확인했다(계획 항목 아래). 탭의 store에는 이 worktree를 루트로 한 프로젝트가 하나 있다(지우기를 확인한 뒤 다시 만들었다).
-- 폴드8에는 이번에 설치하지 않았다. 지난 세션에 보낸 APK를 폴드8에서 확인했는지는 아직 듣지 못했다.
+- 폴드8은 무선 디버깅이 닿지 않아 debug APK를 보냈고, 사용자가 손으로 설치해 확인했다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.

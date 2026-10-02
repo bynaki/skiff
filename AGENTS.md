@@ -574,7 +574,10 @@ current state, not a log — the history lives in git. **Keep it small:** anythi
 session goes where it belongs instead — decisions and their reasons in `docs/skiffcode.spec.md`,
 what is still unverified and the known issues in `docs/skiffcode.plan.md`, device and environment
 notes in `docs/devices.md`. Values that must not enter the repo (device addresses, pairing names)
-stay in a local note outside it, with a placeholder in the docs. **When the user says they are
-starting a new session, do this before anything else:** overwrite `HANDOFF.md` (and check
-`docs/skiffcode.plan.md`'s checklist) so both describe the state as it is, down to what is and is
-not pushed; then ask whether to commit it, and after a commit, whether to push.
+stay in a local note outside it, with a placeholder in the docs. **Do not write commit or push state
+in it** — whether the work is committed, how far the branch is ahead, what was pushed (user's
+decision, 2026-10-02). `HANDOFF.md` goes into the very commit it would describe, so such a line is
+wrong the moment it is committed; `git status` and `git log` answer it instead. **When the user says
+they are starting a new session, do this before anything else:** overwrite `HANDOFF.md` (and check
+`docs/skiffcode.plan.md`'s checklist) so both describe the state of the work as it is; then ask
+whether to commit it, and after a commit, whether to push.
