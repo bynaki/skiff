@@ -27,6 +27,7 @@ import { type Hold, anchorAt, applyFontSize, codeFontSize, holdLine, installPinc
 import { applyEditorSettings, editorSettings } from '../settings'
 import { editorTheme } from '../theme'
 import { swatchesFor } from '../swatches'
+import { gitGutter, setBaseline } from '../gitGutter'
 
 /** ③ cycles through these. `diff` waits for M5 and is not in the cycle yet. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -135,6 +136,8 @@ export interface Pane {
   redo(): void
   /** Puts [line] at the top of the screen, for a link that asked for one. */
   goToLine(line: number): void
+  /** HEAD's copy of the file for the git gutter, or null for none. */
+  setBaseline(text: string | null): void
   /** Takes up the settings the page has just been given; see `settings.ts`. */
   settingsChanged(): void
   /** What ② original size zooms around, on whichever layer is showing. */
@@ -172,12 +175,16 @@ export function openPane(
   let view: EditorView | null = null
   // Used once, by the first view this pane builds: after that the view holds it.
   let restore = memory?.state ?? null
+  // Held for a view not built yet, which is the markdown viewer: the gutter is on the code views only.
+  let baseline: string | null | undefined
 
   function createView(): EditorView {
     const state = restore ?? EditorState.create({
       doc: source,
       extensions: [
         lineNumbers(),
+        // Outside the layer compartment, like the line numbers beside it, so every layer shows it.
+        gitGutter(),
         // Outside the compartment, so undo still reaches an edit made before a trip to the viewer.
         history(),
         dirtyFlag,
@@ -216,6 +223,7 @@ export function openPane(
       applyFontSize(created)
       applyEditorSettings(created)
     }
+    if (baseline !== undefined) created.dispatch({ effects: setBaseline.of(baseline) })
     // Each language's parser is its own chunk, fetched the first time a file needs it.
     language?.load().then((support) => {
       if (!created.dom.isConnected) return
@@ -357,6 +365,10 @@ export function openPane(
     undo: () => void (view && undo(view)),
     redo: () => void (view && redo(view)),
     goToLine,
+    setBaseline(text) {
+      baseline = text
+      view?.dispatch({ effects: setBaseline.of(text) })
+    },
     settingsChanged: () => void (view && applyEditorSettings(view)),
     close() {
       window.removeEventListener('resize', keepCaretVisible)

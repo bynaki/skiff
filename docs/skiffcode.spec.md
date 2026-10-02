@@ -301,6 +301,12 @@ method로 구독한다(M0에서 확인).
     - **60초 동안 쓰지 않으면 닫고**, 다음에 물을 때 다시 연다. 답을 읽다가 실패하면(상한 초과, 시간 초과, 끊김) 스트림이 객체 중간에 있으므로 그 채널은 버린다. 끊긴 것이면 한 번 다시 열어 같은 것을 묻는다.
     - 상한을 넘는 객체는 읽지 않는다(`GitObjectTooLarge`). 작업 파일은 작아도 HEAD의 같은 경로가 클 수 있다.
 - **git 거터:** Web에서 `Chunk.build(기준, 버퍼)`로 추가, 수정, 삭제를 줄 번호 옆의 가는 세로줄로 표시한다. 세 레이어 모두에 적용한다.
+  - 기준은 브리지 `baseline(id)`가 준다. Kotlin이 `head()` 다음 `show(HEAD, 상대 경로, 파일 크기 상한)`로 읽고, **그 파일을 읽은 방식 그대로**(`TextFormat`의 인코딩, BOM, 줄바꿈은 `\n`으로) 디코딩한다(`TextLoader.decodeLike`). 그래야 EUC-KR이나 CRLF 파일이 줄마다 다르게 보이지 않는다. 그렇게 디코딩되지 않거나, HEAD에 없거나(새 파일, 커밋 전 레포), 상한을 넘으면 기준이 없고 거터도 없다. 추적하지 않는 새 파일도 거터가 없다.
+  - 기준은 레이어 compartment 밖의 `StateField`에 들고, 받을 때 한 번 `Chunk.build`하고 그 뒤로는 편집 주변만 `Chunk.updateB`로 고친다. 같은 기준을 다시 받으면 다시 만들지 않는다. diff 설정은 diff 레이어와 같은 줄 단위(`lineDiffConfig`)다.
+  - 표시: 추가는 `--diff-added`, 수정은 `--diff-changed`(테마의 `[diff] changed`, 2026-10-02 사용자 결정 — 번들 값은 각 모드의 accent 색이다), 지운 줄은 그 다음 줄 위 경계에 `--diff-removed` 쐐기. 렌더된 markdown은 CodeMirror가 아니라 거터가 없고, 그 파일은 editor에서 보인다.
+  - **기준을 다시 묻는 때**(2026-10-02 사용자 결정): 파일이 화면에 올 때(열기, 전환), 화면의 파일이 바뀐 것을 감시가 잡았을 때(checkout·pull은 파일과 HEAD를 같이 바꾼다), 앱이 앞으로 돌아올 때(`gitChanged`). 폴링마다 묻지는 않는다 — 그러면 `cat-file` 채널이 유휴로 닫히지 않는다. 그래서 앱을 보는 중에 서버에서 커밋만 하면 다음 전환이나 복귀까지 거터가 낡아 있다.
+  - **지운 프로젝트의 열린 파일은 거터를 잃는다**(2026-10-02 사용자 결정). 프로젝트를 지우면 세션과 `GitService`가 같이 닫히고(`ProjectSession.close`), 그 파일 때문에 다시 접속하지 않는다.
+  - `@codemirror/merge`의 `diff`는 양쪽 다 비어 있는 변경을 가끔 내놓는다. 거터는 그런 청크를 건너뛴다. 아니면 지운 줄로 그려진다.
 - **`LspProcess`:**
   - exec로 `cd <root> && exec <command>`를 `$SHELL -lc`로 감싸 실행한다. 사용자의 PATH를 쓰기 위해서다.
   - stdio에 Content-Length 프레이밍을 한다.

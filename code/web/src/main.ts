@@ -344,6 +344,23 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   topbar.setFile(doc.state === 'empty' ? null : doc.name, pane?.dirty ?? false)
   topbar.setLayer(pane?.layer ?? null)
   if (id !== null) askWhatWaited(id)
+  askBaseline()
+}
+
+/**
+ * Asks for HEAD's copy of the file on the screen, which the git gutter compares its buffer with.
+ * Asked whenever HEAD may have moved without the page seeing it — the file comes to the screen,
+ * changes underneath, or the app comes back (2026-10-02 사용자 결정) — rather than on a clock.
+ */
+function askBaseline(): void {
+  const id = activeId
+  const showing = pane
+  if (id === null || !showing) return
+  rpc<{ text: string | null }>('baseline', { id })
+    .then((answer) => {
+      if (pane === showing) showing.setBaseline(answer.text)
+    })
+    .catch((error) => console.log(`baseline: ${error}`))
 }
 
 /** What happened to this file while it was in the background, now that it can be answered. */
@@ -388,6 +405,8 @@ const refresh = (goToLine?: number | null) => {
  */
 onNotify<FileChange>('fileChanged', (change) => {
   if (change.id === activeId) {
+    // A checkout or a pull changes the file and HEAD together.
+    askBaseline()
     if (change.change === 'notice' || !pane) return banner.tell(change.message)
     if (pane.dirty) return banner.ask(change.message, () => took(change.id, () => pane?.adopt(change.text)))
     took(change.id, () => pane?.adopt(change.text))
@@ -440,6 +459,7 @@ onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => {
 })
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
 onNotify('projectsChanged', () => sidebar.changed())
+onNotify('gitChanged', askBaseline)
 // What came of an import or export, which Kotlin finishes after the file picker has gone.
 onNotify<{ message: string; lasting: boolean }>('notice', (params) =>
   params.lasting ? banner.tell(params.message) : banner.flash(params.message),

@@ -1,5 +1,7 @@
 package com.naki.skiff.code.project
 
+import com.naki.skiff.code.doc.TextFormat
+import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.session.ExecChannel
 import com.naki.skiff.code.session.ExecTimedOut
 import com.naki.skiff.code.session.RemoteExec
@@ -221,6 +223,22 @@ class GitService(
         val HASH = Regex("[0-9a-f]{40}|[0-9a-f]{64}")
         val HEADER = Regex("([0-9a-f]{40}|[0-9a-f]{64}) (\\w+) (\\d+)")
     }
+}
+
+/**
+ * [path] as HEAD has it, read as the working file in [format] was ([TextLoader.decodeLike]) so the
+ * two compare line for line: the git gutter's baseline. Null when there is nothing to compare with —
+ * no commit yet, a file HEAD does not have, one past [loader]'s limit, or bytes that do not decode
+ * as the working file's.
+ */
+suspend fun GitService.headText(path: String, format: TextFormat, loader: TextLoader): String? {
+    val head = head() ?: return null
+    val bytes = try {
+        show(head, path, loader.sizeLimit)
+    } catch (_: GitObjectTooLarge) {
+        null
+    } ?: return null
+    return loader.decodeLike(bytes, format)
 }
 
 /** git ran and said no: [exitStatus] (null from `cat-file`, which answers in its output) and its words. */

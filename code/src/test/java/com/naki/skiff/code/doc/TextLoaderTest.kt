@@ -130,6 +130,21 @@ class TextLoaderTest {
         assertTrue(loader.load(Buffer().write(ByteArray(1024) { 'a'.code.toByte() })) is LoadResult.Text)
     }
 
+    @Test
+    fun `another copy of a file is read the way the file was`() {
+        val eucKr = TextFormat(TextEncoding.EUC_KR, bom = false, LineEnding.CRLF, finalNewline = true)
+        assertEquals("한글\n", loader.decodeLike("한글\r\n".toByteArray(charset("EUC-KR")), eucKr))
+        // Not tried as UTF-8 first, as a file of its own would be.
+        assertEquals(null, loader.decodeLike("한글\n".toByteArray(), eucKr))
+
+        val bom = byteArrayOf(0xEF, 0xBB, 0xBF) + "a\n".toByteArray()
+        val utf8 = TextFormat(TextEncoding.UTF_8, bom = true, LineEnding.LF, finalNewline = true)
+        assertEquals("a\n", loader.decodeLike(bom, utf8))
+        // A mark the file does not have is a difference in its first line, as git sees it.
+        assertEquals("\uFEFFa\n", loader.decodeLike(bom, utf8.copy(bom = false)))
+        assertEquals(null, loader.decodeLike(byteArrayOf(0x61, 0x00), utf8))
+    }
+
     private fun byteArrayOf(vararg values: Int) = ByteArray(values.size) { values[it].toByte() }
 
     /** The same rules, read through the production SFTP code from a real server. */

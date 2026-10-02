@@ -41,7 +41,7 @@ object ThemeToml {
         "syntax.keyword", "syntax.atom", "syntax.literal", "syntax.string", "syntax.regexp",
         "syntax.definition", "syntax.local", "syntax.type", "syntax.class", "syntax.macro",
         "syntax.property", "syntax.comment", "syntax.meta", "syntax.invalid",
-        "diff.added", "diff.removed",
+        "diff.added", "diff.removed", "diff.changed",
     )
 
     /** What CSS reads as a color without asking anything else: no names, no functions. */

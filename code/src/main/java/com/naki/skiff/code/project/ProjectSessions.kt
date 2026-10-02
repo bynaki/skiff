@@ -35,6 +35,17 @@ class ProjectSession(val project: Project, val exec: RemoteExec) {
         private set
 
     suspend fun checkGit(): GitState = git ?: checkGit(exec).also { git = it }
+
+    private val repository = lazy { GitService(exec, project.root) }
+
+    /** The repository's answers, or null where [checkGit] finds no git to ask. */
+    suspend fun gitService(): GitService? = if (checkGit() == GitState.Available) repository.value else null
+
+    /** Ends the command connection and what runs on it. Writes to the socket, so not on the main thread. */
+    fun close() {
+        if (repository.isInitialized()) repository.value.close()
+        exec.close()
+    }
 }
 
 /**
@@ -56,13 +67,13 @@ class ProjectSessions(private val newHostKeyGate: () -> HostKeyVerifier) {
             ProjectSession(project, exec).also { open[project.id] = profile to it }
         }
         // Closing disconnects on this thread, so never under the lock.
-        stale?.exec?.close()
+        stale?.close()
         return session
     }
 
     /** Ends a removed project's session, and the command connection with it. */
     fun close(projectId: String) {
         val session = synchronized(lock) { open.remove(projectId)?.second }
-        session?.exec?.close()
+        session?.close()
     }
 }

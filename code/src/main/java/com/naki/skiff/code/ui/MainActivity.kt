@@ -42,6 +42,7 @@ import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.project.Project
 import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.project.ProjectTree
+import com.naki.skiff.code.project.headText
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.settings.SettingsToml
@@ -305,8 +306,16 @@ class MainActivity : Activity() {
                 container.projects.remove(project.id)
                 // Disconnecting writes to the socket, which the main thread may not.
                 withContext(Dispatchers.IO) { container.projectSessions.close(project.id) }
+                // Its open files lose their gutter with it (2026-10-02 사용자 결정).
+                bridge.notify("gitChanged", JSONObject())
             }
             JSONObject()
+        }
+        // The file as HEAD has it, for the git gutter to compare the buffer with. Asked again whenever
+        // HEAD may have moved: the file comes to the screen, changes underneath, or the app comes back.
+        bridge.method("baseline") { params ->
+            val entry = docs.byId(params.getInt("id"))
+            JSONObject().put("text", entry?.let { headText(it) } ?: JSONObject.NULL)
         }
         bridge.method("labels") {
             JSONObject()
@@ -430,6 +439,28 @@ class MainActivity : Activity() {
     private suspend fun profileOf(project: Project): ServerProfile =
         container.store.profiles.first().firstOrNull { it.id == project.profileId }
             ?: error(getString(R.string.project_no_profile, project.name))
+
+    /**
+     * [entry] as HEAD has it, or null for no gutter: a single file, a project without git, a file HEAD
+     * does not have, or a project removed since it was opened — whose files stay open, but whose
+     * session went with it, and which is not connected to again for this.
+     */
+    private suspend fun headText(entry: OpenDocuments.Entry): String? {
+        val file = entry.project ?: return null
+        val format = entry.save?.format ?: return null
+        val project = container.projects.byId(file.project.id) ?: return null
+        val profile = container.store.profiles.first().firstOrNull { it.id == project.profileId } ?: return null
+        return try {
+            // Off the main thread: a profile that changed replaces its session, which disconnects the old one.
+            val session = withContext(Dispatchers.IO) { container.projectSessions.get(project, profile) }
+            session.gitService()?.headText(file.path, format, TextLoader(container.settings.current().settings.files.maxSizeBytes))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "no HEAD for ${project.name}/${file.path}", e)
+            null
+        }
+    }
 
     /** Reads with the size limit `settings.toml` says now, which is why each open builds its own. */
     private suspend fun openFlow() =
@@ -646,6 +677,8 @@ class MainActivity : Activity() {
         // Every open file is looked at once here: the ones that are not showing are not polled, so
         // this is where a change made while the app was away reaches them (docs/skiffcode.spec.md "감시").
         startWatching(recheckAll = true)
+        // A commit made while the app was away moves HEAD without touching the file, which no watch sees.
+        bridge.notify("gitChanged", JSONObject())
     }
 
     /**

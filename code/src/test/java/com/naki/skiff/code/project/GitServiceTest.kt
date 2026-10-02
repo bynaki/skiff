@@ -1,6 +1,10 @@
 package com.naki.skiff.code.project
 
 import com.naki.skiff.SftpTestServer
+import com.naki.skiff.code.doc.LineEnding
+import com.naki.skiff.code.doc.TextEncoding
+import com.naki.skiff.code.doc.TextFormat
+import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.session.RemoteExec
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -217,6 +221,29 @@ class GitServiceTest {
             setOf(".gitignore", "src/main.kt", "notes/new file.md", "line\nbreak.txt"),
             service().files().toSet(),
         )
+    }
+
+    @Test
+    fun `HEAD's text is read the way the working file was`() = runBlocking {
+        File(repo, "euc.txt").writeBytes("가\r\n나\r\n".toByteArray(charset("EUC-KR")))
+        write("big.txt", "x".repeat(100) + "\n")
+        commit("first")
+        write("new.txt", "x\n")
+        val service = service()
+        val eucKr = TextFormat(TextEncoding.EUC_KR, bom = false, LineEnding.CRLF, finalNewline = true)
+        val utf8 = TextFormat(TextEncoding.UTF_8, bom = false, LineEnding.LF, finalNewline = true)
+
+        assertEquals("가\n나\n", service.headText("euc.txt", eucKr, TextLoader()))
+        assertNull("not in HEAD", service.headText("new.txt", utf8, TextLoader()))
+        assertNull("past the limit", service.headText("big.txt", utf8, TextLoader(sizeLimit = 10)))
+    }
+
+    @Test
+    fun `there is no HEAD text before the first commit`() = runBlocking {
+        write("a.txt", "x\n")
+        val utf8 = TextFormat(TextEncoding.UTF_8, bom = false, LineEnding.LF, finalNewline = true)
+
+        assertNull(service().headText("a.txt", utf8, TextLoader()))
     }
 
     @Test

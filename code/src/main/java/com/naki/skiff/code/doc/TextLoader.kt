@@ -58,7 +58,7 @@ sealed interface LoadResult {
  * that text back would overwrite the original bytes with it.
  */
 class TextLoader(
-    private val sizeLimit: Long = DEFAULT_SIZE_LIMIT,
+    val sizeLimit: Long = DEFAULT_SIZE_LIMIT,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -101,6 +101,18 @@ class TextLoader(
         val text = raw.replace("\r\n", "\n")
         val format = TextFormat(encoding, bom, lineEnding, finalNewline = text.endsWith('\n'))
         return LoadResult.Text(text, format, size, modifiedEpochSeconds)
+    }
+
+    /**
+     * [bytes] read the way a file in [format] was — its encoding, its byte order mark, `\n` for its
+     * line endings — for text to set beside that file's, such as git's copy of it. Null when they do
+     * not decode that way, or are binary.
+     */
+    fun decodeLike(bytes: ByteArray, format: TextFormat): String? {
+        val probe = minOf(bytes.size, BINARY_PROBE)
+        for (i in 0 until probe) if (bytes[i] == 0.toByte()) return null
+        val bom = format.bom && bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()
+        return strictDecode(bytes, if (bom) 3 else 0, format.encoding)?.replace("\r\n", "\n")
     }
 
     private fun strictDecode(bytes: ByteArray, offset: Int, encoding: TextEncoding): String? = try {

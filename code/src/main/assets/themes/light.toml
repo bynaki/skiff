@@ -46,3 +46,5 @@ invalid = "#f00"
 [diff]
 added = "#2ea043"
 removed = "#f85149"
+# The git gutter's bar beside a changed line; added and removed lines take the two above.
+changed = "#0969da"

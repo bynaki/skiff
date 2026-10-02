@@ -102,6 +102,9 @@ function lineDiff(a: string, b: string): readonly Change[] {
   return changes
 }
 
+/** Lines first, as git compares, which is what the git gutter's chunks are built with too. */
+export const lineDiffConfig: DiffConfig = { override: lineDiff }
+
 export function unifiedDiff(original: string, mode: DiffMode): Extension {
   return [
     unifiedMergeView({

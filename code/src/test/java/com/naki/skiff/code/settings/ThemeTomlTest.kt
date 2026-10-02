@@ -44,6 +44,16 @@ class ThemeTomlTest {
     }
 
     @Test
+    fun `a theme from before diff changed takes the base's, not its own accent`() {
+        for ((base, colors) in listOf("light" to light, "dark" to dark)) {
+            val read = ThemeToml.read("base = \"$base\"\n[ui]\naccent = \"#a0f\"\n", fallback)
+            assertEquals(base, colors["diff.changed"], read.theme.colors["diff.changed"])
+        }
+        assertEquals("#4493f8", dark["diff.changed"])
+        assertEquals("#0969da", light["diff.changed"])
+    }
+
+    @Test
     fun `a value that is not a color is the base's, reported, and the others are kept`() {
         val read = ThemeToml.read("[ui]\nbackground = \"red\"\nforeground = \"#123456\"\n", fallback)
         assertEquals(light["ui.background"], read.theme.colors["ui.background"])

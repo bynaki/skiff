@@ -352,7 +352,29 @@
   - `project/GitService`: `head()`, `show(커밋, 경로, 상한)`, `history(경로)`(`log -n 2`), `files()`(`ls-files -co --exclude-standard -z`). 기준 텍스트는 `cat-file --batch` 하나를 길게 열어 읽고, 60초 쓰지 않으면 닫는다. `RemoteExec.start`가 그 채널을 연다(stdin을 닫지 않는 명령). 아직 어디에도 붙이지 않았다 — 거터 항목에서 `ProjectSession`에 붙이고, 세션을 닫을 때 같이 닫는다.
   - `GitServiceTest` 12: 이 맥의 실제 `git`을 MINA의 `/bin/sh -c`로 돌린다(사용자 git 설정은 `GIT_CONFIG_GLOBAL=/dev/null`로 뺐다). 커밋 전 HEAD, 커밋된 내용과 작업 트리의 차이, 새 파일·디렉토리는 null, 바이트 그대로, **20개 파일을 명령 하나로**, 도는 동안 생긴 커밋을 봄, 상한을 넘는 객체 뒤에도 다음 요청이 됨, 유휴 뒤 다시 시작, `log`의 두 커밋, `*.md`라는 이름이 패턴이 아님(`--literal-pathspecs`), 무시·추적·미추적과 줄바꿈 든 이름, 레포가 아닌 폴더. `RemoteExecTest` +1(`start`로 연 `cat`과 한 줄씩 주고받기), 거부된 계정에서는 `start`도 `ExecRefused`다.
   - MINA는 `ProcessShellCommandFactory` 대신 `CheckGitTest`처럼 `ProcessShellFactory`로 `/bin/sh -c`를 돌렸다 — 줄 앞에 환경 변수를 넣어야 해서다.
-- [ ] git 거터(viewer, editor, diff 공통)
+- [x] git 거터(viewer, editor, diff 공통)
+  - 정한 것(2026-10-02 사용자 결정): 지운 프로젝트의 열린 파일은 거터를 잃는다. HEAD는 전환·앱 복귀·파일 변경 때 다시 묻고 폴링마다 묻지 않는다. 자세한 것은 spec의 "git과 LSP".
+  - Kotlin: `ProjectSession.gitService()`(git이 있을 때만, 처음 쓸 때 만든다)와 `close()`(`GitService`와 exec 연결을 같이 닫는다, `ProjectSessions`의 교체와 지우기에서 부른다). `GitService.headText`, `TextLoader.decodeLike`. 브리지 `baseline`, 알림 `gitChanged`(앱 복귀, 프로젝트 지우기).
+  - 페이지: `gitGutter.ts`(vitest 12). 레이어 compartment 밖에 두어 세 레이어가 같이 쓴다. `diff.ts`의 `lineDiffConfig`를 쓴다.
+  - JVM +3(`TextLoaderTest` 1, `GitServiceTest` 2: EUC-KR+CRLF로 커밋된 파일, HEAD에 없는 파일, 상한, 커밋 전 레포).
+  - 탭에서 이 맥의 원격 로그인으로 확인했다. 표시는 모두 서버의 `git diff -U0`와 같았다(줄 번호와 종류를 DevTools로 읽었다).
+    - 이 worktree의 `main.ts`(추가 셋), 임시 레포의 `a.txt`(수정, 삭제, 추가)와 EUC-KR+CRLF `euc.txt`(수정, 추가).
+    - markdown(`skiffcode.spec.md`)은 렌더된 viewer에서는 거터가 없고 editor에서 같게 보였다.
+    - editor에서 타이핑하면 바로 수정으로 바뀌었다.
+    - 앱을 내린 채 서버에서 커밋하고 돌아오면 새 HEAD로 다시 그려졌다(남은 것은 저장 안 한 타이핑뿐).
+    - 화면의 파일을 바꾸고 커밋하면(pull과 같은 모양) 버퍼가 새 내용을 받고 표시가 없어졌다.
+    - 프로젝트를 지우면 열린 파일은 남고 거터만 없어졌다. 임시 레포와 그 프로젝트는 지웠다.
+  - 폴드8에서도 사용자가 거터를 확인했다(2026-10-02, 손으로 설치한 커밋 전 빌드).
+- [x] git 거터의 수정 색을 테마 키 `diff.changed`로 (2026-10-02 사용자 요청)
+  - **정한 것(2026-10-02 사용자 결정): 키는 수정 색 하나만 더한다.** 추가와 삭제는 지금처럼 그 테마의 `diff.added`, `diff.removed`를 따른다. 거터와 diff 레이어의 추가·삭제가 같은 색이어야 읽기 쉽다.
+  - 지금 수정 막대는 메뉴 강조색 `ui.accent`를 빌려 쓴다. 키를 `[diff] changed`로 두는 까닭은 둘이다. 추가·삭제 색 옆이라 찾기 쉽고, 다음 항목인 diff 레이어도 수정 색이 필요하면 이 키를 쓸 수 있다.
+  - **번들에 값으로 적는다(2026-10-02 사용자 결정).** 그래서 다른 색과 규칙이 같다. 이 키가 없는 테마는 같은 `base`(라이트/다크) 번들의 값을 받는다.
+    - 예외 코드가 필요 없고, 복사한 테마에 키가 값으로 보인다.
+    - 처음 값은 지금 화면과 같게 각 번들의 `ui.accent`다. 다크는 `#4493f8`, 라이트는 `#0969da`다.
+    - 잃는 것: `ui.accent`만 바꾼 테마는 수정 막대가 그 accent를 따라가지 않고 번들 색이 된다. 이미 가져온 테마도 같다. 앞서 정한 "없으면 `ui.accent`" 대체는 이것으로 뺐다.
+  - 고친 곳: `ThemeToml.KEYS`, 번들 `light.toml`/`dark.toml`(키 위에 무엇을 칠하는지 주석), `index.html`의 `:root`, `gitGutter.ts`.
+  - 테스트: `ThemeTomlTest`에 1개(accent만 바꾼 라이트·다크 테마가 번들의 `diff.changed`를 받는다, 번들 값이 예전 accent와 같다). 번들에 모든 키가 있는지와 `:root`·`light.toml`·`var(--…)`가 같은지는 있던 테스트가 새 키까지 봤다. JVM 218, vitest 114, lint 경고 11(전과 같다).
+  - 번들 값이 예전 accent와 같아서 화면은 바뀌지 않는다. 이 빌드를 폴드8에 설치해 사용자가 확인했다(2026-10-03).
 - [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
 - [ ] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장
   - **기준은 활성 프로젝트이고 하위 폴더까지다**(2026-09-26 사용자 요청). 단일 파일 모드의 "열린 파일과 같은 폴더"는 프로젝트가 없을 때만이다. 항목 이름은 루트 기준 상대 경로다(`skiffcode.spec.md`).
