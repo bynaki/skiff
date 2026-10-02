@@ -97,7 +97,24 @@ class RemoteExecTest {
         val (_, exec) = start(commands = null)
 
         assertThrows(ExecRefused::class.java) { runBlocking { exec.run(listOf("true")) } }
+        assertThrows(ExecRefused::class.java) { runBlocking { exec.start(listOf("cat")) } }
         assertFalse(exec.supported())
+    }
+
+    @Test
+    fun `a started command answers each line as it is written, until it is closed`() = runBlocking {
+        val (_, exec) = start(shell)
+
+        exec.start(listOf("cat")).use { channel ->
+            val lines = channel.stdout.bufferedReader()
+            for (line in listOf("one", "two words", "셋")) {
+                channel.stdin.write("$line\n".toByteArray())
+                channel.stdin.flush()
+                assertEquals(line, lines.readLine())
+            }
+        }
+        // The channel is gone, the login is not.
+        assertEquals(0, exec.run(listOf("true")).exitStatus)
     }
 
     @Test

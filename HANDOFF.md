@@ -24,10 +24,13 @@
 - 린트 에러 0(code 경고 11, 기준과 같다), JVM code 201(새로 `ProjectTreeTest` 4, `ProjectStoreTest` +1), vitest 102(새로 `tree.test.ts` 8).
 - 탭에 설치해 확인했다(계획 항목 아래). 탭의 store에는 이 worktree를 루트로 한 프로젝트가 하나 있다(지우기를 확인한 뒤 다시 만들었다).
 - 폴드8은 무선 디버깅이 닿지 않아 debug APK를 보냈고, 사용자가 손으로 설치해 확인했다.
+- 이어서 `GitService` + `GitServiceTest`를 끝냈다(계획에 체크, 설계는 spec의 "git과 LSP"). `RemoteExec.start`가 생겼다.
+  `GitService`는 아직 앱 어디에도 붙어 있지 않다. 린트 에러 0(경고 11), JVM code 214, vitest 102.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 `GitService` + `GitServiceTest`다.
+2. 계획의 첫 `- [ ]`는 git 거터다. `GitService`를 `ProjectSession`에 붙이고(세션을 닫거나 바꿀 때 `GitService.close()`도),
+   HEAD 내용은 `TextLoader`처럼 파일의 인코딩으로 읽어야 한다 — `show`는 바이트를 돌려준다.
 3. 사용자에게 아직 묻지 않은 것: git 없는 프로젝트의 파일 검색 대체(계획의 `ls-files` 항목 "정할 것"), M5 확인에 쓸
    internal-sftp 계정을 어디에 만들지.
 4. 지운 프로젝트의 열린 파일은 `Entry.project`를 그대로 든다. 사이드바에는 영향이 없지만(목록에 없는 프로젝트는 무시한다),

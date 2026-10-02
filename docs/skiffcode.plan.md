@@ -348,7 +348,10 @@
   - 페이지: 상태는 `tree.ts`(vitest 8), 그리는 것은 `chrome/sidebar.ts`.
   - 탭에서 이 맥의 원격 로그인으로 확인했다: 프로젝트 줄 → 루트 목록 약 1초(접속 포함), 폴더 약 0.1초, 파일을 탭하면 경로 확인 없이 열리고 사이드바가 닫힘, 다시 열면 그 파일까지 펼치고 표시, 길게 누르기(실제 터치) → 확인 창 → 취소면 남고 지우기면 사이드바와 store에서 빠짐, 사이드바를 연 채로 링크가 와도 새 파일을 따라감, 권한 없는 폴더는 "권한이 없습니다: …"를 그 자리에 보여줌. 지운 프로젝트는 링크로 다시 만들어 탭에 남겨 두었다.
   - 폴드8에서도 사용자가 직접 써 보고 확인했다(APK를 보내 손으로 설치).
-- [ ] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
+- [x] `GitService` + `GitServiceTest`(MINA에 `ProcessShellCommandFactory`를 붙여 **실제 `git`**을 임시 레포에 대해 실행)
+  - `project/GitService`: `head()`, `show(커밋, 경로, 상한)`, `history(경로)`(`log -n 2`), `files()`(`ls-files -co --exclude-standard -z`). 기준 텍스트는 `cat-file --batch` 하나를 길게 열어 읽고, 60초 쓰지 않으면 닫는다. `RemoteExec.start`가 그 채널을 연다(stdin을 닫지 않는 명령). 아직 어디에도 붙이지 않았다 — 거터 항목에서 `ProjectSession`에 붙이고, 세션을 닫을 때 같이 닫는다.
+  - `GitServiceTest` 12: 이 맥의 실제 `git`을 MINA의 `/bin/sh -c`로 돌린다(사용자 git 설정은 `GIT_CONFIG_GLOBAL=/dev/null`로 뺐다). 커밋 전 HEAD, 커밋된 내용과 작업 트리의 차이, 새 파일·디렉토리는 null, 바이트 그대로, **20개 파일을 명령 하나로**, 도는 동안 생긴 커밋을 봄, 상한을 넘는 객체 뒤에도 다음 요청이 됨, 유휴 뒤 다시 시작, `log`의 두 커밋, `*.md`라는 이름이 패턴이 아님(`--literal-pathspecs`), 무시·추적·미추적과 줄바꿈 든 이름, 레포가 아닌 폴더. `RemoteExecTest` +1(`start`로 연 `cat`과 한 줄씩 주고받기), 거부된 계정에서는 `start`도 `ExecRefused`다.
+  - MINA는 `ProcessShellCommandFactory` 대신 `CheckGitTest`처럼 `ProcessShellFactory`로 `/bin/sh -c`를 돌렸다 — 줄 앞에 환경 변수를 넣어야 해서다.
 - [ ] git 거터(viewer, editor, diff 공통)
 - [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
 - [ ] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장

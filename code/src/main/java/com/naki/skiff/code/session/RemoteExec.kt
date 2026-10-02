@@ -11,8 +11,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.connection.ConnectionException
+import net.schmizz.sshj.connection.channel.direct.Session
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import java.io.Closeable
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
 /**
@@ -54,19 +58,45 @@ class RemoteExec(
     }
 
     /** Runs [argv] to the end. Throws [ExecRefused], [ExecTimedOut], or an `FsError` for the link. */
-    suspend fun run(argv: List<String>, timeoutMs: Long = TIMEOUT_MS): ExecResult {
+    suspend fun run(argv: List<String>, timeoutMs: Long = TIMEOUT_MS): ExecResult =
+        retrying(argv) { line, secret -> attempt(line, secret, timeoutMs) }
+
+    /**
+     * Starts [argv] and leaves it running, for a command that is talked to over its stdin rather than
+     * run to the end — `git cat-file --batch`. The caller owns what comes back and closes it. Starting
+     * is retried on a dropped link as [run] is; a link that drops afterwards is the caller's to start
+     * again. Throws [ExecRefused], or an `FsError` for the link.
+     */
+    suspend fun start(argv: List<String>): ExecChannel = retrying(argv) { line, secret ->
+        val client = connected(secret)
+        runInterruptible(Dispatchers.IO) {
+            val session = client.startSession()
+            try {
+                ExecChannel(session, session.exec(line))
+            } catch (e: ConnectionException) {
+                session.close()
+                throw ExecRefused(e)
+            } catch (e: Throwable) {
+                session.close()
+                throw e
+            }
+        }
+    }
+
+    /** [block] with the command line and the password, once more if the link dropped under it. */
+    private suspend fun <T> retrying(argv: List<String>, block: suspend (String, String?) -> T): T {
         val line = ShellQuote.command(argv)
         // Resolved before the connection is touched: fetching it may reach the keystore.
         val secret = password()
         return try {
-            attempt(line, secret, timeoutMs)
+            block(line, secret)
         } catch (e: IOException) {
             val failure = e.toConnectionError(host)
             if (failure.isFatalAuth()) throw failure
             // Not disconnected here: another command may already be on a fresh client, and a dead
             // one is replaced by connected() anyway.
             try {
-                attempt(line, secret, timeoutMs)
+                block(line, secret)
             } catch (retry: IOException) {
                 throw retry.toConnectionError(host)
             }
@@ -121,6 +151,26 @@ class RemoteExec(
     private companion object {
         const val PROBE = "skiff-exec-ok"
         const val TIMEOUT_MS = 30_000L
+    }
+}
+
+/**
+ * A command [RemoteExec.start] left running: what is written to [stdin] reaches it, and [stdout] is
+ * what it answers. Its stderr is not read, so a command that writes much there would stall; the ones
+ * started here write to it only as they fail. [close] disconnects nothing but this channel, and writes
+ * to the socket, so not on the main thread.
+ */
+class ExecChannel internal constructor(private val session: Session, private val command: Session.Command) : Closeable {
+
+    val stdin: OutputStream get() = command.outputStream
+    val stdout: InputStream get() = command.inputStream
+
+    /** What it said on the way out, once [stdout] has ended. */
+    fun failure(): String = runCatching { command.errorStream.readBytes().decodeToString() }.getOrDefault("")
+
+    override fun close() {
+        runCatching { command.close() }
+        runCatching { session.close() }
     }
 }
 
