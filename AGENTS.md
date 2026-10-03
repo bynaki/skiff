@@ -211,6 +211,13 @@ page wrote it and anything could be there now; and **nothing that identifies a s
 goes in it** — profiles, passwords and host keys stay on the Kotlin side, in the store and the
 Keystore.
 
+**A new `settings.toml` key goes in `Settings` and in `SettingsToml.KEYS`** (what it does, its
+range and its default; a test fails if the two disagree). The file is written with every key
+commented out at its default, and `Open Settings` adds a key a person's file lacks the same way,
+so a file made by an older version shows it too. ktoml refuses a table with no keys ("missing
+children in a table"), so `SettingsToml.read` blanks the header of a table whose keys are all
+commented out before decoding it.
+
 ### UI
 
 `WorkspaceViewModel` holds two `PaneController`s (A and B). Split view is **the user's choice**,
@@ -323,10 +330,15 @@ These apply to `:code` only:
 - **TypeScript 7's `tsc` treats a file with no import or export as a global script**, so a
   top-level `status` collides with `window.status`.
 - **`@codemirror/view` 6.43.12 grows `viewportLineBlocks` to thousands of off-screen lines** when a
-  block widget sits on a line boundary, which every gutter then renders. `code/web/src/diff.ts`
-  patches the prototype at runtime for the spike; M5 does it with `patch-package`. Check
-  `HeightMapBranch.forEachLine` for a clamp when raising the CodeMirror version, and drop the patch
-  once it is there.
+  block widget sits on a line boundary, which every gutter then renders. `code/web/patches/` clamps
+  `HeightMapBranch.forEachLine` with `patch-package`, which `npm ci` applies as `postinstall` — so the
+  Gradle `npmCi` task takes `patches/` as an input. Check that function for a clamp when raising the
+  CodeMirror version, and drop the patch once it is there.
+- **A block widget's height is CodeMirror's guess until it has been drawn.** The diff layer's deleted
+  lines are block widgets that `lineBlockAt` counts as part of the line after them, so a scroll that
+  reads their height the moment the layer is entered reads the estimate (19px for a 63px block on
+  the tablet) and leaves part of them under the menu. `scrollViewToLine` scrolls again on the next
+  frame when a line has one.
 - **A layer is an extension bundle in a `Compartment`, never its own `EditorView`.** Swapping one
   keeps every state field that stays in the configuration (`StateField.slot(...).reconfigure` hands
   the old value over) and creates only what the layer being entered adds, so the document, the parse
@@ -527,12 +539,12 @@ and never `:app`'s.
 holds 86–91 fps, a pinch-zoom step costs 3 ms to dispatch and 8 ms to measure, a line-level
 unified diff takes about 240 ms, and `@codemirror/lsp-client` runs over the Kotlin bridge with
 diagnostics 252 ms after `didOpen`. The measurements and what they changed in the design are in
-`docs/skiffcode.spec.md` and `docs/skiffcode.plan.md`. What is left of the spike under `:code/` is `web/src/diff.ts` and `web/src/lsp.ts`,
-kept for M5 and M6 and no longer loaded by the page. The versions it pinned stand, with what M2
+`docs/skiffcode.spec.md` and `docs/skiffcode.plan.md`. What is left of the spike under `:code/` is `web/src/lsp.ts`,
+kept for M6 and not loaded by the page. The versions it pinned stand, with what M2
 added:
 
 - Kotlin: `androidx.webkit` 1.17.0, `com.akuleshov7:ktoml-core` 0.7.1
-- Build: `vite` 8.3.0, `typescript` 7.0.2
+- Build: `vite` 8.3.0, `typescript` 7.0.2, `patch-package` 8.0.1 (M5, for the CodeMirror patch above)
 - Page: `markdown-it` 15.0.2 (ships its own types), `@codemirror/language-data` 6.5.2 (every
   language's parser as its own chunk, loaded by file name when first needed)
 - `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,

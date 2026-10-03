@@ -8,9 +8,8 @@ import kotlinx.serialization.Serializable
 /**
  * What `settings.toml` holds: what the person chose, as opposed to what the page noticed as it was
  * used, which stays in its `localStorage` (docs/skiffcode.spec.md "상태 저장"). Only the keys that
- * something reads today are here; the diff's transparency and the language servers join with the
- * features that read them. A key left out of the file takes the default written here, and
- * [TEMPLATE] says the same thing in the file a person opens — `SettingsTomlTest` holds the two to it.
+ * something reads today are here; the language servers join with the feature that reads them. A key left out of the file takes the default written here, and
+ * [SettingsToml.KEYS] says the same thing in the file a person opens — `SettingsTomlTest` holds the two to it.
  */
 @Serializable
 data class Settings(
@@ -28,6 +27,8 @@ data class Settings(
         val wrap: Boolean = true,
         /** A bundled or imported theme's name, or `system` for the one that matches the device's dark mode. */
         val theme: String = SettingsToml.SYSTEM_THEME,
+        /** How strongly the diff layer tints its lines, in percent. */
+        @SerialName("diff_alpha") val diffAlpha: Int = 30,
     )
 
     @Serializable
@@ -67,6 +68,7 @@ object SettingsToml {
     val MAX_SIZES_MB = 1..64
     val KEPT_BUFFERS = 0..200
     val POLL_SECONDS = 1..60
+    val DIFF_ALPHAS = 0..100
 
     /** The theme that follows the device's dark mode rather than being one of its own. */
     const val SYSTEM_THEME = "system"
@@ -86,7 +88,7 @@ object SettingsToml {
      */
     fun read(text: String, themes: Collection<String> = THEMES): SettingsRead {
         val parsed = try {
-            Toml.decodeFromString(Settings.serializer(), text)
+            Toml.decodeFromString(Settings.serializer(), withoutEmptyTables(text))
         } catch (e: SerializationException) {
             // Every ktoml failure is one, with the line in its message: a type that does not fit,
             // an Int that overflows, a key it does not know, a line that is not TOML.
@@ -118,6 +120,7 @@ object SettingsToml {
                 tabSize = inRange("editor.tab_size", editor.tabSize, TAB_SIZES, defaults.editor.tabSize),
                 wrap = editor.wrap,
                 theme = theme,
+                diffAlpha = inRange("editor.diff_alpha", editor.diffAlpha, DIFF_ALPHAS, defaults.editor.diffAlpha),
             ),
             files = Settings.Files(
                 maxSizeMb = inRange("files.max_size_mb", files.maxSizeMb, MAX_SIZES_MB, defaults.files.maxSizeMb),
@@ -141,13 +144,28 @@ object SettingsToml {
         return SettingsProblem.UnknownKey(if (scope == "rootNode") key else "$scope.$key")
     }
 
+    /**
+     * [text] with the header of each table that sets nothing — every key commented out, as
+     * [TEMPLATE] has them — blanked, since ktoml refuses a table without children ("missing children
+     * in a table"). Blanked rather than removed, so the line numbers in its messages stay the person's.
+     */
+    private fun withoutEmptyTables(text: String): String {
+        val lines = text.lines().toMutableList()
+        for (i in lines.indices) {
+            if (!ANY_HEADER.matches(lines[i])) continue
+            val end = (i + 1..lines.lastIndex).firstOrNull { ANY_HEADER.matches(lines[it]) } ?: lines.size
+            if ((i + 1 until end).all { lines[it].isBlank() || lines[it].trimStart().startsWith("#") }) lines[i] = ""
+        }
+        return lines.joinToString("\n")
+    }
+
     private val UNKNOWN_KEY = Regex("Unknown key received: <([^>]*)> in scope <([^>]*)>")
 
     /**
      * [text] with `[editor]`'s `theme` set to [name], for the palette's Theme commands. Only that
-     * line changes, so the person's comments and the rest of their values stay as they wrote them;
-     * a file without the line gets it at the top of `[editor]`, and one without that table gets both
-     * at the end.
+     * line changes, so the person's comments and the rest of their values stay as they wrote them.
+     * Where the line is commented out, as [TEMPLATE] has it, it is the one written; a file without
+     * either gets it at the top of `[editor]`, and one without that table gets both at the end.
      */
     fun withTheme(text: String, name: String): String {
         val line = "theme = \"$name\""
@@ -156,6 +174,7 @@ object SettingsToml {
         if (header < 0) return text.trimEnd('\n').let { if (it.isEmpty()) "" else "$it\n\n" } + "[editor]\n$line\n"
         val end = (header + 1..lines.lastIndex).firstOrNull { ANY_HEADER.matches(lines[it]) } ?: lines.size
         val existing = (header + 1 until end).firstOrNull { THEME_LINE.matches(lines[it]) }
+            ?: (header + 1 until end).firstOrNull { keyLine("theme").matches(lines[it]) }
         if (existing != null) lines[existing] = line else lines.add(header + 1, line)
         return lines.joinToString("\n")
     }
@@ -164,33 +183,89 @@ object SettingsToml {
     private val ANY_HEADER = Regex("""\s*\[.*""")
     private val THEME_LINE = Regex("""\s*theme\s*=.*""")
 
+    /** A line that sets [name], or would with its `#` taken off. */
+    private fun keyLine(name: String) = Regex("""\s*#?\s*${Regex.escape(name)}\s*=.*""")
+
+    private fun tableHeader(table: String) = Regex("""\s*\[\s*${Regex.escape(table)}\s*]\s*(#.*)?""")
+
+    /** One key as the file shows it: its table, its default as TOML, and what it does. */
+    class Key(val table: String, val name: String, val default: String, val about: List<String>) {
+        /** What it does, ending with its default, then the key at that default, commented out. */
+        val lines: List<String>
+            get() = about.dropLast(1).map { "# $it" } + "# ${about.last()} Default: $default." + "# $name = $default"
+    }
+
     /**
-     * What a missing `settings.toml` is created with when the person first opens it: every key, at
-     * its default, with what it does. Written by hand rather than encoded so it can say so.
+     * Every key, in the order the file shows them. A key in [Settings] has to be here as well, or the
+     * file never shows it — `SettingsTomlTest` checks the two against each other.
      */
-    val TEMPLATE = """
-        # Skiff Code settings. Saving this file applies it.
-        # A key left out takes its default; a value that cannot be used is reported and replaced by it.
+    val KEYS = listOf(
+        Key("editor", "font", "\"monospace\"", listOf("A CSS font family. A font the device does not have falls back to the next one listed.")),
+        Key("editor", "font_size", "14", listOf("${FONT_SIZES.first} to ${FONT_SIZES.last}. What Reset Zoom returns to; a pinch changes only what you are looking at now.")),
+        Key("editor", "tab_size", "4", listOf("${TAB_SIZES.first} to ${TAB_SIZES.last}. How wide a tab character is drawn.")),
+        Key("editor", "wrap", "true", listOf("Wrap long lines at the edge of the screen instead of scrolling sideways.")),
+        Key(
+            "editor", "theme", "\"$SYSTEM_THEME\"",
+            listOf(
+                "\"system\" follows the device's dark mode; \"light\" and \"dark\" stay put. A theme brought in",
+                "with Import Theme goes by its file's name. The palette's Theme commands write this line.",
+            ),
+        ),
+        Key("editor", "diff_alpha", "30", listOf("${DIFF_ALPHAS.first} to ${DIFF_ALPHAS.last}. How strongly the diff layer tints added and deleted lines, in percent.")),
+        Key("files", "max_size_mb", "2", listOf("${MAX_SIZES_MB.first} to ${MAX_SIZES_MB.last}. A larger file is not opened.")),
+        Key("files", "kept_buffers", "30", listOf("${KEPT_BUFFERS.first} to ${KEPT_BUFFERS.last}. How many files off the screen keep their undo history.")),
+        Key("files", "poll_seconds", "2", listOf("${POLL_SECONDS.first} to ${POLL_SECONDS.last}. How often the file on the screen is checked for a change made somewhere else.")),
+    )
 
-        [editor]
-        # A CSS font family. A font the device does not have falls back to the next one listed.
-        font = "monospace"
-        # 8 to 40. What Reset Zoom returns to; a pinch changes only what you are looking at now.
-        font_size = 14
-        # 1 to 16. How wide a tab character is drawn.
-        tab_size = 4
-        # Wrap long lines at the edge of the screen instead of scrolling sideways.
-        wrap = true
-        # "system" follows the device's dark mode; "light" and "dark" stay put. A theme brought in
-        # with Import Theme goes by its file's name. The palette's Theme commands write this line.
-        theme = "system"
+    /**
+     * What a missing `settings.toml` is created with when the person first opens it: every key at its
+     * default, commented out, with what it does. Commented out, so a default changed in a later
+     * version reaches every key the person has not set themselves.
+     */
+    val TEMPLATE: String = buildString {
+        append(
+            """
+            # Skiff Code settings. Saving this file applies it.
+            # Each key is shown at its default with a # in front: take the # off and change the value to set it.
+            # A key left out takes its default; a value that cannot be used is reported and replaced by it.
+            # A key that a later version adds is put here, commented out, the next time this file is opened.
+            """.trimIndent(),
+        )
+        append('\n')
+        for ((table, keys) in KEYS.groupBy { it.table }) {
+            append("\n[").append(table).append("]\n")
+            for (key in keys) key.lines.forEach { append(it).append('\n') }
+        }
+    }
 
-        [files]
-        # 1 to 64. A larger file is not opened.
-        max_size_mb = 2
-        # 0 to 200. How many files off the screen keep their undo history.
-        kept_buffers = 30
-        # 1 to 60. How often the file on the screen is checked for a change made somewhere else.
-        poll_seconds = 2
-    """.trimIndent() + "\n"
+    /**
+     * [text] with every key of [KEYS] it lacks added as [Key.lines], at the end of its own table — or
+     * in that table added at the end of the file. A key counts as there when its line is, commented
+     * out or not, so a key the person keeps commented out is left that way and nothing is added
+     * twice. What is already there stays as it is, and a file that does not read as TOML is given
+     * back untouched, since there is no telling where its tables are. A blank file is [TEMPLATE].
+     */
+    fun withMissingKeys(text: String): String {
+        if (text.isBlank()) return TEMPLATE
+        if (read(text).problems.any { it is SettingsProblem.Unreadable }) return text
+        val lines = text.lines().toMutableList()
+        var changed = false
+        for ((table, keys) in KEYS.groupBy { it.table }) {
+            val header = lines.indexOfFirst { tableHeader(table).matches(it) }
+            if (header < 0) {
+                while (lines.isNotEmpty() && lines.last().isBlank()) lines.removeAt(lines.lastIndex)
+                lines += listOf("", "[$table]") + keys.flatMap { it.lines } + ""
+                changed = true
+                continue
+            }
+            var end = (header + 1..lines.lastIndex).firstOrNull { ANY_HEADER.matches(lines[it]) } ?: lines.size
+            val missing = keys.filter { key -> (header + 1 until end).none { keyLine(key.name).matches(lines[it]) } }
+            if (missing.isEmpty()) continue
+            // Before the blank lines that part this table from the next, so they still do.
+            while (end > header + 1 && lines[end - 1].isBlank()) end--
+            lines.addAll(end, missing.flatMap { it.lines })
+            changed = true
+        }
+        return if (changed) lines.joinToString("\n") else text
+    }
 }

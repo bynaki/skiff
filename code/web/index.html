@@ -227,6 +227,24 @@
        screen by its own height and the menu's too: the menu slides away with the scroll, and a menu
        parked right behind it would show there. As wide as the palette at most, for the same reason:
        a list across a whole tablet is a long way from the name that opened it. */
+    /* ④'s menu, under ④ at the right. The scrim is clear: it is only there to take the tap that
+       closes the menu, so that tap does not reach the document too, and the drag that would scroll it. */
+    #more-scrim { position: fixed; inset: 0; z-index: 8; touch-action: none; }
+    #more {
+      position: fixed; top: var(--topbar-space); right: 8px; z-index: 9; display: flex; flex-direction: column;
+      padding: 4px 0; color: var(--ui-foreground); background: var(--ui-background);
+      border: 1px solid var(--ui-border); border-radius: 8px;
+    }
+    #more-scrim[hidden], #more[hidden] { display: none; }
+    #more button {
+      display: flex; align-items: center; gap: 8px; padding: 10px 16px 10px 12px;
+      font: inherit; font-size: 15px; text-align: left; color: inherit; background: none; border: 0;
+    }
+    #more button:disabled { color: var(--ui-faint); }
+    /* The chosen one is ticked; the other keeps the tick's room so the two names line up. */
+    #more button::before { content: ''; flex: none; width: 16px; text-align: center; }
+    #more button[aria-checked="true"]::before { content: '✓'; color: var(--ui-accent); }
+    #more button:disabled::before { color: inherit; }
     #open-files-scrim {
       position: fixed; inset: 0; z-index: 8; background: var(--ui-scrim);
       opacity: 0; pointer-events: none; transition: opacity 0.2s ease;

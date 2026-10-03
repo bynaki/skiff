@@ -15,6 +15,8 @@ export interface Settings {
   fontSize: number
   tabSize: number
   wrap: boolean
+  /** How strongly the diff layer tints its lines, in percent. */
+  diffAlpha: number
   /** How many files off the screen keep their buffer; see `memories.ts`. */
   keptBuffers: number
   /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
@@ -46,6 +48,7 @@ export function showSettings(settings: Settings): void {
   const root = document.documentElement
   root.style.setProperty('--code-font', settings.font)
   root.style.setProperty('--tab-size', String(settings.tabSize))
+  root.style.setProperty('--diff-alpha', String(settings.diffAlpha / 100))
   root.classList.toggle('wrap', settings.wrap)
   showTheme(settings.theme)
 }

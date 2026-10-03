@@ -375,7 +375,31 @@
   - 고친 곳: `ThemeToml.KEYS`, 번들 `light.toml`/`dark.toml`(키 위에 무엇을 칠하는지 주석), `index.html`의 `:root`, `gitGutter.ts`.
   - 테스트: `ThemeTomlTest`에 1개(accent만 바꾼 라이트·다크 테마가 번들의 `diff.changed`를 받는다, 번들 값이 예전 accent와 같다). 번들에 모든 키가 있는지와 `:root`·`light.toml`·`var(--…)`가 같은지는 있던 테스트가 새 키까지 봤다. JVM 218, vitest 114, lint 경고 11(전과 같다).
   - 번들 값이 예전 accent와 같아서 화면은 바뀌지 않는다. 이 빌드를 폴드8에 설치해 사용자가 확인했다(2026-10-03).
-- [ ] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
+- [x] diff 레이어: unified, +/-, 초록/빨강 투명도 설정, 하이라이팅, viewer와 같은 스크롤/줌. ④ 더보기에 비교 대상 선택 추가
+  - 정한 것(2026-10-03 사용자 결정 넷): 비교할 것이 없으면 ③이 diff를 건너뛴다. 직전 커밋은 **현재 버퍼와** 비교한다. 투명도는 `[editor] diff_alpha`(퍼센트, 처음 0~50·기본 15에서 폴드8을 보고 0~100·기본 30이 됐다 — 아래). ④의 선택은 파일마다, 열려 있는 동안만. 자세한 것은 spec의 "레이어"와 ④.
+  - CM6 `forEachLine` 버그는 `code/web/patches/`의 `patch-package`로 고쳤다(`npm ci`의 `postinstall`). Gradle `npmCi`·`buildWeb`의 입력에 `patches/`를 넣었다. `diff.ts`의 런타임 패치와 스파이크 데이터, `char` 모드는 지웠다. 탭에서 번들의 `forEachLine`에 clamp가 든 것을 DevTools로 봤다.
+  - **`lineDiff`의 버그를 고쳤다(거터도 같이 걸렸다).** 줄을 `\n`으로 쪼개고 끝에 `길이+1` 보초를 둬서, 파일 끝이 바뀌면 문서 밖 위치가 나와 `Chunk.build`가 `RangeError`로 죽었다. 그 파일은 거터도 diff도 없었다. 이제 줄이 자기 줄바꿈을 들고(git처럼 끝 줄바꿈 없는 줄은 다른 줄), 위치가 텍스트 길이를 넘지 않는다.
+  - 페이지: `pane.ts`(diff 묶음을 그 파일의 비교 대상으로 만들고 바뀌면 다시 구성, `nextLayer`, `compare`/`compareWith`/`comparable`, `PaneMemory.compare`), `chrome/more.ts`(④ 메뉴), `topbar.ts`, `main.ts`(`previous`를 묻고, 기준을 다시 물을 때 같이 묻는다), `settings.ts`(`--diff-alpha`).
+  - 줄로 스크롤할 때 그 줄 앞의 지운 줄 블록도 화면에 남긴다(화면 절반까지). 블록 높이는 그려지기 전엔 CM의 추정치라 다음 프레임에 한 번 더 맞춘다. 안 하면 ③으로 diff에 들어갈 때 맨 위의 지운 블록이 메뉴 밑에 가려졌다(탭에서 63px 중 65px 스크롤).
+  - Kotlin: `GitService.previousText`(`history`의 두 번째 커밋, `headText`와 같은 디코딩), 브리지 `previous`, `Settings.Editor.diffAlpha`, 문자열 셋.
+  - 테스트: vitest +7(`diff.test.ts`: ③ 순서, diff 레이어 청크, 끝이 바뀐 텍스트, 무작위 2000쌍이 정확히 b가 되는지), JVM +1(`GitServiceTest`: 직전 텍스트, 커밋 하나뿐인 파일, 커밋 안 된 파일), `SettingsTomlTest` 2개에 `diff_alpha`. JVM 219, vitest 121, lint 경고 11(전과 같다).
+  - 탭에서 이 맥의 원격 로그인으로 확인했다(이 worktree, 이 Mac을 가리키는 프로필).
+    - `diff.ts`(작업 트리에서 수정): 거터와 diff 레이어의 청크 12개가 서버의 `git diff -U0`과 같았다. ③ 두 번에 diff, 맨 위 지운 블록이 메뉴 바로 아래 보였다. 60번 줄에서 들어가고 나와도 60번 줄.
+    - ④ → "직전 커밋과 비교": 청크 11개가 `git diff -U0 <직전 커밋> -- 파일`과 같았다. 다른 파일에 갔다 와도 diff 레이어와 그 선택이 남았다. 다시 열면 ✓가 그쪽에 있다.
+    - 커밋 하나에서만 바뀐 `keyboard.ts`: "이 파일을 바꾼 이전 커밋이 없습니다" 배너. HEAD를 고르면 바뀐 것 없는 diff 레이어.
+    - 추적하지 않는 `more.ts`: ③이 읽기↔편집만 돌고 ④의 두 항목이 꺼진다.
+    - `settings.toml`에 `diff_alpha = 40`을 넣으니 `--diff-alpha`가 0.4. 탭의 설정 파일은 되돌렸다(md5 같음).
+  - 폴드8에서 사용자가 바뀐 줄마다 초록 밑줄을 찾았다(2026-10-03). merge 기본 테마가 `.cm-changedText`에 2px 밑줄을
+    클래스 4개 깊이의 선택자로 그려 `diff.ts`의 배경 규칙을 이겼다. 선택자를 같은 깊이로 맞춰 고쳤고, 탭에서
+    `getComputedStyle`로 밑줄이 없어지고 배경이 `diff_alpha`×2로 들어간 것을 확인했다.
+  - 같은 날 폴드8에서 사용자가 "색이 너무 강하다"고 해서 기본값을 15 → 10으로 낮췄고, 이어서 **글자 배경을 없애고 줄 배경만
+    남겼다**(사용자 제안). 겹침의 대부분은 바뀐 글자가 아니라 패키지가 삽입 범위 전체를 감싸는 `ins`에 준 두 배 배경이었다.
+  - 보지 않은 것: 큰 파일(2MB)에서 diff 레이어에 들어가는 시간, 마크다운 파일의 diff 레이어.
+- [x] `settings.toml`에 빠진 키를 주석 처리된 기본값으로 채우기 (2026-10-03 사용자 요청: 폴드8의 파일에 `diff_alpha`가 없었다)
+  - **정한 것(2026-10-03 사용자 결정 셋):** 새로 만드는 파일도 모든 키를 주석으로 둔다. 채우는 때는 `Open Settings`로 열 때다. `diff_alpha`는 0~100, 기본 30(줄 배경만 남겨 옅어졌다). 자세한 것은 spec의 "설정과 테마".
+  - Kotlin: 손으로 쓴 `TEMPLATE` 대신 `SettingsToml.KEYS`(표, 키, 기본값, 설명) 하나에서 템플릿과 `withMissingKeys`가 나온다. 범위는 설명에 `FONT_SIZES` 같은 상수에서 들어간다. `SettingsFile.ensureExists` → `ensureComplete`(바뀐 것이 있을 때만 쓴다). `withTheme`은 주석 처리된 `# theme =` 줄을 그 자리에서 푼다.
+  - **ktoml은 키가 하나도 없는 표를 거부한다**("missing children in a table"). 전부 주석인 템플릿이 그대로는 읽히지 않아서, `read`가 그런 표의 머리 줄을 빈 줄로 바꾼 뒤 읽는다(줄 번호가 밀리지 않게 지우지 않는다).
+  - 테스트: `SettingsTomlTest` +8(주석을 푼 템플릿이 기본값으로 읽힘, `Settings`의 필드와 `KEYS`가 같음, 설명에 기본값, 빠진 키 채우기·두 번 해도 같음·주석으로 둔 키 유지·표가 없을 때·깨진 파일과 빈 파일, 키가 모두 주석인 표, Theme이 주석 줄을 풂). JVM 227.
 - [ ] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장
   - **기준은 활성 프로젝트이고 하위 폴더까지다**(2026-09-26 사용자 요청). 단일 파일 모드의 "열린 파일과 같은 폴더"는 프로젝트가 없을 때만이다. 항목 이름은 루트 기준 상대 경로다(`skiffcode.spec.md`).
   - 정할 것: **git이 없는 프로젝트**(exec 거부, internal-sftp)에서는 `ls-files`가 없다. SFTP로 하위 폴더를 걷는 대체 길을 둘지, 둔다면 깊이·개수 상한과 `node_modules` 같은 것을 어떻게 뺄지.
@@ -469,6 +493,8 @@
 6. **키 교환 대기가 5분이다.** 줄이고 싶으면 `SshClientFactory.KEX_TIMEOUT_MS`다.
 7. 한 번 봤지만 재현하지 못한 것: Skiff 화면 아래 절반이 **빈 키보드 창**에 먹혀 있었다(폴더블,
    접기/펴기 직후). 세 번 더 해봤지만 재현되지 않아 확정된 버그로 적지 않는다.
+8. **링크의 `layer`가 쓰이지 않는다**(2026-10-03 diff 레이어 때 찾았다). `OpenRequest`가 `OpenAt.layer`로 읽지만
+   페이지로 넘기지 않아서, `layer=editor`든 `layer=diff`든 viewer로 열린다. diff는 기준이 늦게 오므로 넘길 때 그것을 기다려야 한다.
 
 ## 검증 명령
 

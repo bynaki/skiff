@@ -7,12 +7,12 @@ import { RETAINED_BUFFERS, forgetOldBuffers } from '../src/memories'
 
 /** What a file that has been to the editor leaves behind: a buffer, and the text it holds. */
 function left(text = 'a file'): PaneMemory {
-  return { state: EditorState.create({ doc: text, extensions: [dirtyFlag] }), source: text, layer: 'editor', line: 3 }
+  return { state: EditorState.create({ doc: text, extensions: [dirtyFlag] }), source: text, layer: 'editor', line: 3, compare: 'head' }
 }
 
 /** What a markdown file that has only ever been read leaves behind: no buffer, just its text. */
 function read(text = 'a file'): PaneMemory {
-  return { state: null, source: text, layer: 'viewer', line: 3 }
+  return { state: null, source: text, layer: 'viewer', line: 3, compare: 'head' }
 }
 
 /** The same, after someone typed in it. A pane writes the buffer back to `source` on its way out. */
@@ -52,7 +52,7 @@ describe('the buffers kept for files that are off the screen', () => {
   test('are all a file loses: its text, its layer and its line stay', () => {
     const memories = offScreen(left('the text'), left(), left())
     forgetOldBuffers(memories, 1)
-    expect(memories.get(1)).toEqual({ state: null, source: 'the text', layer: 'editor', line: 3 })
+    expect(memories.get(1)).toEqual({ state: null, source: 'the text', layer: 'editor', line: 3, compare: 'head' })
   })
 
   test('are never taken from a file that has been typed in', () => {

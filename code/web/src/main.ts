@@ -15,9 +15,10 @@ import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type CommandSource, commands } from './commands'
 import { createFolder, files } from './files'
 import { createLoadingView } from './chrome/loading'
+import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
 import { type DocSymbol, outlineOf, symbols } from './symbols'
-import { type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
+import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
 import { type Settings, showSettings } from './settings'
 import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontSize } from './zoom'
@@ -51,9 +52,11 @@ interface SaveAnswer {
 interface DocumentLabels {
   saveFailed: string
   reloadFailed: string
+  /** ④ chose the commit before, and there is none. */
+  noPrevious: string
 }
 
-type Labels = TopbarLabels & BannerLabels & SidebarLabels & OpenFilesLabels & DocumentLabels
+type Labels = TopbarLabels & BannerLabels & SidebarLabels & OpenFilesLabels & MoreLabels & DocumentLabels
 
 const root = document.getElementById('viewer')!
 let pane: Pane | null = null
@@ -109,10 +112,50 @@ const openFiles = createOpenFiles({
   opened: (open) => topbar.setFilesOpen(open),
 })
 
-/** The drawer covers the whole screen, so the menu hanging under the name goes away first. */
+const moreMenu = createMoreMenu((compare) => void chooseCompare(compare), (open) => topbar.setMoreOpen(open))
+
+/** The drawer covers the whole screen, so the menus hanging under the top one go away first. */
 function toggleSidebar(): void {
   openFiles.hide()
+  moreMenu.hide()
   sidebar.toggle()
+}
+
+/** One menu under the top one at a time. */
+function toggleFiles(): void {
+  moreMenu.hide()
+  openFiles.toggle()
+}
+
+function toggleMore(): void {
+  openFiles.hide()
+  moreMenu.toggle(pane?.compare ?? 'head', pane?.comparable ?? false)
+}
+
+/**
+ * Compares the file on the screen with what ④ chose, and shows the diff layer, which is what choosing
+ * it was for. The commit before is asked for each time: HEAD may have moved since it was last.
+ */
+async function chooseCompare(compare: CompareTo): Promise<void> {
+  const id = activeId
+  const showing = pane
+  if (id === null || !showing) return
+  if (compare === 'head') {
+    showing.compareWith(null)
+    return showLayer('diff')
+  }
+  try {
+    const answer = await rpc<{ text: string | null }>('previous', { id })
+    if (pane !== showing) return
+    if (answer.text === null) {
+      if (labels) banner.flash(labels.noPrevious)
+      return
+    }
+    showing.compareWith(answer.text)
+    showLayer('diff')
+  } catch (error) {
+    console.log(`previous: ${error}`)
+  }
 }
 
 // Keeps the line at the middle of the screen where it is.
@@ -134,7 +177,7 @@ function showLayer(layer: LayerName): void {
   topbar.setLayer(pane?.layer ?? null)
 }
 
-const topbar = createTopbar({ toggleSidebar, toggleFiles: () => openFiles.toggle(), resetZoom, toggleLayer }, root)
+const topbar = createTopbar({ toggleSidebar, toggleFiles, resetZoom, toggleLayer, toggleMore }, root)
 
 const loadingView = createLoadingView()
 /**
@@ -269,6 +312,7 @@ const paletteView = createPaletteView(
   (mode) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : symbolItems()),
   () => {
     openFiles.hide()
+    moreMenu.hide()
     // A directory changes while nobody is looking, so each opening lists it again. The buffer may
     // have been typed in since the last opening, so the outline is read again too.
     folder.forget()
@@ -324,6 +368,8 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
     ? { state: 'text', name: file.name, text: memory.source }
     : await rpc<DocumentState>('document', id === null ? {} : { id })
   banner.hide()
+  // What it would choose for is the file leaving.
+  moreMenu.hide()
   root.replaceChildren()
   topbar.show()
   // The line may still be seeing out its minimum, but the shape has been answered by the document.
@@ -348,19 +394,26 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
 }
 
 /**
- * Asks for HEAD's copy of the file on the screen, which the git gutter compares its buffer with.
- * Asked whenever HEAD may have moved without the page seeing it — the file comes to the screen,
- * changes underneath, or the app comes back (2026-10-02 사용자 결정) — rather than on a clock.
+ * Asks for HEAD's copy of the file on the screen, which the git gutter and the diff layer compare its
+ * buffer with, and for the commit before when ④ chose that. Asked whenever HEAD may have moved without
+ * the page seeing it — the file comes to the screen, changes underneath, or the app comes back
+ * (2026-10-02 사용자 결정) — rather than on a clock. Either answer can take the diff layer away, when
+ * it leaves nothing to compare with, so ③ is told the layer again.
  */
 function askBaseline(): void {
   const id = activeId
   const showing = pane
   if (id === null || !showing) return
-  rpc<{ text: string | null }>('baseline', { id })
-    .then((answer) => {
-      if (pane === showing) showing.setBaseline(answer.text)
-    })
-    .catch((error) => console.log(`baseline: ${error}`))
+  const take = (method: string, use: (text: string | null) => void) =>
+    rpc<{ text: string | null }>(method, { id })
+      .then((answer) => {
+        if (pane !== showing) return
+        use(answer.text)
+        topbar.setLayer(showing.layer)
+      })
+      .catch((error) => console.log(`${method}: ${error}`))
+  take('baseline', (text) => showing.setBaseline(text))
+  if (showing.compare === 'previous') take('previous', (text) => showing.compareWith(text))
 }
 
 /** What happened to this file while it was in the background, now that it can be answered. */
@@ -451,6 +504,7 @@ rpc<Labels>('labels').then((answer) => {
   banner.label(answer)
   sidebar.label(answer)
   openFiles.label(answer)
+  moreMenu.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => {

@@ -1,7 +1,7 @@
 // The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left, then the file on the
 // screen with a dot while it has been typed in, which opens the list of open files when tapped;
 // ② original size, ③ layer and ④ more on the right. It floats over the layer, slides away while the
-// layer scrolls down and comes back when it scrolls up. ④ is a placeholder for a later step.
+// layer scrolls down and comes back when it scrolls up. ④ opens `more.ts`'s menu.
 import type { LayerName } from '../layers/pane'
 import { lastZoomTime } from '../zoom'
 
@@ -61,13 +61,15 @@ export interface Topbar {
   setFile(name: string | null, dirty: boolean): void
   /** Whether the open files menu is out. It hangs from the menu, so the menu comes back with it. */
   setFilesOpen(open: boolean): void
+  /** Whether ④'s menu is out. */
+  setMoreOpen(open: boolean): void
   /** Brings the menu back, for a new document. */
   show(): void
 }
 
 /** [layers] is where the documents scroll; only a scroll inside it moves the menu. */
 export function createTopbar(
-  actions: { toggleSidebar(): void; toggleFiles(): void; resetZoom(): void; toggleLayer(): void },
+  actions: { toggleSidebar(): void; toggleFiles(): void; resetZoom(): void; toggleLayer(): void; toggleMore(): void },
   layers: HTMLElement,
 ): Topbar {
   document.documentElement.style.setProperty('--topbar-space', `${TOPBAR_SPACE}px`)
@@ -85,8 +87,11 @@ export function createTopbar(
   const sidebar = button(ICONS.sidebar, actions.toggleSidebar)
   const resetZoom = button(ICONS.resetZoom, actions.resetZoom)
   const layer = button(ICONS.viewer, actions.toggleLayer)
-  const more = button(ICONS.more)
+  const more = button(ICONS.more, actions.toggleMore)
   layer.disabled = true
+  more.disabled = true
+  more.setAttribute('aria-haspopup', 'menu')
+  more.setAttribute('aria-expanded', 'false')
   // Its name is what it says, the file and the dot, rather than a label of its own: the name is the
   // thing a person tapping it is looking for.
   const file = button('', actions.toggleFiles)
@@ -136,6 +141,7 @@ export function createTopbar(
 
   const applyLayer = () => {
     layer.disabled = shown === null
+    more.disabled = shown === null
     layer.innerHTML = ICONS[shown ?? 'viewer']
     if (labels && shown) name(layer, labels[LAYER_LABEL[shown]])
   }
@@ -157,6 +163,10 @@ export function createTopbar(
     },
     setFilesOpen(open) {
       file.setAttribute('aria-expanded', String(open))
+      if (open) setHidden(false)
+    },
+    setMoreOpen(open) {
+      more.setAttribute('aria-expanded', String(open))
       if (open) setHidden(false)
     },
     setLayer(next) {

@@ -233,8 +233,23 @@ class GitService(
  */
 suspend fun GitService.headText(path: String, format: TextFormat, loader: TextLoader): String? {
     val head = head() ?: return null
+    return textAt(head, path, format, loader)
+}
+
+/**
+ * [path] before the last commit that changed it, read the same way: what ④ offers the diff layer
+ * besides HEAD. That is the commit before it in [GitService.history]. Null when there is none — the
+ * file arrived in the one commit that ever changed it, or nothing is committed — or for the reasons
+ * [headText] gives.
+ */
+suspend fun GitService.previousText(path: String, format: TextFormat, loader: TextLoader): String? {
+    val previous = history(path).getOrNull(1) ?: return null
+    return textAt(previous, path, format, loader)
+}
+
+private suspend fun GitService.textAt(commit: String, path: String, format: TextFormat, loader: TextLoader): String? {
     val bytes = try {
-        show(head, path, loader.sizeLimit)
+        show(commit, path, loader.sizeLimit)
     } catch (_: GitObjectTooLarge) {
         null
     } ?: return null

@@ -34,6 +34,7 @@ import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.doc.SaveResult
 import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.Stamped
+import com.naki.skiff.code.doc.TextFormat
 import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
@@ -42,7 +43,9 @@ import com.naki.skiff.code.intent.sentBySkiff
 import com.naki.skiff.code.project.Project
 import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.project.ProjectTree
+import com.naki.skiff.code.project.GitService
 import com.naki.skiff.code.project.headText
+import com.naki.skiff.code.project.previousText
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.settings.SettingsToml
@@ -315,7 +318,12 @@ class MainActivity : Activity() {
         // HEAD may have moved: the file comes to the screen, changes underneath, or the app comes back.
         bridge.method("baseline") { params ->
             val entry = docs.byId(params.getInt("id"))
-            JSONObject().put("text", entry?.let { headText(it) } ?: JSONObject.NULL)
+            JSONObject().put("text", entry?.let { gitText(it, GitService::headText) } ?: JSONObject.NULL)
+        }
+        // The file before the last commit that changed it, for the diff layer when ④ chooses it.
+        bridge.method("previous") { params ->
+            val entry = docs.byId(params.getInt("id"))
+            JSONObject().put("text", entry?.let { gitText(it, GitService::previousText) } ?: JSONObject.NULL)
         }
         bridge.method("labels") {
             JSONObject()
@@ -325,6 +333,9 @@ class MainActivity : Activity() {
                 .put("layerEditor", getString(R.string.menu_layer_editor))
                 .put("layerDiff", getString(R.string.menu_layer_diff))
                 .put("more", getString(R.string.menu_more))
+                .put("compareHead", getString(R.string.menu_compare_head))
+                .put("comparePrevious", getString(R.string.menu_compare_previous))
+                .put("noPrevious", getString(R.string.menu_no_previous))
                 .put("unsaved", getString(R.string.menu_unsaved))
                 .put("reload", getString(R.string.watch_reload))
                 .put("keepMine", getString(R.string.watch_keep))
@@ -368,9 +379,9 @@ class MainActivity : Activity() {
             JSONObject()
         }
         // Created on first use, with every key at its default and what it does, so there is a file
-        // to open and something in it to read.
+        // to open and something in it to read; a key added since the file was made joins it here.
         bridge.method("openSettings") {
-            container.settings.ensureExists()
+            container.settings.ensureComplete()
             startOpening { openFlow().openOwn(container.settings.file) }
             JSONObject()
         }
@@ -441,11 +452,15 @@ class MainActivity : Activity() {
             ?: error(getString(R.string.project_no_profile, project.name))
 
     /**
-     * [entry] as HEAD has it, or null for no gutter: a single file, a project without git, a file HEAD
-     * does not have, or a project removed since it was opened — whose files stay open, but whose
-     * session went with it, and which is not connected to again for this.
+     * [entry] as git has it, by [read] — HEAD's copy or the one before the last commit that changed
+     * it — or null for none: a single file, a project without git, a file git does not have there,
+     * or a project removed since it was opened — whose files stay open, but whose session went with
+     * it, and which is not connected to again for this.
      */
-    private suspend fun headText(entry: OpenDocuments.Entry): String? {
+    private suspend fun gitText(
+        entry: OpenDocuments.Entry,
+        read: suspend GitService.(String, TextFormat, TextLoader) -> String?,
+    ): String? {
         val file = entry.project ?: return null
         val format = entry.save?.format ?: return null
         val project = container.projects.byId(file.project.id) ?: return null
@@ -453,11 +468,11 @@ class MainActivity : Activity() {
         return try {
             // Off the main thread: a profile that changed replaces its session, which disconnects the old one.
             val session = withContext(Dispatchers.IO) { container.projectSessions.get(project, profile) }
-            session.gitService()?.headText(file.path, format, TextLoader(container.settings.current().settings.files.maxSizeBytes))
+            session.gitService()?.read(file.path, format, TextLoader(container.settings.current().settings.files.maxSizeBytes))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "no HEAD for ${project.name}/${file.path}", e)
+            Log.w(TAG, "no git text for ${project.name}/${file.path}", e)
             null
         }
     }
@@ -478,6 +493,7 @@ class MainActivity : Activity() {
             .put("fontSize", editor.fontSize)
             .put("tabSize", editor.tabSize)
             .put("wrap", editor.wrap)
+            .put("diffAlpha", editor.diffAlpha)
             .put("keptBuffers", files.keptBuffers)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
             .put("themes", JSONArray(container.themes.names))

@@ -247,6 +247,24 @@ class GitServiceTest {
     }
 
     @Test
+    fun `the previous text is the file before the last commit that changed it`() = runBlocking {
+        val utf8 = TextFormat(TextEncoding.UTF_8, bom = false, LineEnding.LF, finalNewline = true)
+        write("a.txt", "one\n")
+        commit("a1")
+        write("a.txt", "two\n")
+        commit("a2")
+        write("b.txt", "b\n")
+        commit("b1")
+        write("a.txt", "typed\n")
+        val service = service()
+
+        // Not HEAD's parent, which has a.txt as HEAD does, and not the working file.
+        assertEquals("one\n", service.previousText("a.txt", utf8, TextLoader()))
+        assertNull("changed by one commit only", service.previousText("b.txt", utf8, TextLoader()))
+        assertNull("never committed", service.previousText("c.txt", utf8, TextLoader()))
+    }
+
+    @Test
     fun `a folder that is not a repository says so`() = runBlocking {
         val service = GitService(exec, tmp.newFolder("plain").path).also { service = it }
 

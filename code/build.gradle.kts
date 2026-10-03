@@ -70,6 +70,8 @@ val npmCi = tasks.register<Exec>("npmCi") {
     workingDir = file("web")
     commandLine("npm", "ci")
     inputs.files("web/package.json", "web/package-lock.json")
+    // npm ci runs patch-package after it installs, so a changed patch is a changed install.
+    inputs.dir("web/patches")
     outputs.dir("web/node_modules")
 }
 
@@ -79,6 +81,7 @@ val buildWeb = tasks.register<Exec>("buildWeb") {
     commandLine("npm", "run", "build")
     inputs.files("web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts")
     inputs.dir("web/src")
+    inputs.dir("web/patches")
     outputs.dir("src/main/assets/web")
 }
 

@@ -1,6 +1,10 @@
-// Read-only unified diff on @codemirror/merge: the buffer is the new text, deleted lines come from
-// the original as block widgets. A sign gutter puts "+" beside inserted lines and one "-" per
-// deleted line beside each deletion widget; backgrounds take their opacity from --diff-alpha.
+// The diff layer (docs/skiffcode.spec.md "레이어"): a read-only unified diff on @codemirror/merge.
+// The buffer is the new text and deleted lines come from the original as block widgets. A sign gutter
+// puts "+" beside inserted lines and one "-" per deleted line beside each deletion widget; line
+// backgrounds take their opacity from --diff-alpha, which `settings.toml`'s `diff_alpha` sets.
+//
+// The widgets sit on line boundaries, which trips a bug in @codemirror/view 6.43.12's
+// HeightMapBranch.forEachLine: `patches/` clamps it (AGENTS.md).
 import type { Extension } from '@codemirror/state'
 import { EditorView, GutterMarker, gutter } from '@codemirror/view'
 import { Change, type Chunk, type DiffConfig, diff, getChunks, getOriginalDoc, unifiedMergeView } from '@codemirror/merge'
@@ -55,13 +59,6 @@ const signGutter = gutter({
   lineMarkerChange: (update) => update.docChanged || update.viewportChanged,
 })
 
-/**
- * `char`: the package's own character diff with its size limit lifted, so a 2 MB file is not given
- * up on as one chunk. `line`: lines first, the way git does, then characters only inside the changed
- * line ranges.
- */
-export type DiffMode = 'char' | 'line'
-
 const refineLimit: DiffConfig = { scanLimit: 500 }
 
 function lineDiff(a: string, b: string): readonly Change[] {
@@ -69,16 +66,20 @@ function lineDiff(a: string, b: string): readonly Change[] {
   const encode = (text: string) => {
     const starts: number[] = []
     const codes: string[] = []
-    let pos = 0
-    for (const line of text.split('\n')) {
+    // A line keeps its newline, so the last one without one is a different line from the same text
+    // with one, as it is to git, and the line starts end at the text's own length. Split at the
+    // newlines instead, the position after the last line was one past the end, and a change at the
+    // end of the file reached outside it.
+    for (let pos = 0; pos < text.length;) {
       starts.push(pos)
-      pos += line.length + 1
+      const end = text.indexOf('\n', pos)
+      const line = text.slice(pos, (pos = end < 0 ? text.length : end + 1))
       let id = ids.get(line)
       if (id === undefined) ids.set(line, (id = ids.size))
       // Skip the surrogate range, which the diff refuses to split inside.
       codes.push(String.fromCharCode(id < 0xd800 ? id : id + 0x800))
     }
-    starts.push(pos)
+    starts.push(text.length)
     return { code: codes.join(''), starts }
   }
   const ea = encode(a)
@@ -88,9 +89,9 @@ function lineDiff(a: string, b: string): readonly Change[] {
   const changes: Change[] = []
   for (const c of diff(ea.code, eb.code)) {
     const fromA = ea.starts[c.fromA]
-    const toA = Math.min(ea.starts[c.toA], a.length)
+    const toA = ea.starts[c.toA]
     const fromB = eb.starts[c.fromB]
-    const toB = Math.min(eb.starts[c.toB], b.length)
+    const toB = eb.starts[c.toB]
     if (fromA === toA || fromB === toB) {
       changes.push(new Change(fromA, toA, fromB, toB))
       continue
@@ -102,99 +103,37 @@ function lineDiff(a: string, b: string): readonly Change[] {
   return changes
 }
 
-/** Lines first, as git compares, which is what the git gutter's chunks are built with too. */
+/**
+ * Lines first, as git compares, then characters only inside the changed line ranges. The package's
+ * own character diff gives a 2 MB file up as one chunk, and with its limit lifted takes seconds and
+ * is still less exact (M0). The git gutter's chunks are built with this too.
+ */
 export const lineDiffConfig: DiffConfig = { override: lineDiff }
 
-export function unifiedDiff(original: string, mode: DiffMode): Extension {
+/**
+ * One for every diff layer: each call of `EditorView.theme` adds a stylesheet of its own. Only whole
+ * lines are tinted: the words that changed are not marked (`highlightChanges: false`), and the `ins`
+ * the package wraps every inserted range in takes no background, or the tint doubles over the text.
+ */
+const diffTheme = EditorView.theme({
+  '.cm-changedLine, &.cm-merge-b .cm-changedLine': { background: 'color-mix(in srgb, var(--diff-added) calc(var(--diff-alpha, 0.3) * 100%), transparent)' },
+  '.cm-deletedChunk': { background: 'color-mix(in srgb, var(--diff-removed) calc(var(--diff-alpha, 0.3) * 100%), transparent)', paddingLeft: '0' },
+  '.cm-deletedLine del': { textDecoration: 'none' },
+  '.cm-diffSigns .cm-gutterElement': { width: '1.2em', textAlign: 'center' },
+})
+
+/** The buffer against [original], read only. */
+export function unifiedDiff(original: string): Extension {
   return [
     unifiedMergeView({
       original,
-      diffConfig: mode === 'char' ? { scanLimit: 1e9, timeout: 5000 } : { override: lineDiff },
+      diffConfig: lineDiffConfig,
       mergeControls: false,
-      highlightChanges: true,
+      highlightChanges: false,
       gutter: false,
       syntaxHighlightDeletions: true,
     }),
     signGutter,
-    EditorView.theme({
-      '.cm-changedLine, &.cm-merge-b .cm-changedLine': { background: 'color-mix(in srgb, var(--diff-added) calc(var(--diff-alpha) * 100%), transparent)' },
-      '.cm-deletedChunk': { background: 'color-mix(in srgb, var(--diff-removed) calc(var(--diff-alpha) * 100%), transparent)', paddingLeft: '0' },
-      '.cm-insertedLine, .cm-changedText': { background: 'color-mix(in srgb, var(--diff-added) calc(var(--diff-alpha) * 200%), transparent)', textDecoration: 'none' },
-      '.cm-deletedChunk .cm-deletedText': { background: 'color-mix(in srgb, var(--diff-removed) calc(var(--diff-alpha) * 200%), transparent)' },
-      '.cm-deletedLine del': { textDecoration: 'none' },
-      '.cm-diffSigns .cm-gutterElement': { width: '1.2em', textAlign: 'center' },
-    }),
+    diffTheme,
   ]
-}
-
-/**
- * Spike data: the same file with a change every 40 lines of blocks. Each touched block gets one
- * modified line, two deleted lines and three inserted ones.
- */
-export function sampleEdits(text: string): string {
-  const lines = text.split('\n')
-  const out: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const block = Math.floor(i / 8)
-    if (block % 40 !== 5) {
-      out.push(lines[i])
-      continue
-    }
-    switch (i % 8) {
-      case 1: out.push(lines[i].replace('offset = ', 'offset: number = ')); break
-      case 3: case 4: break
-      case 5:
-        out.push(lines[i])
-        out.push('  // 새 줄: 빈 줄은 건너뛴다')
-        out.push('  if (lines.length === 0) return []')
-        out.push(`  console.debug('chunk', ${block}, lines.length)`)
-        break
-      default: out.push(lines[i])
-    }
-  }
-  return out.join('\n')
-}
-
-/**
- * Works around a bug in @codemirror/view 6.43.12 (still in main as of 2026-09-17). When a block
- * widget sits on a line boundary, HeightMapBranch.forEachLine recurses with `mid.to + 1` and
- * `mid.from - 1` without clamping them to the requested range, so viewportLineBlocks grows to
- * thousands of off-screen lines. Every gutter then renders an element for each of them, which made
- * a zoom step five times slower in the unified diff. This reaches into private internals and is
- * spike code only.
- */
-export function patchViewportLineBlocks(view: EditorView): void {
-  type Oracle = unknown
-  interface Block { from: number; to: number }
-  interface HeightNode {
-    left?: HeightNode
-    right: HeightNode
-    break: number
-    height: number
-    length: number
-    lineAt(value: number, type: number, oracle: Oracle, top: number, offset: number): Block
-    forEachLine(from: number, to: number, oracle: Oracle, top: number, offset: number, f: (b: Block) => void): void
-  }
-  const heightMap = (view as unknown as { viewState: { heightMap: HeightNode } }).viewState.heightMap
-  let node: HeightNode | undefined = heightMap
-  while (node && !node.left) node = undefined
-  if (!node) return
-  const QUERY_BY_POS = 0
-  Object.getPrototypeOf(node).forEachLine = function (
-    this: HeightNode, from: number, to: number, oracle: Oracle, top: number, offset: number, f: (b: Block) => void,
-  ) {
-    const left = this.left!
-    const rightTop = top + left.height
-    const rightOffset = offset + left.length + this.break
-    if (this.break) {
-      if (from < rightOffset) left.forEachLine(from, to, oracle, top, offset, f)
-      if (to >= rightOffset) this.right.forEachLine(from, to, oracle, rightTop, rightOffset, f)
-    } else {
-      const mid = this.lineAt(rightOffset, QUERY_BY_POS, oracle, top, offset)
-      if (from < mid.from) left.forEachLine(from, Math.min(to, mid.from - 1), oracle, top, offset, f)
-      if (mid.to >= from && mid.from <= to) f(mid)
-      if (to > mid.to) this.right.forEachLine(Math.max(from, mid.to + 1), to, oracle, rightTop, rightOffset, f)
-    }
-  }
-  view.requestMeasure()
 }

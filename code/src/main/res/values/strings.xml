@@ -63,6 +63,9 @@
     <string name="menu_layer_editor">Editing layer</string>
     <string name="menu_layer_diff">Diff layer</string>
     <string name="menu_more">More</string>
+    <string name="menu_compare_head">Compare with HEAD</string>
+    <string name="menu_compare_previous">Compare with the commit before</string>
+    <string name="menu_no_previous">No earlier commit changed this file</string>
     <string name="menu_unsaved">Unsaved changes</string>
     <string name="sidebar_no_projects">No projects yet. Open a file in a git repository to make one.</string>
     <string name="sidebar_listing">Listing…</string>

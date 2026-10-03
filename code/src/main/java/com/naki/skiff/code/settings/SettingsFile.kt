@@ -68,8 +68,16 @@ class SettingsFile(val file: File, private val themes: () -> Collection<String>)
         withContext(Dispatchers.IO) { if (file.exists()) file.readText() else SettingsToml.TEMPLATE }
     }
 
-    /** Writes [SettingsToml.TEMPLATE] if there is no file yet, so there is something to open. */
-    suspend fun ensureExists() = withContext(Dispatchers.IO) {
-        if (!file.exists()) file.writeText(SettingsToml.TEMPLATE)
+    /**
+     * Writes [SettingsToml.TEMPLATE] if there is no file yet, so there is something to open, or adds
+     * to the one there the keys it lacks, commented out ([SettingsToml.withMissingKeys]) — a file
+     * made before a key was, shows it too. Only written when something was added.
+     */
+    suspend fun ensureComplete() = lock.withLock {
+        withContext(Dispatchers.IO) {
+            val text = if (file.exists()) file.readText() else ""
+            val complete = SettingsToml.withMissingKeys(text)
+            if (complete != text) file.writeText(complete)
+        }
     }
 }
