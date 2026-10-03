@@ -50,14 +50,15 @@ class SettingsTomlTest {
         val text = "# mine\n[editor]\ntheme = \"dark\"\nfont_size = 18\n\n[files]\npoll_seconds = 5\n"
         val complete = SettingsToml.withMissingKeys(text)
         // What the person wrote is still there, in order, and still what is read.
-        val kept = complete.lines().filter { it in text.lines() }
-        assertEquals(text.lines(), kept)
+        val kept = complete.lines().filter { it.isNotBlank() && it in text.lines() }
+        assertEquals(text.lines().filter { it.isNotBlank() }, kept)
         assertEquals(SettingsToml.read(text), SettingsToml.read(complete))
         // Every key is there now, and in its own table.
         val editor = complete.substringBefore("[files]")
-        val files = complete.substringAfter("[files]")
+        val files = complete.substringAfter("[files]").substringBefore("[search]")
+        val search = complete.substringAfter("[search]")
         for (key in SettingsToml.KEYS) {
-            val inTable = if (key.table == "editor") editor else files
+            val inTable = mapOf("editor" to editor, "files" to files, "search" to search).getValue(key.table)
             assertTrue(key.name, inTable.lines().any { it == "${key.name} = 18" || it == "# ${key.name} = ${key.default}" || it.startsWith("${key.name} = ") })
         }
         assertTrue(editor.contains(SettingsToml.KEYS.first { it.name == "diff_alpha" }.lines.joinToString("\n")))
@@ -80,7 +81,8 @@ class SettingsTomlTest {
         val complete = SettingsToml.withMissingKeys("[editor]\nwrap = false\n\n\n")
         assertTrue(complete, complete.contains("wrap = false\n# A CSS font family"))
         assertTrue(complete, complete.contains("Default: 30.\n# diff_alpha = 30\n\n[files]\n# 1 to 64."))
-        assertTrue(complete.endsWith("# poll_seconds = 2\n"))
+        assertTrue(complete, complete.contains("# poll_seconds = 2\n\n[search]\n"))
+        assertTrue(complete.endsWith("# max_files = 5000\n"))
         assertEquals(SettingsToml.read("[editor]\nwrap = false\n"), SettingsToml.read(complete))
     }
 
@@ -108,11 +110,19 @@ class SettingsTomlTest {
             max_size_mb = 8
             kept_buffers = 0
             poll_seconds = 5
+
+            [search]
+            skip_dirs = ["vendor", ".tox"]
+            max_files = 20000
             """.trimIndent(),
         )
         assertEquals(emptyList<SettingsProblem>(), read.problems)
         assertEquals(
-            Settings(Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45), Settings.Files(8, 0, 5)),
+            Settings(
+                Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45),
+                Settings.Files(8, 0, 5),
+                Settings.Search(listOf("vendor", ".tox"), 20000),
+            ),
             read.settings,
         )
         assertEquals(8L * 1024 * 1024, read.settings.files.maxSizeBytes)
@@ -157,6 +167,21 @@ class SettingsTomlTest {
         // A broken line further down is still reported on its own line.
         val broken = SettingsToml.read("[files]\n# x\n[editor]\nfont_size = \"big\"\n")
         assertTrue(broken.problems.toString(), broken.problems.single().toString().contains("Line 4:"))
+    }
+
+    @Test
+    fun `search takes folder names and a limit in range, and an empty list skips nothing`() {
+        assertEquals(emptyList<String>(), SettingsToml.read("[search]\nskip_dirs = []\n").settings.search.skipDirs)
+        val read = SettingsToml.read("[search]\nskip_dirs = [\"build\", \"src/gen\"]\nmax_files = 99\n")
+        assertEquals(SettingsToml.SKIP_DIRS, read.settings.search.skipDirs)
+        assertEquals(5000, read.settings.search.maxFiles)
+        assertEquals(
+            listOf(
+                SettingsProblem.Refused("search.skip_dirs", "[\"build\", \"src/gen\"]", SettingsToml.KEYS.first { it.name == "skip_dirs" }.default, null),
+                SettingsProblem.Refused("search.max_files", "99", "5000", SettingsToml.MAX_FILES),
+            ),
+            read.problems,
+        )
     }
 
     @Test

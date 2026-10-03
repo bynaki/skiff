@@ -8,10 +8,14 @@ import kotlinx.coroutines.test.runTest
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermissions
 import java.security.PublicKey
 
 /** The sidebar's tree over a real SFTP server, and what keeps the page's paths inside the root. */
@@ -71,6 +75,63 @@ class ProjectTreeTest {
             ProjectTree.list(fs, root, ""),
         )
         assertEquals(listOf(ProjectTree.Entry("main.kt", false)), ProjectTree.list(fs, root, "src"))
+    }
+
+    @Test
+    fun `a walk lists every file under the root by its path, leaving out skipped folders and git`() = runTest {
+        file("$root/.git/HEAD")
+        file("$root/README.md")
+        file("$root/.github/ci.yml")
+        file("$root/src/main.kt")
+        file("$root/src/deep/er/x.kt")
+        file("$root/node_modules/pkg/index.js")
+        file("$root/src/node_modules/y.js")
+        server.makeDirectory("$root/empty".removePrefix("/"))
+
+        val walk = ProjectTree.walk(fs, root, listOf("node_modules"), 100)
+
+        assertEquals(listOf(".github/ci.yml", "README.md", "src/deep/er/x.kt", "src/main.kt"), walk.paths.sorted())
+        assertFalse(walk.truncated)
+    }
+
+    @Test
+    fun `a walk lists a link to a file but neither follows a link to a folder nor lists a broken one`() = runTest {
+        file("$root/a.txt")
+        file("$root/sub/b.txt")
+        val dir = server.root.resolve(root.removePrefix("/"))
+        // Relative, as the server's root is not the host's.
+        Files.createSymbolicLink(dir.resolve("link.txt"), Paths.get("a.txt"))
+        // Back up the tree: followed, this would go round for ever.
+        Files.createSymbolicLink(dir.resolve("sub/loop"), Paths.get(".."))
+        Files.createSymbolicLink(dir.resolve("broken.txt"), Paths.get("nowhere.txt"))
+
+        assertEquals(listOf("a.txt", "link.txt", "sub/b.txt"), ProjectTree.walk(fs, root, emptyList(), 100).paths.sorted())
+    }
+
+    @Test
+    fun `a walk stops at its limit and says so, but not when the files just fit`() = runTest {
+        for (i in 1..5) file("$root/d$i/f.txt")
+
+        val stopped = ProjectTree.walk(fs, root, emptyList(), 3)
+        assertEquals(3, stopped.paths.size)
+        assertTrue(stopped.truncated)
+
+        val fits = ProjectTree.walk(fs, root, emptyList(), 5)
+        assertEquals(5, fits.paths.size)
+        assertFalse(fits.truncated)
+    }
+
+    @Test
+    fun `a folder the walk cannot read is passed over`() = runTest {
+        file("$root/open/a.txt")
+        file("$root/shut/b.txt")
+        val shut = server.root.resolve("$root/shut".removePrefix("/"))
+        Files.setPosixFilePermissions(shut, PosixFilePermissions.fromString("---------"))
+        try {
+            assertEquals(listOf("open/a.txt"), ProjectTree.walk(fs, root, emptyList(), 100).paths)
+        } finally {
+            Files.setPosixFilePermissions(shut, PosixFilePermissions.fromString("rwx------"))
+        }
     }
 
     @Test

@@ -74,6 +74,9 @@
     <string name="project_remove">이 앱에서 %1$s 프로젝트를 지웁니다. 서버의 파일은 그대로입니다.\n\n%2$s</string>
     <string name="action_remove">지우기</string>
     <string name="project_no_profile">%1$s 프로젝트를 만든 서버 프로필이 지워졌습니다.</string>
+    <plurals name="search_truncated">
+        <item quantity="other">파일 검색이 %1$d개에서 멈췄습니다. settings.toml의 [search] max_files로 늘릴 수 있습니다.</item>
+    </plurals>
 
     <string name="close_dirty">이 파일에 쓴 것이 사라집니다. 닫을까요?</string>
 

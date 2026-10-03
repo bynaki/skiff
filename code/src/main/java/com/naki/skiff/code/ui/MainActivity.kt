@@ -233,20 +233,30 @@ class MainActivity : Activity() {
             entry.watcher?.reread { change -> fileChanged(entry, change) }
             JSONObject()
         }
-        // The files beside the one named, for the palette's file mode: every file in its directory
-        // that is not open already. A `content://` document has no directory, and answers none.
+        // What the palette's file mode offers for the file named, leaving out what is open already:
+        // every file in its project, or for a single file every file in its directory. A `content://`
+        // document has neither, and answers none.
         bridge.method("folder") { params ->
-            val folder = docs.byId(params.getInt("id"))?.folder
-            val names = folder?.names { request -> docs.byKey(keyOf(request)) != null } ?: emptyList()
+            val entry = docs.byId(params.getInt("id"))
+            val project = entry?.let { liveProject(it) }
+            if (project != null) return@method projectFiles(project.first, project.second)
+            val names = entry?.folder?.names { request -> docs.byKey(keyOf(request)) != null } ?: emptyList()
             JSONObject().put("names", JSONArray(names))
         }
-        // Opens a file the palette's file mode offered from beside an open one. The page sends only
-        // a name, and [Folder.request] keeps it to that file's directory; the path is one the user
-        // picked in this app, so it is not confirmed the way a link's is.
+        // Opens a file the palette's file mode offered. The page sends only a name — a path relative
+        // to the project's root for a file in one, which [ProjectTree.resolve] keeps under it, and a
+        // plain name otherwise, which [Folder.request] keeps to that file's directory. Either way the
+        // user picked it in this app, so it is not confirmed the way a link's is.
         bridge.method("openFromFolder") { params ->
             val entry = docs.byId(params.getInt("id")) ?: error("no open file to open beside")
             val name = params.getString("name")
-            val request = entry.folder?.request(name) ?: error("not a file beside ${entry.name}: $name")
+            val project = liveProject(entry)
+            val request = if (project != null) {
+                val path = ProjectTree.resolve(project.first.root, name) ?: error("not a path in ${project.first.name}: $name")
+                OpenRequest.Remote(project.second, path, OpenAt())
+            } else {
+                entry.folder?.request(name) ?: error("not a file beside ${entry.name}: $name")
+            }
             startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
             JSONObject()
         }
@@ -474,6 +484,51 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             Log.w(TAG, "no git text for ${project.name}/${file.path}", e)
             null
+        }
+    }
+
+    /**
+     * The project [entry] opened in and the profile it reaches it with, or null for a single file —
+     * or for a project removed since, or one whose profile was, which the palette then searches like
+     * a single file: beside it.
+     */
+    private suspend fun liveProject(entry: OpenDocuments.Entry): Pair<Project, ServerProfile>? {
+        val project = entry.project?.let { container.projects.byId(it.project.id) } ?: return null
+        val profile = container.store.profiles.first().firstOrNull { it.id == project.profileId } ?: return null
+        return project to profile
+    }
+
+    /**
+     * Every file in [project] that is not open, relative to its root, for the palette's file mode
+     * (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"): what `git ls-files` lists, or where git cannot be
+     * asked, what a walk over SFTP finds within `settings.toml`'s `[search]`. A walk that stopped at
+     * its limit says so in `truncated`, for the page to tell the user why a file is missing.
+     */
+    private suspend fun projectFiles(project: Project, profile: ServerProfile): JSONObject {
+        val search = container.settings.current().settings.search
+        val tracked = try {
+            // Off the main thread: a profile that changed replaces its session, which disconnects the old one.
+            val session = withContext(Dispatchers.IO) { container.projectSessions.get(project, profile) }
+            session.gitService()?.files()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "no git ls-files for ${project.name}, walking it", e)
+            null
+        }
+        val walk = if (tracked == null) {
+            ProjectTree.walk(container.sessions.get(profile), project.root, search.skipDirs, search.maxFiles)
+        } else {
+            null
+        }
+        // An open file's key carries the host key it was opened with, as [OpenFlow] fills it in.
+        val hostKey = container.store.knownHost(profile.host, profile.port)?.fingerprint
+        val paths = (tracked ?: walk?.paths.orEmpty()).filter { path ->
+            val absolute = ProjectTree.resolve(project.root, path) ?: return@filter false
+            docs.byKey(keyOf(OpenRequest.Remote(profile, absolute, OpenAt(), hostKey))) == null
+        }
+        return JSONObject().put("names", JSONArray(paths.sorted())).apply {
+            if (walk?.truncated == true) put("truncated", resources.getQuantityString(R.plurals.search_truncated, search.maxFiles, search.maxFiles))
         }
     }
 

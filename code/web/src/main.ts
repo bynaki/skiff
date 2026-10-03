@@ -266,9 +266,17 @@ const palette: CommandSource = {
   redo: () => pane?.redo(),
 }
 
-/** The files beside the one on the screen, listed by Kotlin once each time the palette opens. */
+/**
+ * The files the palette's file mode offers for the one on the screen, listed by Kotlin once each time
+ * the palette opens: its project's, by path from the root, or the ones beside it. A project walked
+ * without git may stop short of the end, and the banner says so, or a missing file reads as a bug.
+ */
 const folder = createFolder(
-  (id) => rpc<{ names: string[] }>('folder', { id }).then((answer) => answer.names),
+  (id) =>
+    rpc<{ names: string[]; truncated?: string }>('folder', { id }).then((answer) => {
+      if (answer.truncated) banner.tell(answer.truncated)
+      return answer.names
+    }),
   () => paletteView.refresh(),
 )
 

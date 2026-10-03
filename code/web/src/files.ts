@@ -1,6 +1,6 @@
-// What the 🔍 mode of the palette can go to (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"): in a
-// single file, the other open files and then the files beside the one on the screen. A project's
-// `git ls-files` takes the place of the second list in M5.
+// What the 🔍 mode of the palette can go to (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"): the other
+// open files, and then the files beside the one on the screen — or, for a file in a project, every
+// file in the project by its path from the root, which Kotlin lists from `git ls-files` or a walk.
 import type { OpenFile } from './chrome/openfiles'
 import type { PaletteItem } from './palette'
 
@@ -8,10 +8,13 @@ export interface FileSource {
   /** Everything open, in the open files menu's order. */
   open(): OpenFile[]
   active(): number | null
-  /** The files beside the active one that are not open, by name, as far as they are known yet. */
+  /**
+   * The files beside the active one that are not open, by name — by path from the root in a
+   * project — as far as they are known yet.
+   */
   beside(): string[]
   activate(id: number): void
-  /** Opens the file of that name beside the active one. */
+  /** Opens the file of that name beside the active one, or at that path in its project. */
   openBeside(name: string): void
 }
 

@@ -74,6 +74,10 @@
     <string name="project_remove">%1$s is forgotten by this app. Nothing on the server is changed:\n\n%2$s</string>
     <string name="action_remove">Remove</string>
     <string name="project_no_profile">The server profile for %1$s has been deleted.</string>
+    <plurals name="search_truncated">
+        <item quantity="one">File search stopped at %1$d file. [search] max_files in settings.toml raises it.</item>
+        <item quantity="other">File search stopped at %1$d files. [search] max_files in settings.toml raises it.</item>
+    </plurals>
 
     <string name="close_dirty">What you have typed in this file will be lost. Close it?</string>
 

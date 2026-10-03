@@ -400,9 +400,18 @@
   - Kotlin: 손으로 쓴 `TEMPLATE` 대신 `SettingsToml.KEYS`(표, 키, 기본값, 설명) 하나에서 템플릿과 `withMissingKeys`가 나온다. 범위는 설명에 `FONT_SIZES` 같은 상수에서 들어간다. `SettingsFile.ensureExists` → `ensureComplete`(바뀐 것이 있을 때만 쓴다). `withTheme`은 주석 처리된 `# theme =` 줄을 그 자리에서 푼다.
   - **ktoml은 키가 하나도 없는 표를 거부한다**("missing children in a table"). 전부 주석인 템플릿이 그대로는 읽히지 않아서, `read`가 그런 표의 머리 줄을 빈 줄로 바꾼 뒤 읽는다(줄 번호가 밀리지 않게 지우지 않는다).
   - 테스트: `SettingsTomlTest` +8(주석을 푼 템플릿이 기본값으로 읽힘, `Settings`의 필드와 `KEYS`가 같음, 설명에 기본값, 빠진 키 채우기·두 번 해도 같음·주석으로 둔 키 유지·표가 없을 때·깨진 파일과 빈 파일, 키가 모두 주석인 표, Theme이 주석 줄을 풂). JVM 227.
-- [ ] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장
+- [x] 🔍 파일 모드를 프로젝트에서 `git ls-files` 캐시로 확장
   - **기준은 활성 프로젝트이고 하위 폴더까지다**(2026-09-26 사용자 요청). 단일 파일 모드의 "열린 파일과 같은 폴더"는 프로젝트가 없을 때만이다. 항목 이름은 루트 기준 상대 경로다(`skiffcode.spec.md`).
-  - 정할 것: **git이 없는 프로젝트**(exec 거부, internal-sftp)에서는 `ls-files`가 없다. SFTP로 하위 폴더를 걷는 대체 길을 둘지, 둔다면 깊이·개수 상한과 `node_modules` 같은 것을 어떻게 뺄지.
+  - 정한 것(2026-10-03 사용자 결정 둘): git을 쓸 수 없으면 SFTP로 하위 폴더를 걷는다. 뺄 폴더와 상한은 `settings.toml`의 `[search] skip_dirs`·`max_files`(기본 `node_modules` 등 8개, 5000). 목록은 팔레트를 열 때마다 한 번 받는다. 자세한 것은 spec의 "커맨드 버튼과 팔레트".
+  - Kotlin: `ProjectTree.walk`(링크 폴더는 따라가지 않고, 파일 링크는 `stat`으로 확인, 읽을 수 없는 하위 폴더는 건너뜀, 상한에서 `truncated`). 브리지 `folder`/`openFromFolder`가 열린 파일의 프로젝트가 살아 있으면 그 프로젝트를 기준으로 한다 — 이름은 루트 기준 상대 경로이고 `ProjectTree.resolve`가 막는다(사이드바의 `openFromProject`와 같은 문). `ls-files`가 실패하면 walk로 넘어간다. 열린 파일을 빼는 키에는 `OpenFlow`처럼 호스트 키 지문을 넣는다 — 안 넣으니 화면의 파일이 목록에 남았다(탭에서 찾았다). `Settings.Search`, `SettingsToml.KEYS` +2, 복수형 문자열 `search_truncated`.
+  - 페이지: `main.ts`가 `truncated`가 오면 배너로 알린다. `files.ts`는 주석만.
+  - 테스트: `ProjectTreeTest` +4(하위 폴더·`skip`·`.git`, 파일 링크는 넣고 폴더 링크는 따라가지 않고 깨진 링크는 뺌, 상한에서 멈춤과 딱 맞을 때, 읽을 수 없는 폴더), `SettingsTomlTest` +1(`skip_dirs`의 `/`와 `max_files` 범위, 빈 목록)과 기존 2개에 `[search]`. JVM 232, vitest 121, lint 경고 11(전과 같다).
+  - 탭에서 이 맥의 원격 로그인으로 확인했다.
+    - 이 worktree(git): `s`로 200개, 서버의 `git ls-files -co --exclude-standard | grep -ci s`(201)에서 화면의 `files.ts`를 뺀 것과 같다. 고른 `docs/skiffcode.spec.md`는 경로를 묻지 않고 열렸고, 거기서 다시 열면 `files.ts`가 열린 파일(이름만)로 올라오고 `skiffcode.spec.md`는 빠졌다.
+    - 홈의 임시 폴더(빈 `.git` 폴더라 `ls-files`가 "not a git repository"로 실패 → walk): `node_modules`·`build`가 빠지고 154개가 약 0.1초에. `max_files = 100`이면 99개(README + `gen` 99개에서 멈추고 화면의 README는 빠짐)와 배너. 배너는 팔레트 아래에 겹치지 않고 보였다.
+    - 그 프로젝트를 지우니 남은 README에서 같은 디렉토리 목록으로 돌아갔다. 임시 폴더와 프로젝트는 지웠고 탭의 `settings.toml`은 되돌렸다(md5 같음).
+  - 폴드8에서도 사용자가 확인했다(2026-10-03, 커밋 전 빌드).
+  - 보지 않은 것: exec가 막힌 계정에서의 walk(아래 **확인** 항목의 internal-sftp 계정으로 같이 본다), 큰 프로젝트에서 walk에 걸리는 시간.
 - [ ] **확인:** 실기기에서 git 레포 안 파일을 열면 묻는 창이 뜨고, 프로젝트를 만든 뒤 거터와 diff가 서버의 `git diff`와 일치한다. internal-sftp 계정에서는 git 없이 열린다
 
 ### M6. LSP

@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 data class Settings(
     val editor: Editor = Editor(),
     val files: Files = Files(),
+    val search: Search = Search(),
 ) {
     @Serializable
     data class Editor(
@@ -43,6 +44,15 @@ data class Settings(
         val maxSizeBytes: Long get() = maxSizeMb * 1024L * 1024
         val pollMillis: Long get() = pollSeconds * 1000L
     }
+
+    /** The palette's file mode in a project whose server runs no git, which walks the folders instead. */
+    @Serializable
+    data class Search(
+        /** Folders by name that the walk does not go into. `.git` is never gone into, listed or not. */
+        @SerialName("skip_dirs") val skipDirs: List<String> = SettingsToml.SKIP_DIRS,
+        /** How many files the walk collects before it stops. */
+        @SerialName("max_files") val maxFiles: Int = 5000,
+    )
 }
 
 /** Something in the file that was not used, and what was used instead. */
@@ -69,6 +79,10 @@ object SettingsToml {
     val KEPT_BUFFERS = 0..200
     val POLL_SECONDS = 1..60
     val DIFF_ALPHAS = 0..100
+    val MAX_FILES = 100..100_000
+
+    /** What a project without git usually holds that nobody searches for: installed packages and build output. */
+    val SKIP_DIRS = listOf("node_modules", ".venv", "venv", "__pycache__", ".gradle", "build", "dist", "target")
 
     /** The theme that follows the device's dark mode rather than being one of its own. */
     const val SYSTEM_THEME = "system"
@@ -105,6 +119,7 @@ object SettingsToml {
 
         val editor = parsed.editor
         val files = parsed.files
+        val search = parsed.search
         val font = if (editor.font.isNotBlank()) editor.font else {
             problems += SettingsProblem.Refused("editor.font", "\"${editor.font}\"", "\"${defaults.editor.font}\"", null)
             defaults.editor.font
@@ -112,6 +127,11 @@ object SettingsToml {
         val theme = if (editor.theme in themes) editor.theme else {
             problems += SettingsProblem.Refused("editor.theme", "\"${editor.theme}\"", "\"${defaults.editor.theme}\"", null)
             defaults.editor.theme
+        }
+        // A name with a `/` in it would never match a folder's name, so it would be skipped without a word.
+        val skipDirs = if (search.skipDirs.none { it.isEmpty() || '/' in it }) search.skipDirs else {
+            problems += SettingsProblem.Refused("search.skip_dirs", toml(search.skipDirs), toml(defaults.search.skipDirs), null)
+            defaults.search.skipDirs
         }
         val settings = Settings(
             editor = Settings.Editor(
@@ -127,9 +147,16 @@ object SettingsToml {
                 keptBuffers = inRange("files.kept_buffers", files.keptBuffers, KEPT_BUFFERS, defaults.files.keptBuffers),
                 pollSeconds = inRange("files.poll_seconds", files.pollSeconds, POLL_SECONDS, defaults.files.pollSeconds),
             ),
+            search = Settings.Search(
+                skipDirs = skipDirs,
+                maxFiles = inRange("search.max_files", search.maxFiles, MAX_FILES, defaults.search.maxFiles),
+            ),
         )
         return SettingsRead(settings, problems)
     }
+
+    /** A list of names as TOML writes it. */
+    private fun toml(names: List<String>): String = names.joinToString(", ", "[", "]") { "\"$it\"" }
 
     /**
      * A key ktoml did not know is named only inside its message — "Unknown key received:
@@ -215,6 +242,14 @@ object SettingsToml {
         Key("files", "max_size_mb", "2", listOf("${MAX_SIZES_MB.first} to ${MAX_SIZES_MB.last}. A larger file is not opened.")),
         Key("files", "kept_buffers", "30", listOf("${KEPT_BUFFERS.first} to ${KEPT_BUFFERS.last}. How many files off the screen keep their undo history.")),
         Key("files", "poll_seconds", "2", listOf("${POLL_SECONDS.first} to ${POLL_SECONDS.last}. How often the file on the screen is checked for a change made somewhere else.")),
+        Key(
+            "search", "skip_dirs", toml(SKIP_DIRS),
+            listOf(
+                "Folders, by name, that file search does not look in when the server cannot run git for a",
+                "project. With git, the project's .gitignore decides instead. .git is never looked in.",
+            ),
+        ),
+        Key("search", "max_files", "5000", listOf("${MAX_FILES.first} to ${MAX_FILES.last}. How many files that search collects before it stops.")),
     )
 
     /**

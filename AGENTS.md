@@ -269,7 +269,9 @@ app. What keeps that from becoming a way around the gate is that the page sends 
 `Folder.request` refuses anything with `/`, `.`, `..` or NUL, so the file opened is always beside
 one the user has already opened. The sidebar's project tree is the one widening so far: a file tapped
 there opens without the question too, and the page names it by a project id and a path relative to
-that project's root. `ProjectTree.resolve` refuses empty segments (so a leading `/`), `.`, `..` and
+that project's root. The palette's file mode in a project is the same widening: it sends a path
+relative to the root of the project the open file is in, through the same check.
+`ProjectTree.resolve` refuses empty segments (so a leading `/`), `.`, `..` and
 NUL rather than resolving them, which keeps it inside a root the user made a project of. Widening what
 the page may send any further — an absolute path, a directory outside a project — puts this back in
 scope.
