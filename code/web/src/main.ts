@@ -522,10 +522,12 @@ onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => {
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
 onNotify('projectsChanged', () => sidebar.changed())
 onNotify('gitChanged', askBaseline)
-// What came of an import or export, which Kotlin finishes after the file picker has gone.
-onNotify<{ message: string; lasting: boolean }>('notice', (params) =>
-  params.lasting ? banner.tell(params.message) : banner.flash(params.message),
-)
+// What came of an import or export, which Kotlin finishes after the file picker has gone, and what
+// a project could not have. It waits its turn behind [refresh]: putting a file on the screen hides
+// the banner, and a project's notice is sent right behind the documentsChanged that opens its file.
+onNotify<{ message: string; lasting: boolean }>('notice', (params) => {
+  queue = queue.then(() => (params.lasting ? banner.tell(params.message) : banner.flash(params.message)))
+})
 // The settings before the first document, so it is not laid out once without them and again with.
 rpc<Settings>('settings')
   .then((settings) => applySettings(settings, true))

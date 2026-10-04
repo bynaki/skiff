@@ -12,24 +12,29 @@
 
 ---
 
-## 마지막 세션 (2026-10-03, 오후)
+## 마지막 세션 (2026-10-04)
 
 ### 지금 상태
 - 브랜치 `plan/skiffcode`(git worktree).
-- M5 **🔍 파일 모드를 프로젝트로 확장**을 끝냈다(계획에 체크, 결정·테스트·탭 확인은 그 항목 아래).
-  - 열린 파일의 프로젝트가 살아 있으면 팔레트의 파일 모드가 프로젝트 전체를 루트 기준 상대 경로로 보여 준다.
-    git이 있으면 `ls-files`, 없거나 실패하면 SFTP walk(`ProjectTree.walk`).
-  - 사용자 결정(2026-10-03): git이 없으면 walk, 뺄 폴더와 상한은 `settings.toml`의 `[search] skip_dirs`·`max_files`.
-    spec "커맨드 버튼과 팔레트"에 적었다. 브리지는 새 메서드 없이 `folder`/`openFromFolder`가 프로젝트를 안다.
-  - `AGENTS.md` "Links that arrive from outside"에 팔레트도 프로젝트 상대 경로를 보낸다는 것을 더했다.
+- **M5를 끝냈다.** 마지막 **확인** 항목을 탭에서 통과했다(결과는 계획의 그 항목 아래).
+  - internal-sftp·nologin·git 없는 계정은 이 맥의 Docker 컨테이너로 만들었다(사용자 결정, 2026-10-04).
+    git 없는 Debian 13 + OpenSSH 10.0. 확인 뒤 컨테이너는 지웠고 Dockerfile은 레포에 넣지 않았다.
+    다시 필요하면 같은 구성으로 새로 만든다: `Subsystem sftp internal-sftp`, `Match User … ForceCommand internal-sftp`,
+    셸이 `/usr/sbin/nologin`인 계정, 보통 bash 계정, 홈마다 `.git`이 있는 작은 프로젝트, 포트 2222.
+    맥의 Docker는 `/usr/local/bin/docker`에 있다(Docker Desktop).
+  - 확인 중에 찾은 버그를 고쳤다: `NoExec`/`Missing` 배너가 뜨자마자 `show()`의 `banner.hide()`에 지워졌다.
+    페이지의 `notice`가 `refresh`와 같은 `queue`에서 차례를 기다린다(`code/web/src/main.ts`).
+  - 실제 OpenSSH 10.0의 강제 `internal-sftp`는 exec에 문구와 1을 돌려줬다. spec "git과 LSP"에 적었다.
 - 린트 에러 0(경고 11, 기준과 같다), JVM code 232, vitest 121.
-- 탭과 폴드8에 이 상태의 빌드가 설치돼 있다. 폴드8에서 사용자가 프로젝트 파일 검색을 써 보고 확인했다(2026-10-03).
-  폴드8의 `settings.toml`에 `[search]` 키가 채워졌는지는 사용자가 `Open Settings`를 열어야 보인다.
+- 탭에 이 상태의 빌드가 설치돼 있다. 폴드8에는 배너 수정 전 빌드다.
+- 탭에 컨테이너 계정 프로필 셋(이 맥의 주소, 포트 2222의 sftponly·nologin·nogit)과 그 프로젝트 셋이 남아 있다.
+  컨테이너가 없어서 열면 연결이 실패한다. 지우는 길은 M7의 store 초기화다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 계획의 첫 `- [ ]`는 M5 **확인** 항목이다. internal-sftp 계정이 필요한데 **어디에 만들지 아직 묻지 않았다 — 먼저 묻는다.**
-   그 계정에서 이번 walk(exec가 거부된 경로)도 같이 본다.
-3. 알려진 문제 8(링크의 `layer=`가 페이지로 넘어가지 않는다)은 사용자에게 알렸고 손대지 않았다.
-4. 보지 않은 것: 2MB 파일에서 diff 레이어에 들어가는 시간, 마크다운 파일의 diff 레이어, 큰 프로젝트의 walk 시간.
+2. 계획의 첫 `- [ ]`는 M6의 `LspProcess` Content-Length 프레이밍 + `LspFramingTest`다. M6 머리의 재현 메모를 먼저 읽는다.
+3. 알려진 문제 9(팔레트가 열린 채로 링크가 다른 파일을 열면 앞 파일의 목록이 남는다)는 사용자에게 알렸고
+   고칠지 답을 받지 않았다. **먼저 물어본다.** 알려진 문제 8(링크의 `layer=`)도 손대지 않았다.
+4. 보지 않은 것: 2MB 파일에서 diff 레이어에 들어가는 시간, 마크다운 파일의 diff 레이어, 큰 프로젝트의 walk 시간,
+   `project_unchecked` 배너.
 5. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

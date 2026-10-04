@@ -411,8 +411,13 @@
     - 홈의 임시 폴더(빈 `.git` 폴더라 `ls-files`가 "not a git repository"로 실패 → walk): `node_modules`·`build`가 빠지고 154개가 약 0.1초에. `max_files = 100`이면 99개(README + `gen` 99개에서 멈추고 화면의 README는 빠짐)와 배너. 배너는 팔레트 아래에 겹치지 않고 보였다.
     - 그 프로젝트를 지우니 남은 README에서 같은 디렉토리 목록으로 돌아갔다. 임시 폴더와 프로젝트는 지웠고 탭의 `settings.toml`은 되돌렸다(md5 같음).
   - 폴드8에서도 사용자가 확인했다(2026-10-03, 커밋 전 빌드).
-  - 보지 않은 것: exec가 막힌 계정에서의 walk(아래 **확인** 항목의 internal-sftp 계정으로 같이 본다), 큰 프로젝트에서 walk에 걸리는 시간.
-- [ ] **확인:** 실기기에서 git 레포 안 파일을 열면 묻는 창이 뜨고, 프로젝트를 만든 뒤 거터와 diff가 서버의 `git diff`와 일치한다. internal-sftp 계정에서는 git 없이 열린다
+  - 보지 않은 것: 큰 프로젝트에서 walk에 걸리는 시간. exec가 막힌 계정에서의 walk는 아래 **확인** 항목에서 봤다.
+- [x] **확인:** 실기기에서 git 레포 안 파일을 열면 묻는 창이 뜨고, 프로젝트를 만든 뒤 거터와 diff가 서버의 `git diff`와 일치한다. internal-sftp 계정에서는 git 없이 열린다
+  - 2026-10-04 탭에서 확인했다. 계정은 이 맥의 Docker 컨테이너로 만들었다(사용자 결정): git을 설치하지 않은 Debian 13에 OpenSSH 10.0, `Subsystem sftp internal-sftp`, 계정 셋(`ForceCommand internal-sftp`, 셸이 `nologin`, 보통 bash). 홈마다 `.git`이 있는 작은 프로젝트를 넣었다. 컨테이너는 확인 뒤 지웠다(Dockerfile은 레포에 넣지 않았다).
+  - 셋 다 SFTP만으로 묻는 창이 떴다. `supported()`는 internal-sftp와 nologin에서 `NoExec`, bash 계정에서 `Missing`이었다. 셋 다 walk로 프로젝트 파일 검색이 됐다(`node_modules`·`build`·`.git`이 빠짐). 검색에서 고른 파일은 경로를 묻지 않고 열렸다.
+  - **배너가 뜨자마자 사라지는 버그를 찾아 고쳤다.** Kotlin은 `documentsChanged` 바로 뒤에 `notice`를 보내는데, 페이지의 `show()`가 `document` 응답을 기다린 뒤 `banner.hide()`를 불러서 26ms 만에 지웠다. 그래서 `NoExec`/`Missing` 배너를 기기에서 한 번도 보지 못했다. `notice`가 `refresh`와 같은 `queue`에서 차례를 기다리게 했다.
+  - 이 맥의 계정(git 있음): 홈의 임시 레포에서 한 줄 바꿈, 세 줄 지움, 두 줄 넣음, 끝에 한 줄 더함. 거터(바뀜 3, 9와 10 사이 지움, 더함 18·19·30)와 diff 레이어가 `git diff -U0`와 같았다. 넣기만 한 곳의 빈 `cm-deletedChunk`는 높이 0이다. 임시 레포는 지웠다.
+  - 탭에 컨테이너 계정 프로필 셋과 그 프로젝트가 남았다. 지우는 길은 M7의 store 초기화다.
 
 ### M6. LSP
 실제 LSP 서버로 확인하던 M0 하네스는 사용자 지시로 지웠다. 다시 만들 때 필요한 것은 이것뿐이다.
@@ -469,11 +474,9 @@
 - **`GitScopeFinder`가 홈 밖을 가리키는 심볼릭 링크를 "홈 밖"으로 보는 것은 실제 sshd에서만 볼 수 있다.**
   MINA의 REALPATH는 경로를 정규화만 하고 링크를 따라가지 않아서 테스트로 만들 수 없었다. OpenSSH는 `realpath(3)`로
   풀어 준다. 이 맥의 원격 로그인으로 `~/link → /tmp/…` 아래 파일을 열어 보면 된다.
-- **`RemoteExec.supported()`가 진짜 `internal-sftp`와 `nologin` 계정에서 아니라고 답하는지 못 봤다.** 테스트는
-  그 둘처럼 구는 MINA 명령으로 흉내 냈다(강제된 `internal-sftp`는 stdin을 기다리고 0, `nologin`은 문구와 1). M5 확인 항목에서
-  실제 계정으로 본다. **신호로 죽은 명령의 `exitStatus`가 null인 것**도 MINA가 128+n을 종료 코드로 보내 테스트하지 못했다.
-- **git이 없거나 exec가 안 되는 서버의 배너를 기기에서 보지 못했다.** 이 맥의 계정은 둘 다 된다. JVM 테스트(`CheckGitTest`)는 `GitState`까지만 본다.
-  M5 확인 항목의 internal-sftp 계정에서 같이 본다. 확인이 실패했을 때의 배너(`project_unchecked`)도 같다.
+- **빈 출력에 0으로 끝나는 강제 `internal-sftp`는 실제로 보지 못했다.** 실제 OpenSSH 10.0은 문구와 1이었다(M5 확인 항목).
+  **신호로 죽은 명령의 `exitStatus`가 null인 것**도 MINA가 128+n을 종료 코드로 보내 테스트하지 못했다.
+- **확인이 실패했을 때의 배너(`project_unchecked`)를 기기에서 보지 못했다.** `NoExec`·`Missing` 배너는 M5 확인 항목에서 봤다.
 - **로그인 셸이 POSIX가 아니면(fish, csh) 따옴표가 맞는지 모른다.** `ShellQuote`는 sh 기준이고, sshd는 명령 줄을 사용자의 로그인 셸에 넘긴다.
   csh는 작은따옴표 안의 줄바꿈을 받지 않는다.
 - **실제 SSH 서버로 LSP를 띄워 본 적은 없다.** M0의 확인은 이 맥 안의 MINA 루프백이다.
@@ -504,6 +507,8 @@
    접기/펴기 직후). 세 번 더 해봤지만 재현되지 않아 확정된 버그로 적지 않는다.
 8. **링크의 `layer`가 쓰이지 않는다**(2026-10-03 diff 레이어 때 찾았다). `OpenRequest`가 `OpenAt.layer`로 읽지만
    페이지로 넘기지 않아서, `layer=editor`든 `layer=diff`든 viewer로 열린다. diff는 기준이 늦게 오므로 넘길 때 그것을 기다려야 한다.
+9. **팔레트가 열린 채로 링크가 다른 파일을 열면, 팔레트가 앞 파일의 목록을 그대로 보여 준다**(2026-10-04 M5 확인 때 찾았다).
+   다른 프로젝트의 파일 이름이 남아 있었다. 고르면 앞 파일 기준으로 열린다(목록을 받을 때의 파일을 쥐고 있다).
 
 ## 검증 명령
 

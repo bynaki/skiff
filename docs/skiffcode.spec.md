@@ -294,7 +294,7 @@ method로 구독한다(M0에서 확인).
 - **`RemoteExec`:**
   - 프로젝트별로 exec 전용 SSHClient를 둔다(`SshClientFactory`). SFTP의 단일 스레드 dispatcher와 분리해서 오래 도는 채널이 탐색을 막지 않게 한다.
   - **명령은 argv 리스트로만 만들고 `ShellQuote`로 인자마다 작은따옴표로 감싼다.** 경로는 URI에서 오는 외부 입력이다.
-  - **exec가 되는 계정인지는 `supported()`가 정해 둔 문자열을 `printf`로 돌려받는지로 본다.** 요청 거부만 보면 모자라다: 강제된 `internal-sftp`는 요청을 받고 명령 대신 자기를 돌리며(빈 출력, 0), `nologin`은 거절 문구를 찍고 1로 끝난다. 그래서 `command -v git` 하나로는 "git 없음"과 "exec 안 됨"을 가를 수 없다.
+  - **exec가 되는 계정인지는 `supported()`가 정해 둔 문자열을 `printf`로 돌려받는지로 본다.** 요청 거부만 보면 모자라다: 강제된 `internal-sftp`는 요청을 받고 명령 대신 자기를 돌리며(빈 출력, 0), `nologin`은 거절 문구를 찍고 1로 끝난다. 실제 OpenSSH 10.0(Debian 13)의 `ForceCommand internal-sftp`는 요청을 받고 "This service allows sftp connections only."를 찍고 1로 끝났다(2026-10-04 확인). 빈 출력에 0으로 끝나는 서버는 실제로는 보지 못했고 MINA 테스트로만 흉내 냈다. 그래서 `command -v git` 하나로는 "git 없음"과 "exec 안 됨"을 가를 수 없다.
   - stdin은 쓰지 않으면 바로 닫는다(EOF). 강제된 `internal-sftp`는 stdin에서 SFTP 패킷을 기다리므로, 닫지 않으면 시간 초과까지 채널을 붙잡는다.
   - 명령마다 시간 상한이 있다(기본 30초). sshj의 채널 스트림은 스스로 시간 제한이 없다.
   - 링크가 끊기면 SFTP처럼 한 번 다시 접속해 같은 명령을 다시 돌린다. 그래서 여기서 돌리는 명령은 두 번 돌아도 되는 것(읽기)이어야 한다.
