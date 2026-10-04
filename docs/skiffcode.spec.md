@@ -78,6 +78,9 @@ method로 구독한다(M0에서 확인).
 로컬  skiffcode:///storage/emulated/0/Documents/a.md
 ```
 - 경로는 퍼센트 인코딩한다. 선택 쿼리는 `alias`, `line`, `col`, `layer`(viewer|editor|diff)다.
+  - `layer`는 새로 여는 파일이면 그 레이어로 열고, 이미 열린 파일이면 그 레이어로 바꾼다. `diff`는 비교할 사본(HEAD)이
+    늦게 오므로 그것이 올 때 들어가고, 사본이 없으면(프로젝트가 아님, git 없음, HEAD에 없는 파일) 조용히 viewer에 남는다.
+    그 사이 사용자가 레이어를 바꾸면 기다리던 `diff`는 버린다.
 - **`user:password@`는 거부한다.**
 - 프로필은 `alias` 일치 → `(user, host, port)` 일치 순으로 찾는다. 없으면 "알 수 없는 서버" 확인창에서 열기 여부, 필요한 정보(비밀번호), 프로필로 저장할지를 묻는다.
 - **보낸 앱이 Skiff가 아니면 서버와 경로를 보여주고 묻는다**(2026-09-20). alias가 맞아도 정하는 것은 *어느 서버*뿐이고 경로는 링크의 것이라, 이름만 맞히면 저장된 자격증명으로 그 서버의 아무 파일이나 열렸다. 보낸 앱은 `ComponentCaller`로 알아낸다(`getReferrer()`는 호출자가 위조한다). 자세한 것은 `AGENTS.md`의 "Links that arrive from outside".

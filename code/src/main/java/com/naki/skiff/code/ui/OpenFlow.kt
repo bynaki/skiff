@@ -54,7 +54,7 @@ class OpenFlow(
 ) {
 
     /**
-     * A file that was read, how to name it, and the line the link asked for — with the file it
+     * A file that was read, how to name it, and the line and layer the link asked for — with the file it
      * came from and how it looked when it was read, which is what `FileWatcher` measures a change
      * made somewhere else against.
      */
@@ -63,7 +63,7 @@ class OpenFlow(
         val name: String,
         val request: OpenRequest,
         val result: LoadResult,
-        val line: Int?,
+        val at: OpenAt,
         val watched: WatchedFile,
         val stamp: Stamped,
         /** Where a save goes, or null for a document that cannot take one; see [SaveTarget]. */
@@ -113,7 +113,7 @@ class OpenFlow(
         val fs = LocalFileSystem(file.name)
         val result = loader.load(fs, file.path)
         Opened(
-            linkOf(request), file.name, request, result, null,
+            linkOf(request), file.name, request, result, OpenAt(),
             WatchedLocalPath(fs, file.path, loader), stampOf(result), saveTo(fs, file.path, result), null,
         )
     } catch (e: CancellationException) {
@@ -175,7 +175,7 @@ class OpenFlow(
         val fs = LocalFileSystem(file.name)
         val result = loader.load(fs, request.path)
         return Opened(
-            link, file.name, request, result, request.at.line,
+            link, file.name, request, result, request.at,
             WatchedLocalPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
             Folder.of(fs, request),
         )
@@ -194,7 +194,7 @@ class OpenFlow(
         // change. And the provider's own stamp, since the loader's `stat` here is of a stream.
         val watched = WatchedContent(activity.applicationContext.contentResolver, uri, loader)
         // No save target: a `content://` document is read-only here (docs/skiffcode.plan.md M3).
-        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, null, watched, watched.stamp(), null, null)
+        return Opened(link, name ?: uri.lastPathSegment ?: request.uri, request, result, OpenAt(), watched, watched.stamp(), null, null)
     }
 
     /**
@@ -241,7 +241,7 @@ class OpenFlow(
                     val hostKey = container.store.knownHost(profile.host, profile.port)?.fingerprint
                     val opened = request.copy(profile = profile, hostKey = hostKey)
                     Opened(
-                        link, node.name, opened, result, request.at.line,
+                        link, node.name, opened, result, request.at,
                         // The same filesystem the file was read through: `stat` goes over the browse
                         // connection while reading and saving go over transfer, so a poll every two
                         // seconds never waits behind either of them.

@@ -766,11 +766,11 @@ class MainActivity : Activity() {
 
     /**
      * Tells the page that the list of open files, or which one is on screen, has changed — and
-     * moves the watch to whichever file that is. [goToLine] is a line the link that brought a file
-     * back to the screen asked for; a file being opened for the first time carries its own.
+     * moves the watch to whichever file that is. [at] is the line and layer the link that brought a
+     * file back to the screen asked for; a file being opened for the first time carries its own.
      */
-    private fun documentsChanged(goToLine: Int? = null) {
-        bridge.notify("documentsChanged", JSONObject().putOpt("goToLine", goToLine))
+    private fun documentsChanged(at: OpenAt? = null) {
+        bridge.notify("documentsChanged", JSONObject().putOpt("goToLine", at?.line).putOpt("layer", layerName(at)))
         startWatching(recheckAll = false)
     }
 
@@ -918,10 +918,10 @@ class MainActivity : Activity() {
             val already = docs.byKey(key)
             if (already != null) {
                 // The file is already open. What is in its buffer stays — it may have been typed in
-                // — and the link only brings it back to the screen, at the line it asked for.
+                // — and the link only brings it back to the screen, at the line and layer it asked for.
                 opened.watched.close()
                 docs.activate(already.id)
-                documentsChanged(goToLine = opened.line)
+                documentsChanged(opened.at)
                 opened.notice?.let { notice(it, lasting = true) }
                 return@launch
             }
@@ -962,7 +962,8 @@ class MainActivity : Activity() {
     private fun documentState(opened: OpenFlow.Opened): JSONObject {
         val state = JSONObject().put("name", opened.name)
         val refusal = when (val result = opened.result) {
-            is LoadResult.Text -> return state.put("state", "text").put("text", result.text).putOpt("line", opened.line)
+            is LoadResult.Text -> return state.put("state", "text").put("text", result.text)
+                .putOpt("line", opened.at.line).putOpt("layer", layerName(opened.at))
             // The limit is in binary megabytes; Formatter counts in thousands and calls 2 MiB "2.1 MB".
             is LoadResult.TooLarge -> getString(R.string.refused_too_large, DecimalFormat("0.#").format(result.limit / 1048576.0) + " MB")
             LoadResult.Binary -> getString(R.string.refused_binary)
@@ -970,6 +971,9 @@ class MainActivity : Activity() {
         }
         return state.put("state", "refused").put("title", getString(R.string.error_open)).put("message", refusal)
     }
+
+    /** A link's `layer` as the page names it. */
+    private fun layerName(at: OpenAt?): String? = at?.layer?.name?.lowercase()
 
     /** For settings screens that grant something: resumes when this activity is back in front. */
     suspend fun startActivityAndWaitForReturn(intent: Intent) {

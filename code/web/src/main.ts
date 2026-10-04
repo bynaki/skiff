@@ -26,7 +26,7 @@ import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontS
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
   | { state: 'empty'; message: string }
-  | { state: 'text'; name: string; text: string; line?: number }
+  | { state: 'text'; name: string; text: string; line?: number; layer?: LayerName }
   | { state: 'refused'; name: string; title: string; message: string }
 
 /** What the file did while it was open, from Kotlin's `FileWatcher`, and which file it was. */
@@ -335,11 +335,11 @@ function dirtyInBackground(id: number): boolean {
 
 /**
  * Brings the page to what Kotlin says is open. Everything that changes the list goes through here,
- * whoever started it, so there is one way the page arrives at a state. [goToLine] comes with a link
- * that named a file which was already open, since that file keeps the buffer it has rather than
- * being read again.
+ * whoever started it, so there is one way the page arrives at a state. [goToLine] and [layer] come
+ * with a link that named a file which was already open, since that file keeps the buffer it has
+ * rather than being read again.
  */
-async function reconcile(goToLine?: number | null): Promise<void> {
+async function reconcile(goToLine?: number | null, layer?: LayerName | null): Promise<void> {
   const { active, files } = await rpc<Documents>('documents')
   openList = files
   // What was listed left out the files that were open then, and was beside the file on the screen then.
@@ -363,7 +363,12 @@ async function reconcile(goToLine?: number | null): Promise<void> {
     await show(files, arriving)
   }
   openFiles.show(files, active)
+  // The layer first: entering one keeps the line at the top, and a scroll asked for just before has
+  // not been measured yet.
+  if (layer) showLayer(layer)
   if (goToLine) pane?.goToLine(goToLine)
+  // A palette left open across a link would still offer what was beside the file before.
+  paletteView.refresh()
 }
 
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
@@ -455,8 +460,8 @@ function notice(title: string | null, message: string): HTMLElement {
 // One at a time, in the order they were asked for: two of these overlapping would each close a pane
 // the other is still counting on.
 let queue: Promise<void> = Promise.resolve()
-const refresh = (goToLine?: number | null) => {
-  queue = queue.then(() => reconcile(goToLine)).catch((error) => console.log(`documents: ${error}`))
+const refresh = (goToLine?: number | null, layer?: LayerName | null) => {
+  queue = queue.then(() => reconcile(goToLine, layer)).catch((error) => console.log(`documents: ${error}`))
 }
 
 /**
@@ -515,8 +520,8 @@ rpc<Labels>('labels').then((answer) => {
   moreMenu.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
-onNotify<{ goToLine?: number | null }>('documentsChanged', (params) => {
-  refresh(params?.goToLine)
+onNotify<{ goToLine?: number | null; layer?: LayerName | null }>('documentsChanged', (params) => {
+  refresh(params?.goToLine, params?.layer)
   sidebar.changed()
 })
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))

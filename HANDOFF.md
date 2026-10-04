@@ -15,26 +15,27 @@
 ## 마지막 세션 (2026-10-04)
 
 ### 지금 상태
-- 브랜치 `plan/skiffcode`(git worktree).
-- **M5를 끝냈다.** 마지막 **확인** 항목을 탭에서 통과했다(결과는 계획의 그 항목 아래).
-  - internal-sftp·nologin·git 없는 계정은 이 맥의 Docker 컨테이너로 만들었다(사용자 결정, 2026-10-04).
-    git 없는 Debian 13 + OpenSSH 10.0. 확인 뒤 컨테이너는 지웠고 Dockerfile은 레포에 넣지 않았다.
-    다시 필요하면 같은 구성으로 새로 만든다: `Subsystem sftp internal-sftp`, `Match User … ForceCommand internal-sftp`,
-    셸이 `/usr/sbin/nologin`인 계정, 보통 bash 계정, 홈마다 `.git`이 있는 작은 프로젝트, 포트 2222.
-    맥의 Docker는 `/usr/local/bin/docker`에 있다(Docker Desktop).
-  - 확인 중에 찾은 버그를 고쳤다: `NoExec`/`Missing` 배너가 뜨자마자 `show()`의 `banner.hide()`에 지워졌다.
-    페이지의 `notice`가 `refresh`와 같은 `queue`에서 차례를 기다린다(`code/web/src/main.ts`).
-  - 실제 OpenSSH 10.0의 강제 `internal-sftp`는 exec에 문구와 1을 돌려줬다. spec "git과 LSP"에 적었다.
-- 린트 에러 0(경고 11, 기준과 같다), JVM code 232, vitest 121.
-- 탭에 이 상태의 빌드가 설치돼 있다. 폴드8에는 배너 수정 전 빌드다.
-- 탭에 컨테이너 계정 프로필 셋(이 맥의 주소, 포트 2222의 sftponly·nologin·nogit)과 그 프로젝트 셋이 남아 있다.
-  컨테이너가 없어서 열면 연결이 실패한다. 지우는 길은 M7의 store 초기화다.
+- 브랜치 `plan/skiffcode`(git worktree). M0~M5 완료, M6부터 남았다.
+- **알려진 문제 8, 9를 풀었다**(사용자 결정, 2026-10-04). 계획의 알려진 문제에 취소선으로 남겼다.
+  - 8: 링크의 `layer`를 페이지로 넘긴다. `OpenFlow.Opened`가 `line` 대신 `OpenAt`을 들고, 새 파일은 `document`의
+    `layer`로, 이미 열린 파일은 `documentsChanged`의 `layer`로 받는다. `diff`는 pane의 `wantDiff`가 비교 사본을
+    기다린다(`code/web/src/layers/pane.ts`). 동작은 spec "URI"에 적었다.
+  - 9: `reconcile` 끝에서 `paletteView.refresh()`(`code/web/src/main.ts`).
+  - 탭에서 링크로 확인했다: 새 파일 diff+line, 열린 파일 editor+line, 백그라운드 파일 diff, 마크다운 diff,
+    프로젝트 아닌 파일 diff→viewer, 팔레트를 연 채 다른 프로젝트 링크.
+  - 새로 적은 것: 알려진 문제 10(링크의 `col`이 쓰이지 않는다). 손대지 않았다.
+- 린트 에러 0(경고 11, 기준과 같다), JVM core 38·app 32·code 232, vitest 121. 페이지 쪽은 DOM 테스트 환경이 없어
+  유닛 테스트를 더하지 않았다.
+- 탭과 폴드8에 이 상태의 빌드가 설치돼 있다.
+- 탭에 확인용 찌꺼기가 남아 있다: 프로젝트 `skiff-layer-check`(맥에서는 지웠다), 열린 파일 `a.py`·`b.md`·
+  스크래치패드의 `a.py`. 그 전부터 컨테이너 계정 프로필 셋과 그 프로젝트 셋도 있다. 지우는 길은 사이드바의
+  프로젝트 길게 누르기, 또는 M7의 store 초기화다.
+- 기기 확인용 도구: 탭의 맥 프로필은 `dev-mac`(LAN 주소)이고 Tailscale 주소가 아니다. 프로젝트로 열리려면
+  저장소가 홈 아래에 있어야 한다(`GitScopeFinder`). 이 셸의 `grep`은 함수로 덮여 있어 일부 파일에서 결과가
+  비므로 `command grep`을 쓴다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
 2. 계획의 첫 `- [ ]`는 M6의 `LspProcess` Content-Length 프레이밍 + `LspFramingTest`다. M6 머리의 재현 메모를 먼저 읽는다.
-3. 알려진 문제 9(팔레트가 열린 채로 링크가 다른 파일을 열면 앞 파일의 목록이 남는다)는 사용자에게 알렸고
-   고칠지 답을 받지 않았다. **먼저 물어본다.** 알려진 문제 8(링크의 `layer=`)도 손대지 않았다.
-4. 보지 않은 것: 2MB 파일에서 diff 레이어에 들어가는 시간, 마크다운 파일의 diff 레이어, 큰 프로젝트의 walk 시간,
-   `project_unchecked` 배너.
-5. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.
+3. 보지 않은 것: 2MB 파일에서 diff 레이어에 들어가는 시간, 큰 프로젝트의 walk 시간, `project_unchecked` 배너.
+4. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

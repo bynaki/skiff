@@ -44,6 +44,8 @@ export interface TextDocument {
   text: string
   /** 1-based, from a link's `?line=`. */
   line?: number
+  /** From a link's `?layer=`. */
+  layer?: LayerName
 }
 
 /** Marks the transaction that takes a change made outside, so it does not count as the user typing. */
@@ -148,8 +150,9 @@ export interface Pane {
   /** To the next layer. */
   toggle(): void
   /**
-   * To a named layer, which is what the palette's Show Viewer and Show Editor run. The diff layer
-   * only while there is something to compare with.
+   * To a named layer, which is what the palette's Show Viewer and Show Editor run, and a link's
+   * `?layer=`. The diff layer only while there is something to compare with; asked for before that
+   * is known, it is entered when the text arrives, unless another layer has been chosen meanwhile.
    */
   show(layer: LayerName): void
   /** Undo and redo for a finger: without a keyboard there is nothing else that reaches them. */
@@ -201,7 +204,10 @@ export function openPane(
   // to the editor. Once there is a view, the view is the buffer.
   let source = memory?.source ?? doc.text
   const markdown = language?.name === 'Markdown' ? showMarkdown(parent, source) : null
-  let layer: LayerName = memory?.layer ?? 'viewer'
+  // A link's diff layer waits for what it compares with (`wantDiff`), so the pane opens on the viewer.
+  let layer: LayerName = memory?.layer ?? (doc.layer === 'editor' ? 'editor' : 'viewer')
+  // The diff layer was asked for before what it compares with had arrived.
+  let wantDiff = !memory && doc.layer === 'diff'
   let view: EditorView | null = null
   // Used once, by the first view this pane builds: after that the view holds it.
   let restore = memory?.state ?? null
@@ -356,6 +362,7 @@ export function openPane(
   }
 
   function setLayer(next: LayerName): void {
+    wantDiff = next === 'diff' && original() === undefined
     if (next === layer) return
     if (next === 'diff' && typeof original() !== 'string') return
     const line = topLine()
@@ -387,6 +394,7 @@ export function openPane(
    * yet changes nothing: it is on its way.
    */
   function compareChanged(): void {
+    if (wantDiff && original() !== undefined) return setLayer('diff')
     if (layer !== 'diff' || !view) return
     const text = original()
     if (text === undefined || text === compared) return
@@ -401,7 +409,7 @@ export function openPane(
     else if (view) scrollViewToLine(view, line)
   }
 
-  // A file coming back shows the layer and the line it left; one being opened shows the viewer, at
+  // A file coming back shows the layer and the line it left; one being opened shows the layer and
   // the line a link asked for.
   const startLine = memory?.line ?? doc.line
   if (markdown && layer === 'viewer') {
