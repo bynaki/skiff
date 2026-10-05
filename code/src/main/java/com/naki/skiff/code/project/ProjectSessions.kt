@@ -1,5 +1,6 @@
 package com.naki.skiff.code.project
 
+import com.naki.skiff.code.lsp.LspManager
 import com.naki.skiff.code.session.RemoteExec
 import com.naki.skiff.code.session.decryptedPassword
 import com.naki.skiff.data.store.ServerProfile
@@ -41,9 +42,19 @@ class ProjectSession(val project: Project, val exec: RemoteExec) {
     /** The repository's answers, or null where [checkGit] finds no git to ask. */
     suspend fun gitService(): GitService? = if (checkGit() == GitState.Available) repository.value else null
 
+    private val languageServers = lazy { LspManager(exec, project.root) }
+
+    /**
+     * The project's language servers, or null on an account that runs no commands. Asked of
+     * [checkGit] because `command -v` alone cannot tell that account from one with the server
+     * installed: a forced `internal-sftp` may answer any command with nothing and a 0.
+     */
+    suspend fun languageServers(): LspManager? = if (checkGit() == GitState.NoExec) null else languageServers.value
+
     /** Ends the command connection and what runs on it. Writes to the socket, so not on the main thread. */
     fun close() {
         if (repository.isInitialized()) repository.value.close()
+        if (languageServers.isInitialized()) languageServers.value.close()
         exec.close()
     }
 }

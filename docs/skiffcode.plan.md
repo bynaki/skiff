@@ -433,7 +433,10 @@
   - 왕복 테스트를 원래 다섯째 항목에서 여기로 당겼다(2026-10-05 사용자 동의). 프레이밍은 실제 채널 위에서 봐야 하고, `LspManager` 테스트도 같은 하네스를 쓴다.
   - **stderr를 계속 비운다.** stderr는 stdout과 채널 창을 나눠 써서, 첫 응답 전에 sshj의 창(2MB)보다 많이 쓰는 서버는 멈춘다. 비우는 것을 빼면 `LspProcessTest`의 8MB 테스트가 시간 초과로 실패하는 것을 봤다. 마지막 4KB만 남긴다(`stderrTail`, 서버가 왜 안 떴는지 알릴 때 쓴다).
   - 로그인 셸의 프로필이 stdout에 찍는 줄은 콜론이 없으면 `LspProtocolError`로 끝나고, 콜론이 있으면 모르는 헤더로 넘어간다.
-- [ ] `LspManager`: 지연 시작, 유휴와 백그라운드 종료, 재연결 후 `didOpen` 재전송, `command -v` 탐지
+- [x] `LspManager`: 지연 시작, 유휴와 백그라운드 종료, 재연결 후 `didOpen` 재전송, `command -v` 탐지
+  - 재연결 후 `didOpen`은 페이지의 `LSPClient.connect`가 보낸다. Kotlin은 서버가 끝났다고 알리기만 한다(spec "git과 LSP"의 `LspManager`).
+  - 백그라운드 종료는 `stopAll()`까지 만들었다. **`MainActivity`의 `onStop`에 거는 것과 "오래"를 몇 분으로 할지는 다음 항목에서 브리지와 같이 한다.** 리스너도 거기서 붙인다.
+  - `LspManagerTest`는 스텁 실행 파일의 폴더를 PATH가 아니라 테스트 HOME의 `.profile`에서만 더한다. `-l`을 빼면 10개 중 8개가 실패하는 것을 봤다.
 - [ ] Web `@codemirror/lsp-client` 연결: editor(진단, 자동완성, hover, 정의), viewer(길게 눌러 hover, 정의로 이동, 다른 파일이면 열기)
   - 정의로 이동은 커서를 줄과 열에 두어야 하므로 알려진 문제 10(링크의 `col`)을 여기서 같이 푼다(2026-10-05 사용자 동의).
   - 기기 확인용 언어 서버(이 맥의 pyright)는 이 항목을 시작할 때 사용자에게 설치를 묻는다.

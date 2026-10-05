@@ -324,7 +324,7 @@ method로 구독한다(M0에서 확인).
   - **지운 프로젝트의 열린 파일은 거터를 잃는다**(2026-10-02 사용자 결정). 프로젝트를 지우면 세션과 `GitService`가 같이 닫히고(`ProjectSession.close`), 그 파일 때문에 다시 접속하지 않는다.
   - `@codemirror/merge`의 `diff`는 양쪽 다 비어 있는 변경을 가끔 내놓는다. 거터는 그런 청크를 건너뛴다. 아니면 지운 줄로 그려진다.
 - **`LspProcess`:**
-  - exec로 `cd <root> && exec <command>`를 `$SHELL -lc`로 감싸 실행한다. 사용자의 PATH를 쓰기 위해서다.
+  - 열린 exec 채널만 받는다. 명령 줄은 `LspManager`가 만든다.
   - stdio에 Content-Length 프레이밍을 한다(`LspFraming`). 헤더 줄이 아닌 것(콜론 없는 줄)이 오면 `LspProtocolError`로 끝낸다 — 로그인 셸의 프로필이 stdout에 무언가 찍는 경우다. 연결은 멀쩡하므로 `IOException`이 아니다.
   - **stderr를 계속 읽어 버리고 마지막 4KB만 남긴다.** stderr는 stdout과 채널 창을 나눠 쓰므로, 읽지 않으면 로그를 많이 쓰는 서버는 창이 차서 응답을 멈춘다. 남긴 끝부분은 서버가 왜 안 떴는지 알릴 때 쓴다.
   - 보낼 메시지는 큐에 넣고 쓰기 코루틴 하나가 순서대로 쓴다. 그래서 메인 스레드에서 보내도 막히지 않는다.
@@ -347,9 +347,13 @@ method로 구독한다(M0에서 확인).
   (로컬 루프백이라 네트워크 지연은 없다, M0에서 확인). 이 하네스가 M6의 시작점이다.
 - **요청 기본 타임아웃은 3초다.** 원격 서버에는 짧으니 `LSPClient`의 `timeout`을 설정에서 올린다.
 - **`LspManager`:**
-  - (프로젝트, 언어)마다 서버 하나를 둔다. 그 언어 파일을 처음 열 때 띄운다.
-  - 유휴 10분이 지나거나, 앱이 오래 백그라운드에 있거나, 프로젝트가 비활성화되면 `shutdown`→`exit` 후 채널을 닫는다.
-  - 연결이 끊기면 다시 띄우고 열린 문서에 `didOpen`을 다시 보낸다.
+  - (프로젝트, 서버 종류)마다 서버 하나를 둔다(`LanguageServer`: Python, TypeScript(js/ts/jsx/tsx), Markdown). 프로젝트 세션이 하나씩 갖고(`ProjectSession.languageServers()`), **exec가 안 되는 계정(`NoExec`)에는 없다** — 강제 `internal-sftp`는 `command -v`에도 빈 출력과 0으로 답할 수 있어서 탐지만으로는 못 가른다.
+  - 명령은 **계정의 로그인 셸로** 돌린다: `sh -c 'exec "${SHELL:-/bin/sh}" -lc "$1"' sh '<스크립트>'`. sshd의 `-c`만으로는 프로필을 읽지 않아 nvm·pyenv 같은 버전 관리자의 PATH가 빠진다. 탐지(`command -v <이름>`)와 실행(`cd <root> && exec <명령>`)이 같은 셸을 거친다. 탐지 결과는 서버 종류마다 한 번 묻고 기억한다(실패한 확인은 다시 묻는다).
+  - **서버는 페이지의 `initialize`가 띄운다. 다른 메시지는 서버를 띄우지 않고, 돌지 않는 서버로 가는 메시지는 버린다.** 서버가 끝나면 페이지에 이유(`LspEnd`)를 알리고, 페이지는 다시 `initialize`로 시작한다. 이미 도는 서버에 `initialize`가 오면 갈아 끼운다 — 페이지가 다시 만들어진 경우다.
+  - **재연결 후 `didOpen` 재전송은 페이지의 클라이언트가 한다.** `LSPClient.connect`는 `initialize`를 보내고 곧 `Workspace.connected()`로 열린 파일마다 지금 버퍼로 `didOpen`을 보낸다(`@codemirror/lsp-client` 6.3.0 소스에서 확인). 그래서 Kotlin은 문서 내용을 들고 있지 않는다.
+  - 메시지를 해석하는 것은 `initialize`와 그 응답(`positionEncoding` 확인)과 우리가 보낸 `shutdown`의 응답뿐이다. `initialize`는 문자열에 `"initialize"`가 있을 때만 파싱해서 고른다.
+  - 끝나는 이유(`LspEnd`): `Idle`(유휴 10분), `Stopped`(`stopAll`, 앱이 오래 떠나 있었을 때), `NotInstalled`, `Unsupported`(utf-16이 아닌 위치 단위), `Failed`(스스로 끝남, 끊김, 시작 실패. stderr 끝부분을 싣는다).
+  - 유휴와 `stopAll`은 `shutdown`(응답을 3초까지 기다림)→`exit`(끝나기를 1초까지 기다림) 후 채널을 닫는다. **프로젝트를 지울 때는 주고받지 않고 바로 닫는다** — 연결이 곧 끊기고 그러면 서버 쪽에서도 끝난다.
 - **기본 LSP 명령:** python은 `pyright-langserver --stdio`, 없으면 `pylsp`. js/ts는 `typescript-language-server --stdio`, markdown은 `marksman server`. `command -v`로 없으면 조용히 끈다. 문서 URI는 `file://<원격 절대경로>`다.
 - **Web 쪽 붙이는 방법:** `new LSPClient({rootUri, extensions: languageServerExtensions()})`를
   만들고 `LSPPlugin.create(client, uri, languageID)`를 에디터 확장에 넣는다. `languageServerSupport`는
