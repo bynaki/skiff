@@ -156,17 +156,19 @@ class RemoteExec(
 
 /**
  * A command [RemoteExec.start] left running: what is written to [stdin] reaches it, and [stdout] is
- * what it answers. Its stderr is not read, so a command that writes much there would stall; the ones
- * started here write to it only as they fail. [close] disconnects nothing but this channel, and writes
+ * what it answers. [stderr] shares the channel's window with [stdout], so a command that writes much
+ * there stalls unless someone reads it: `cat-file` writes to it only as it fails, a language server
+ * logs there as it goes and has it drained. [close] disconnects nothing but this channel, and writes
  * to the socket, so not on the main thread.
  */
 class ExecChannel internal constructor(private val session: Session, private val command: Session.Command) : Closeable {
 
     val stdin: OutputStream get() = command.outputStream
     val stdout: InputStream get() = command.inputStream
+    val stderr: InputStream get() = command.errorStream
 
     /** What it said on the way out, once [stdout] has ended. */
-    fun failure(): String = runCatching { command.errorStream.readBytes().decodeToString() }.getOrDefault("")
+    fun failure(): String = runCatching { stderr.readBytes().decodeToString() }.getOrDefault("")
 
     override fun close() {
         runCatching { command.close() }

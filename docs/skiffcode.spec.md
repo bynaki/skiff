@@ -313,7 +313,7 @@ method로 구독한다(M0에서 확인).
     stdin에 `HEAD:<rel>`을 쓰면 `<sha> <type> <size>\n<내용>`을 돌려주므로 왕복이 사라진다.
     길이를 먼저 읽고 그만큼 채워 읽는 모양이라 `LspProcess`의 프레이밍과 같고, 유휴일 때
     `LspManager`처럼 닫는다. 데몬 없이 데몬의 이점 하나를 가져오는 자리다.
-    - 채널은 `RemoteExec.start`가 연다. `run`과 달리 stdin을 닫지 않고 돌려준다. stderr는 읽지 않으므로 거기에 많이 쓰는 명령은 멈출 수 있다 — `cat-file`은 실패할 때만 쓴다.
+    - 채널은 `RemoteExec.start`가 연다. `run`과 달리 stdin을 닫지 않고 돌려준다. `cat-file`은 stderr를 읽지 않는다 — 실패할 때만 쓰기 때문이다. 거기에 많이 쓰는 명령은 읽지 않으면 멈춘다(`LspProcess`).
     - **60초 동안 쓰지 않으면 닫고**, 다음에 물을 때 다시 연다. 답을 읽다가 실패하면(상한 초과, 시간 초과, 끊김) 스트림이 객체 중간에 있으므로 그 채널은 버린다. 끊긴 것이면 한 번 다시 열어 같은 것을 묻는다.
     - 상한을 넘는 객체는 읽지 않는다(`GitObjectTooLarge`). 작업 파일은 작아도 HEAD의 같은 경로가 클 수 있다.
 - **git 거터:** Web에서 `Chunk.build(기준, 버퍼)`로 추가, 수정, 삭제를 줄 번호 옆의 가는 세로줄로 표시한다. 세 레이어 모두에 적용한다.
@@ -325,7 +325,9 @@ method로 구독한다(M0에서 확인).
   - `@codemirror/merge`의 `diff`는 양쪽 다 비어 있는 변경을 가끔 내놓는다. 거터는 그런 청크를 건너뛴다. 아니면 지운 줄로 그려진다.
 - **`LspProcess`:**
   - exec로 `cd <root> && exec <command>`를 `$SHELL -lc`로 감싸 실행한다. 사용자의 PATH를 쓰기 위해서다.
-  - stdio에 Content-Length 프레이밍을 한다.
+  - stdio에 Content-Length 프레이밍을 한다(`LspFraming`). 헤더 줄이 아닌 것(콜론 없는 줄)이 오면 `LspProtocolError`로 끝낸다 — 로그인 셸의 프로필이 stdout에 무언가 찍는 경우다. 연결은 멀쩡하므로 `IOException`이 아니다.
+  - **stderr를 계속 읽어 버리고 마지막 4KB만 남긴다.** stderr는 stdout과 채널 창을 나눠 쓰므로, 읽지 않으면 로그를 많이 쓰는 서버는 창이 차서 응답을 멈춘다. 남긴 끝부분은 서버가 왜 안 떴는지 알릴 때 쓴다.
+  - 보낼 메시지는 큐에 넣고 쓰기 코루틴 하나가 순서대로 쓴다. 그래서 메인 스레드에서 보내도 막히지 않는다.
   - 메시지는 브리지로 Web의 `@codemirror/lsp-client` Transport에 넘긴다. **Transport는 `send`,
     `subscribe`, `unsubscribe` 셋뿐이고 프레이밍을 모른다.** 그래서 브리지에는 LSP JSON을
     **문자열 그대로** 실어 보낸다. Kotlin은 그 문자열의 바이트에 헤더만 붙여 stdout에 쓰면 되고
