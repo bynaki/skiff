@@ -55,6 +55,9 @@
 - **DevTools 타깃이 여러 개일 수 있다.** 액티비티가 재생성되면 죽은 WebView의 타깃이 남아서, `[0]`을
   집으면 엉뚱한 페이지를 읽는다. `document.visibilityState === 'visible'`인 타깃을 골라야 한다.
 - **CM6 뷰에 DevTools에서 닿는 법:** `document.querySelector('.cm-content').cmTile.root.view`.
+- **viewer의 두 번 탭(LSP hover)은** `Input.dispatchTouchEvent` touchStart, 60ms 뒤 touchEnd를 120ms 간격으로
+  두 번 보낸다(300ms 안, 24px 안이어야 한다). 링크 끊김은 Wi-Fi를 꺼서는 잘 안 나고, 이 맥에서 그 기기의
+  `sshd-session`을 죽여 만든다.
 - provider 확인: `adb shell content query --uri content://com.naki.skiff.profiles/profiles`는
   **거부되는 것이 정상이다**(shell은 권한이 없다). 권한 부여는
   `dumpsys package com.naki.skiff.code | grep READ_PROFILES`로 본다.
