@@ -1,6 +1,8 @@
 package com.naki.skiff.code.lsp
 
+import com.naki.skiff.code.session.ExecChannel
 import com.naki.skiff.code.session.ExecRefused
+import com.naki.skiff.code.session.ExecTimedOut
 import com.naki.skiff.fs.FsError
 import com.naki.skiff.code.session.RemoteExec
 import com.naki.skiff.code.session.ShellQuote
@@ -14,11 +16,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import net.schmizz.sshj.common.SSHException
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.EOFException
 import java.net.SocketException
 import java.util.concurrent.ConcurrentHashMap
 
@@ -36,6 +41,11 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * A server unused for [idleMs] is shut down (`shutdown`, then `exit`). So is every one at
  * [stopAll], for an app that has been away long enough.
+ *
+ * A server whose link dropped under it may still be running on the server: a phone that moved from
+ * Wi-Fi to LTE never got its goodbye across, and sshd keeps the session until TCP gives up on it, two
+ * hours on Linux. The start script announces the server's pid, and the next start of that server ends
+ * what is left of the old one first ([orphans]).
  */
 class LspManager(
     private val exec: RemoteExec,
@@ -62,6 +72,9 @@ class LspManager(
     private val inbox = Channel<Op>(Channel.UNLIMITED)
     private val running = ConcurrentHashMap<LanguageServer, Running>()
 
+    /** Servers whose link dropped under them, to be ended on the server before they start again. Touched only from the inbox. */
+    private val orphans = HashMap<LanguageServer, Running>()
+
     private val detecting = Mutex()
 
     /** By the commands that were tried, so a server whose commands `settings.toml` changed is looked for again. */
@@ -74,7 +87,9 @@ class LspManager(
                     is Op.Send -> deliver(op.server, op.message)
                     is Op.Ended -> if (running.remove(op.server, op.running)) {
                         op.running.idle?.cancel()
-                        val why = if (droppedLink(op.cause)) LspEnd.Disconnected else LspEnd.Failed(op.cause, op.running.process.stderrTail())
+                        val dropped = droppedLink(op.cause)
+                        if (dropped) orphans[op.server] = op.running
+                        val why = if (dropped) LspEnd.Disconnected else LspEnd.Failed(op.cause, op.running.process.stderrTail())
                         listener?.ended(op.server, why)
                     }
                     is Op.Idle -> if (running[op.server] === op.running) stop(op.server, op.running, LspEnd.Idle)
@@ -150,19 +165,36 @@ class LspManager(
 
     /** [server] started and recorded as running, or null when it could not be, which the page is told. */
     private suspend fun start(server: LanguageServer): Running? {
+        orphans[server]?.let { reap(server, it) }
+        val argv: List<String>
         val channel = try {
-            val argv = command(server) ?: run {
+            argv = command(server) ?: run {
                 listener?.ended(server, LspEnd.NotInstalled)
                 return null
             }
-            exec.start(loginShell(withTools(root, "cd ${ShellQuote.quote(root)} && exec ${ShellQuote.command(argv)}")))
+            exec.start(loginShell(withTools(root, "cd ${ShellQuote.quote(root)} && echo $PID_MARKER \$\$ && exec ${ShellQuote.command(argv)}")))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             listener?.ended(server, if (droppedLink(e)) LspEnd.Disconnected else LspEnd.Failed(e, ""))
             return null
         }
-        val started = Running()
+        val pid = try {
+            announcedPid(channel)
+        } catch (e: CancellationException) {
+            channel.close()
+            throw e
+        } catch (e: EOFException) {
+            // The shell ended before the server started, so its stderr has ended too and says why.
+            listener?.ended(server, LspEnd.Failed(null, channel.failure()))
+            channel.close()
+            return null
+        } catch (e: Exception) {
+            channel.close()
+            listener?.ended(server, if (droppedLink(e)) LspEnd.Disconnected else LspEnd.Failed(e, ""))
+            return null
+        }
+        val started = Running(pid, argv.first().substringAfterLast('/'))
         started.process = LspProcess(
             channel,
             onMessage = { received(server, started, it) },
@@ -173,6 +205,44 @@ class LspManager(
         )
         running[server] = started
         return started
+    }
+
+    /**
+     * The pid the start script prints ahead of the server, which is the server's: `exec` keeps it.
+     * Anything else first is a login shell writing to stdout, which the server's messages would have
+     * met anyway. Throws [EOFException] when the shell ended without starting it.
+     */
+    private suspend fun announcedPid(channel: ExecChannel): Int {
+        val line = withTimeoutOrNull(ANNOUNCE_MS) {
+            runInterruptible(Dispatchers.IO) {
+                val bytes = ByteArrayOutputStream()
+                while (bytes.size() < MAX_ANNOUNCEMENT) {
+                    val c = channel.stdout.read()
+                    if (c < 0) throw EOFException("the shell ended before the language server started")
+                    if (c == '\n'.code) break
+                    bytes.write(c)
+                }
+                bytes.toString(Charsets.UTF_8.name())
+            }
+        } ?: throw ExecTimedOut(ANNOUNCE_MS)
+        // Never 1 or less: `kill` takes those for every process it may end.
+        return line.removePrefix("$PID_MARKER ").takeIf { line.startsWith(PID_MARKER) }?.toIntOrNull()?.takeIf { it > 1 }
+            ?: throw LspProtocolError("not the language server's pid: $line")
+    }
+
+    /**
+     * Ends what is left of [server] from before its link dropped. Once it has run the orphan is
+     * forgotten whatever it found; a link still down keeps it for the next start.
+     */
+    private suspend fun reap(server: LanguageServer, orphan: Running) {
+        try {
+            exec.run(kill(orphan.pid, orphan.program))
+            orphans.remove(server)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!droppedLink(e)) orphans.remove(server)
+        }
     }
 
     /** A message from [from]: the reply to `initialize` is checked, the reply to our `shutdown` kept here. */
@@ -211,7 +281,8 @@ class LspManager(
         if (why != null) listener?.ended(server, why)
     }
 
-    private class Running {
+    /** [pid] leads its process group on the server; [program] is the name its command line has. */
+    private class Running(val pid: Int, val program: String) {
         lateinit var process: LspProcess
 
         /** The page's `initialize` id until its reply has come. */
@@ -241,6 +312,21 @@ class LspManager(
         private const val EXIT_MS = 1_000L
         private const val SHUTDOWN_ID = "skiff-shutdown"
         private const val UTF_16 = "utf-16"
+        internal const val PID_MARKER = "skiff-lsp-pid"
+        private const val MAX_ANNOUNCEMENT = 1024
+        private const val ANNOUNCE_MS = 60_000L
+
+        /**
+         * Ends the process group [pid] leads — the server and what it started, as pyright's Python
+         * wrapper starts node — if its command line still names [program], so a pid taken since by
+         * something else is left alone. sshd makes each session's command a group leader; where it is
+         * not, only [pid] is ended. `kill -s TERM --` is the form dash takes for a group.
+         */
+        internal fun kill(pid: Int, program: String): List<String> = listOf(
+            "sh", "-c",
+            "case \"\$(ps -o args= -p \"\$1\" 2>/dev/null)\" in *\"\$2\"*) kill -s TERM -- \"-\$1\" 2>/dev/null || kill -s TERM \"\$1\";; esac",
+            "sh", pid.toString(), program,
+        )
 
         /**
          * [script] run by the account's own shell as a login shell, so it sees the PATH a person gets

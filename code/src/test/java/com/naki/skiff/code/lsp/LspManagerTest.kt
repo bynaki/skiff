@@ -5,11 +5,13 @@ import com.naki.skiff.code.session.RemoteExec
 import com.naki.skiff.code.session.ShellQuote
 import kotlinx.coroutines.runBlocking
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
+import org.apache.sshd.server.channel.ChannelSession
 import org.apache.sshd.server.command.CommandFactory
 import org.apache.sshd.server.shell.ProcessShellFactory
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -52,6 +54,11 @@ class LspManagerTest {
     /** What `settings.toml` would say starts the server; a test may change it after [start]. */
     private var offered = emptyList<List<String>>()
 
+    /** The pid the stub says it runs as, and the channel it was started on, so a test can drop its link. */
+    private var stubPid: Long = Int.MAX_VALUE.toLong()
+    private var stubChannel: ChannelSession? = null
+    private var announcement: () -> String = { "${LspManager.PID_MARKER} $stubPid\n" }
+
     private val installed = listOf("skiff-stub-ls", "--stdio")
     private val missing = listOf("skiff-missing-ls", "--stdio")
 
@@ -66,10 +73,11 @@ class LspManagerTest {
         val home = File(tmp.root, "home").apply { mkdirs() }
         File(home, ".profile").writeText("PATH='${bin.path}':\$PATH; export PATH\n")
         val factory = CommandFactory { channel, line ->
-            // The start's line quotes the script a second time, so only the name is matched.
-            if (installed.first() in line && "command -v" !in line) {
+            // Only the start's line announces a pid; the stub announces one in its place.
+            if (LspManager.PID_MARKER in line) {
                 starts.incrementAndGet()
-                StubLanguageServer(positionEncoding = positionEncoding, received = received::put)
+                stubChannel = channel
+                StubLanguageServer(banner = announcement(), positionEncoding = positionEncoding, received = received::put)
             } else {
                 if ("command -v" in line) detections.incrementAndGet()
                 // Set inside the line: MINA runs /bin/sh -c on its first argument and ignores the rest.
@@ -143,9 +151,9 @@ class LspManagerTest {
         assertEquals(venv.path, result.stdout.decodeToString().trim())
     }
 
-    private fun executable(folder: File, name: String): File =
+    private fun executable(folder: File, name: String, body: String = ""): File =
         File(folder.apply { mkdirs() }, name).apply {
-            writeText("#!/bin/sh\n")
+            writeText("#!/bin/sh\n$body\n")
             setExecutable(true)
         }
 
@@ -255,6 +263,59 @@ class LspManagerTest {
         server!!.stop()
 
         assertEquals(LspEnd.Disconnected, next())
+    }
+
+    @Test
+    fun `a server whose link dropped is ended on the server before another starts`() {
+        val lsp = start()
+        // What the server would still be running after a phone changed networks: a process named as the server.
+        val leftOver = executable(File(tmp.root, "bin"), installed.first(), "while :; do sleep 1; done")
+        val (process, pid) = spawn(leftOver.path)
+        stubPid = pid
+        lsp.send(LanguageServer.Python, initialize(0))
+        nextMessage()
+
+        stubChannel!!.session.close(true)
+        assertEquals(LspEnd.Disconnected, next())
+        assertTrue(process.isAlive)
+        lsp.send(LanguageServer.Python, initialize(1))
+
+        assertEquals(1, nextMessage().getInt("id"))
+        assertTrue(process.waitFor(10, TimeUnit.SECONDS))
+        assertEquals(2, starts.get())
+    }
+
+    @Test
+    fun `the kill ends a process only while it is still the server`() = runBlocking {
+        start()
+        val (other, pid) = spawn("sleep", "30")
+
+        exec!!.run(LspManager.kill(pid.toInt(), installed.first()))
+        assertFalse(other.waitFor(500, TimeUnit.MILLISECONDS))
+        exec!!.run(LspManager.kill(pid.toInt(), "sleep"))
+
+        assertTrue(other.waitFor(10, TimeUnit.SECONDS))
+    }
+
+    /** [argv] started here, with its pid: it says it before becoming [argv], since Android's `Process` has no `pid()`. */
+    private fun spawn(vararg argv: String): Pair<Process, Long> {
+        val process = ProcessBuilder(listOf("/bin/sh", "-c", "echo \$\$; exec \"\$@\"", "sh") + argv).start()
+        return process to process.inputStream.bufferedReader().readLine().trim().toLong()
+    }
+
+    @Test
+    fun `a start that does not announce a pid fails rather than taking the server's messages`() {
+        val lsp = start()
+        // A login shell's profile that writes to stdout comes before the announcement.
+        announcement = { "Welcome to the server\n" }
+        lsp.send(LanguageServer.Python, initialize(0))
+        val profile = next()
+        announcement = { "${LspManager.PID_MARKER} -1\n" }
+        lsp.send(LanguageServer.Python, initialize(1))
+        val everyProcess = next()
+
+        assertTrue(profile is LspEnd.Failed && profile.cause is LspProtocolError)
+        assertTrue(everyProcess is LspEnd.Failed && everyProcess.cause is LspProtocolError)
     }
 
     @Test
