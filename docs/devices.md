@@ -57,7 +57,11 @@
 - **CM6 뷰에 DevTools에서 닿는 법:** `document.querySelector('.cm-content').cmTile.root.view`.
 - **viewer의 두 번 탭(LSP hover)은** `Input.dispatchTouchEvent` touchStart, 60ms 뒤 touchEnd를 120ms 간격으로
   두 번 보낸다(300ms 안, 24px 안이어야 한다). 링크 끊김은 Wi-Fi를 꺼서는 잘 안 나고, 이 맥에서 그 기기의
-  `sshd-session`을 죽여 만든다.
+  `sshd-session`을 죽여 만든다. **LTE가 있는 폴드8에서는 USB adb로 `svc wifi disable`이 망 전환을 만든다** — 앱이
+  LTE로 다시 붙고, 서버에는 와이파이 쪽 옛 세션이 끊긴 줄 모른 채 남는다. 끝나면 `svc wifi enable`.
+- 터치 hover 툴팁은 `.cm-tooltip .skiff-hover`다(라이브러리의 `.cm-tooltip-hover`가 아니다). 팔레트의 모드는
+  `#palette button.mode`를 위아래로 24px 넘게 미는 것으로 바뀐다(touchStart → touchMove 몇 번 → touchEnd).
+  입력에 `@`를 치는 것으로는 바뀌지 않는다 — 명령 모드에서 `@…`를 찾을 뿐이다.
 - provider 확인: `adb shell content query --uri content://com.naki.skiff.profiles/profiles`는
   **거부되는 것이 정상이다**(shell은 권한이 없다). 권한 부여는
   `dumpsys package com.naki.skiff.code | grep READ_PROFILES`로 본다.
@@ -94,7 +98,12 @@
 - **화면은 10분 뒤 꺼진다**(기본값 600000). 올렸으면 그 값으로 되돌린다.
 - **접었다 펴면 USB가 재열거되어 adb가 1~2초 끊긴다.** 명령 하나가 "device not found"로 실패한 것을
   결과로 읽지 말고 재시도한다.
-- 프로필 하나(이 맥)와 호스트키 하나가 저장돼 있고 `ACCESS_LOCAL_NETWORK`도 허용돼 있다.
+- 프로필 여럿(이 맥, 사용자가 실제로 쓰는 원격 Ubuntu 서버 등)과 그 호스트키가 저장돼 있고
+  `ACCESS_LOCAL_NETWORK`도 허용돼 있다. 원격 서버의 주소는 레포 밖 메모에 있고, 이 맥에서 키로 ssh가 된다 —
+  `ps`와 `journalctl -u ssh`로 서버 쪽을 본다. **그 서버의 프로젝트는 사용자의 실제 작업이다**: 파일을 저장하지 않는다.
+- **앱을 백그라운드로 보내면 6초쯤 뒤 Android가 앱의 TCP 소켓을 닫는다**(2026-10-06, 와이파이·LTE 둘 다,
+  logcat `InetDiagMessage: Destroyed … sockets … uids={<앱 uid>}`). 그래서 서버 쪽 세션과 언어 서버가 바로 끝나고,
+  앱으로 돌아오면 다시 접속한다. 백그라운드 데이터 제한(`cmd netpolicy get restrict-background`)은 꺼져 있었다.
 - **사용자가 실제로 쓰는 기기다.** `settings.toml`과 `files/themes/`에 사용자가 고른 값과 가져온 테마가 있으니,
   설정을 바꾸는 시험 전에 `run-as … cat`으로 백업하고 끝나면 되돌린다(md5로 맞춰 본다). 시험 중에 사용자가 다른
   앱을 띄울 수 있으니 화면을 쓰는 시험은 먼저 말하고 한다.
