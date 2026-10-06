@@ -1,6 +1,7 @@
 package com.naki.skiff.code.lsp
 
 import com.naki.skiff.code.session.ExecRefused
+import com.naki.skiff.fs.FsError
 import com.naki.skiff.code.session.RemoteExec
 import com.naki.skiff.code.session.ShellQuote
 import kotlinx.coroutines.CancellationException
@@ -16,7 +17,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import net.schmizz.sshj.common.SSHException
 import org.json.JSONObject
+import java.net.SocketException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -60,7 +63,9 @@ class LspManager(
     private val running = ConcurrentHashMap<LanguageServer, Running>()
 
     private val detecting = Mutex()
-    private val found = HashMap<LanguageServer, List<String>?>()
+
+    /** By the commands that were tried, so a server whose commands `settings.toml` changed is looked for again. */
+    private val found = HashMap<List<List<String>>, List<String>?>()
 
     init {
         scope.launch {
@@ -69,7 +74,8 @@ class LspManager(
                     is Op.Send -> deliver(op.server, op.message)
                     is Op.Ended -> if (running.remove(op.server, op.running)) {
                         op.running.idle?.cancel()
-                        listener?.ended(op.server, LspEnd.Failed(op.cause, op.running.process.stderrTail()))
+                        val why = if (droppedLink(op.cause)) LspEnd.Disconnected else LspEnd.Failed(op.cause, op.running.process.stderrTail())
+                        listener?.ended(op.server, why)
                     }
                     is Op.Idle -> if (running[op.server] === op.running) stop(op.server, op.running, LspEnd.Idle)
                     is Op.Refuse -> if (running[op.server] === op.running) {
@@ -93,28 +99,33 @@ class LspManager(
 
     /**
      * The command [server] would be started with, or null when none of its commands is on the PATH
-     * the account's login shell gives. Asked once per server; a check that failed is asked again.
+     * the account's login shell gives, with the project's tools around it ([withTools]). Asked once
+     * per server and set of commands; a check that failed is asked again.
      */
     suspend fun command(server: LanguageServer): List<String>? = detecting.withLock {
-        if (server in found) return@withLock found[server]
+        val candidates = commands(server)
+        if (candidates in found) return@withLock found[candidates]
         val argv = try {
-            commands(server).firstOrNull { exec.run(loginShell("command -v " + ShellQuote.quote(it.first()))).exitStatus == 0 }
+            candidates.firstOrNull { exec.run(loginShell(withTools(root, "command -v " + ShellQuote.quote(it.first())))).exitStatus == 0 }
         } catch (_: ExecRefused) {
             null
         }
-        found[server] = argv
+        found[candidates] = argv
         argv
     }
 
     /**
-     * Ends every server without the shutdown exchange, for a project going away: the connection
-     * is closed right after, which ends them on the server too. Writes to the socket, so not on the
-     * main thread.
+     * Ends every server without the shutdown exchange, for a project going away or a session being
+     * replaced: the connection is closed right after, which ends them on the server too. The page
+     * is told [LspEnd.Closed] for each. Writes to the socket, so not on the main thread.
      */
     fun close() {
         inbox.close()
         scope.cancel()
-        running.values.forEach { it.process.close() }
+        running.forEach { (server, it) ->
+            it.process.close()
+            listener?.ended(server, LspEnd.Closed)
+        }
         running.clear()
     }
 
@@ -144,11 +155,11 @@ class LspManager(
                 listener?.ended(server, LspEnd.NotInstalled)
                 return null
             }
-            exec.start(loginShell("cd ${ShellQuote.quote(root)} && exec ${ShellQuote.command(argv)}"))
+            exec.start(loginShell(withTools(root, "cd ${ShellQuote.quote(root)} && exec ${ShellQuote.command(argv)}")))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            listener?.ended(server, LspEnd.Failed(e, ""))
+            listener?.ended(server, if (droppedLink(e)) LspEnd.Disconnected else LspEnd.Failed(e, ""))
             return null
         }
         val started = Running()
@@ -238,6 +249,23 @@ class LspManager(
         internal fun loginShell(script: String): List<String> =
             listOf("sh", "-c", "exec \"\${SHELL:-/bin/sh}\" -lc \"\$1\"", "sh", script)
 
+        /**
+         * [script] with the project's virtualenv ahead of the login shell's PATH, as VS Code takes a
+         * project's own tools first, and `~/.local/bin` after it (2026-10-06 사용자 결정). pip, uv and
+         * pipx put commands there, and the line that adds it to the PATH is often only in `.zshrc` or
+         * `.bashrc`, which a login shell that is not interactive does not read — an interactive one
+         * would, but may print to stdout, which the server's messages share.
+         */
+        internal fun withTools(root: String, script: String): String =
+            "PATH=${ShellQuote.quote("$root/.venv/bin")}:\"\$PATH\":\"\$HOME/.local/bin\"; export PATH; $script"
+
+        /**
+         * Whether [cause] is the link to the server going, not the language server: the socket or
+         * sshj's transport under a running one, or a connection [RemoteExec] could not make again.
+         */
+        internal fun droppedLink(cause: Throwable?): Boolean =
+            cause is SSHException || cause is SocketException || cause is FsError.NetworkLost || cause is FsError.Unreachable
+
         /** The id of an `initialize` request, or null for any other message — most never parsed. */
         internal fun initializeId(message: String): Any? {
             if ("\"initialize\"" !in message) return null
@@ -257,6 +285,19 @@ sealed interface LspEnd {
 
     /** Stopped from here ([LspManager.stopAll]): the app was away. */
     data object Stopped : LspEnd
+
+    /**
+     * Its project's command connection was closed ([LspManager.close]): the project was removed, or
+     * its profile changed and the session was replaced. Starting again finds out which.
+     */
+    data object Closed : LspEnd
+
+    /**
+     * The link to the server dropped under it, or was down when it was to start — a phone folded shut
+     * or off the network. Not the server's doing: started again when next wanted, or when the app
+     * comes back.
+     */
+    data object Disconnected : LspEnd
 
     /** None of its commands is on the server. Not worth asking again for this project. */
     data object NotInstalled : LspEnd

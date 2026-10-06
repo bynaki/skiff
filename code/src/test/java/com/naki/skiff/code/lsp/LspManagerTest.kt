@@ -49,6 +49,9 @@ class LspManagerTest {
         override fun findExistingAlgorithms(hostname: String, port: Int) = emptyList<String>()
     }
 
+    /** What `settings.toml` would say starts the server; a test may change it after [start]. */
+    private var offered = emptyList<List<String>>()
+
     private val installed = listOf("skiff-stub-ls", "--stdio")
     private val missing = listOf("skiff-missing-ls", "--stdio")
 
@@ -78,7 +81,8 @@ class LspManagerTest {
         this.server = server
         val exec = RemoteExec("127.0.0.1", server.port, server.username, { server.password }, acceptAnyKey)
         this.exec = exec
-        return LspManager(exec, tmp.root.path, idleMs, commands = { commands }).also {
+        offered = commands
+        return LspManager(exec, tmp.root.path, idleMs, commands = { offered }).also {
             it.listener = object : LspManager.Listener {
                 override fun message(server: LanguageServer, message: String) = heard.put(message)
                 override fun ended(server: LanguageServer, why: LspEnd) = heard.put(why)
@@ -114,10 +118,53 @@ class LspManagerTest {
     }
 
     @Test
+    fun `a command only in the project's virtualenv or in ~ local bin is found`() = runBlocking {
+        val inVenv = listOf("skiff-venv-ls")
+        val inLocal = listOf("skiff-local-ls")
+        val lsp = start(commands = listOf(inVenv))
+        executable(File(tmp.root, ".venv/bin"), inVenv.first())
+        executable(File(tmp.root, "home/.local/bin"), inLocal.first())
+
+        assertEquals(inVenv, lsp.command(LanguageServer.Python))
+        offered = listOf(inLocal)
+        assertEquals(inLocal, lsp.command(LanguageServer.Python))
+    }
+
+    @Test
+    fun `the project's virtualenv comes before the login shell's PATH`() = runBlocking {
+        start()
+        val root = File(tmp.root, "it's a \$(project)")
+        val venv = executable(File(root, ".venv/bin"), installed.first())
+
+        val script = LspManager.withTools(root.path, "command -v " + ShellQuote.quote(installed.first()))
+        val result = exec!!.run(LspManager.loginShell(script))
+
+        assertEquals(0, result.exitStatus)
+        assertEquals(venv.path, result.stdout.decodeToString().trim())
+    }
+
+    private fun executable(folder: File, name: String): File =
+        File(folder.apply { mkdirs() }, name).apply {
+            writeText("#!/bin/sh\n")
+            setExecutable(true)
+        }
+
+    @Test
     fun `the first installed command is the one, and is asked once`() = runBlocking {
         val lsp = start(commands = listOf(missing, installed))
 
         assertEquals(installed, lsp.command(LanguageServer.Python))
+        assertEquals(installed, lsp.command(LanguageServer.Python))
+        assertEquals(2, detections.get())
+    }
+
+    @Test
+    fun `commands changed since are looked for again`() = runBlocking {
+        val lsp = start(commands = listOf(missing))
+        assertNull(lsp.command(LanguageServer.Python))
+
+        offered = listOf(installed)
+
         assertEquals(installed, lsp.command(LanguageServer.Python))
         assertEquals(2, detections.get())
     }
@@ -153,6 +200,19 @@ class LspManagerTest {
     }
 
     @Test
+    fun `closing ends a running server without the exchange, and says so`() {
+        val lsp = start()
+        lsp.send(LanguageServer.Python, initialize(0))
+        nextMessage()
+
+        lsp.close()
+
+        assertEquals(LspEnd.Closed, next())
+        assertEquals("initialize", method())
+        assertNull(received.poll(200, TimeUnit.MILLISECONDS))
+    }
+
+    @Test
     fun `a server unused for a while is shut down, and the next initialize starts another`() {
         val lsp = start(idleMs = 300)
 
@@ -184,6 +244,29 @@ class LspManagerTest {
         lsp.send(LanguageServer.Python, initialize(0))
 
         assertEquals(0, nextMessage().getInt("id"))
+    }
+
+    @Test
+    fun `a link that drops under a running server is not the server failing`() {
+        val lsp = start()
+        lsp.send(LanguageServer.Python, initialize(0))
+        nextMessage()
+
+        server!!.stop()
+
+        assertEquals(LspEnd.Disconnected, next())
+    }
+
+    @Test
+    fun `a server to start while the link is down is not one that failed`() {
+        val lsp = start()
+        runBlocking { lsp.command(LanguageServer.Python) }
+        server!!.stop()
+
+        lsp.send(LanguageServer.Python, initialize(0))
+
+        assertEquals(LspEnd.Disconnected, next())
+        assertEquals(0, starts.get())
     }
 
     @Test

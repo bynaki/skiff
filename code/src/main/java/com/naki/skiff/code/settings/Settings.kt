@@ -1,6 +1,7 @@
 package com.naki.skiff.code.settings
 
 import com.akuleshov7.ktoml.Toml
+import com.naki.skiff.code.lsp.LanguageServer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
@@ -8,7 +9,7 @@ import kotlinx.serialization.Serializable
 /**
  * What `settings.toml` holds: what the person chose, as opposed to what the page noticed as it was
  * used, which stays in its `localStorage` (docs/skiffcode.spec.md "상태 저장"). Only the keys that
- * something reads today are here; the language servers join with the feature that reads them. A key left out of the file takes the default written here, and
+ * something reads today are here. A key left out of the file takes the default written here, and
  * [SettingsToml.KEYS] says the same thing in the file a person opens — `SettingsTomlTest` holds the two to it.
  */
 @Serializable
@@ -16,6 +17,7 @@ data class Settings(
     val editor: Editor = Editor(),
     val files: Files = Files(),
     val search: Search = Search(),
+    val lsp: Lsp = Lsp(),
 ) {
     @Serializable
     data class Editor(
@@ -53,6 +55,35 @@ data class Settings(
         /** How many files the walk collects before it stops. */
         @SerialName("max_files") val maxFiles: Int = 5000,
     )
+
+    /** A project's language servers (docs/skiffcode.spec.md "git과 LSP"): how long to wait for one, and what starts each. */
+    @Serializable
+    data class Lsp(
+        /** How long the page waits for an answer before giving up on a request. */
+        @SerialName("timeout_seconds") val timeoutSeconds: Int = 10,
+        val python: Server = Server(LanguageServer.Python),
+        val typescript: Server = Server(LanguageServer.TypeScript),
+        val markdown: Server = Server(LanguageServer.Markdown),
+    ) {
+        /**
+         * The commands to try for [server]. Its default is the first of its own, and left at that
+         * the rest of them are tried after it; set to anything else, that is the only one.
+         */
+        fun commandsFor(server: LanguageServer): List<List<String>> {
+            val set = when (server) {
+                LanguageServer.Python -> python
+                LanguageServer.TypeScript -> typescript
+                LanguageServer.Markdown -> markdown
+            }.command
+            return if (set == server.commands.first()) server.commands else listOf(set)
+        }
+    }
+
+    /** One kind of language server: the program that starts it and its arguments. */
+    @Serializable
+    data class Server(val command: List<String>) {
+        constructor(server: LanguageServer) : this(server.commands.first())
+    }
 }
 
 /** Something in the file that was not used, and what was used instead. */
@@ -80,6 +111,7 @@ object SettingsToml {
     val POLL_SECONDS = 1..60
     val DIFF_ALPHAS = 0..100
     val MAX_FILES = 100..100_000
+    val LSP_TIMEOUTS = 1..120
 
     /** What a project without git usually holds that nobody searches for: installed packages and build output. */
     val SKIP_DIRS = listOf("node_modules", ".venv", "venv", "__pycache__", ".gradle", "build", "dist", "target")
@@ -120,6 +152,7 @@ object SettingsToml {
         val editor = parsed.editor
         val files = parsed.files
         val search = parsed.search
+        val lsp = parsed.lsp
         val font = if (editor.font.isNotBlank()) editor.font else {
             problems += SettingsProblem.Refused("editor.font", "\"${editor.font}\"", "\"${defaults.editor.font}\"", null)
             defaults.editor.font
@@ -132,6 +165,12 @@ object SettingsToml {
         val skipDirs = if (search.skipDirs.none { it.isEmpty() || '/' in it }) search.skipDirs else {
             problems += SettingsProblem.Refused("search.skip_dirs", toml(search.skipDirs), toml(defaults.search.skipDirs), null)
             defaults.search.skipDirs
+        }
+        // A command with no program in it would be looked for as an empty name and never found.
+        fun command(key: String, server: Settings.Server, default: Settings.Server): Settings.Server {
+            if (server.command.firstOrNull()?.isNotBlank() == true) return server
+            problems += SettingsProblem.Refused(key, toml(server.command), toml(default.command), null)
+            return default
         }
         val settings = Settings(
             editor = Settings.Editor(
@@ -150,6 +189,12 @@ object SettingsToml {
             search = Settings.Search(
                 skipDirs = skipDirs,
                 maxFiles = inRange("search.max_files", search.maxFiles, MAX_FILES, defaults.search.maxFiles),
+            ),
+            lsp = Settings.Lsp(
+                timeoutSeconds = inRange("lsp.timeout_seconds", lsp.timeoutSeconds, LSP_TIMEOUTS, defaults.lsp.timeoutSeconds),
+                python = command("lsp.python.command", lsp.python, defaults.lsp.python),
+                typescript = command("lsp.typescript.command", lsp.typescript, defaults.lsp.typescript),
+                markdown = command("lsp.markdown.command", lsp.markdown, defaults.lsp.markdown),
             ),
         )
         return SettingsRead(settings, problems)
@@ -250,7 +295,26 @@ object SettingsToml {
             ),
         ),
         Key("search", "max_files", "5000", listOf("${MAX_FILES.first} to ${MAX_FILES.last}. How many files that search collects before it stops.")),
+        Key("lsp", "timeout_seconds", "10", listOf("${LSP_TIMEOUTS.first} to ${LSP_TIMEOUTS.last}. How long to wait for a language server to answer before giving up.")),
+        commandKey(LanguageServer.Python, "Python"),
+        commandKey(LanguageServer.TypeScript, "TypeScript and JavaScript"),
+        commandKey(LanguageServer.Markdown, "Markdown"),
     )
+
+    /**
+     * A language server's `command`. Its default is the first of its own commands; left at that, the
+     * others after it are tried too, which setting anything else gives up.
+     */
+    private fun commandKey(server: LanguageServer, files: String): Key {
+        val own = server.commands.map { toml(it) }
+        val about = buildList {
+            add("The language server for $files files in a project, as the program and its arguments. It runs on the")
+            add("server, in the project's folder, through your login shell, so your profile's PATH applies; nothing is installed.")
+            if (own.size > 1) add("Left at the default, ${own.drop(1).joinToString(", then ")} is tried when it is not found.")
+            else add("A server that is not found is simply not used.")
+        }
+        return Key("lsp.${server.name.lowercase()}", "command", own.first(), about)
+    }
 
     /**
      * What a missing `settings.toml` is created with when the person first opens it: every key at its

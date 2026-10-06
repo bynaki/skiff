@@ -122,4 +122,10 @@
     <string name="watch_reload">Reload</string>
     <string name="watch_keep">Keep mine</string>
     <string name="watch_dismiss">Dismiss</string>
+
+    <string name="lsp_go_to_definition">Go to definition</string>
+    <string name="lsp_no_definition">No definition found here.</string>
+    <string name="lsp_not_installed">No %1$s language server was found on this project\'s server.</string>
+    <string name="lsp_failed">The %1$s language server stopped.</string>
+    <string name="lsp_unsupported">The %1$s language server counts positions in %2$s, which this app cannot follow, so it is not used.</string>
 </resources>

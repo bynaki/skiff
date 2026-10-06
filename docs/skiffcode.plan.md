@@ -437,9 +437,22 @@
   - 재연결 후 `didOpen`은 페이지의 `LSPClient.connect`가 보낸다. Kotlin은 서버가 끝났다고 알리기만 한다(spec "git과 LSP"의 `LspManager`).
   - 백그라운드 종료는 `stopAll()`까지 만들었다. **`MainActivity`의 `onStop`에 거는 것과 "오래"를 몇 분으로 할지는 다음 항목에서 브리지와 같이 한다.** 리스너도 거기서 붙인다.
   - `LspManagerTest`는 스텁 실행 파일의 폴더를 PATH가 아니라 테스트 HOME의 `.profile`에서만 더한다. `-l`을 빼면 10개 중 8개가 실패하는 것을 봤다.
-- [ ] Web `@codemirror/lsp-client` 연결: editor(진단, 자동완성, hover, 정의), viewer(길게 눌러 hover, 정의로 이동, 다른 파일이면 열기)
-  - 정의로 이동은 커서를 줄과 열에 두어야 하므로 알려진 문제 10(링크의 `col`)을 여기서 같이 푼다(2026-10-05 사용자 동의).
-  - 기기 확인용 언어 서버(이 맥의 pyright)는 이 항목을 시작할 때 사용자에게 설치를 묻는다.
+- [x] Web `@codemirror/lsp-client` 연결: editor(진단, 자동완성, hover, 정의), viewer(두 번 탭해 hover, 정의로 이동, 다른 파일이면 열기)
+  - 2026-10-05 사용자 결정 여섯: 이 맥에 `brew install pyright`, 백그라운드 `stopAll`은 10분, 정의 이동과 링크의 `col`은 커서를 줄·열에 두고 줄을 맨 위로, 요청 타임아웃 기본 10초, 서버에 여는 것은 화면의 파일만, 터치는 viewer 길게 누르기 툴팁 안의 `정의로 이동` 버튼과 팔레트 명령. 2026-10-06 사용자 결정: 길게 누르기를 **두 번 탭**으로 바꾸고 길게 누르기는 브라우저의 선택·복사에 돌려준다(폴드8에서 손가락으로 길게 누르니 선택만 됐다 — 그 서버에 언어 서버가 없었던 탓으로 보이지만, 몸짓이 다투는 것도 피한다). 설계는 spec "git과 LSP"의 페이지 쪽.
+  - Kotlin: `LanguageServer.forFile`(확장자→서버와 language id), `LspUri`, `Settings.Lsp`(`[lsp] timeout_seconds`, `[lsp.<종류>] command`, `SettingsToml.KEYS` +4), `ProjectSessions`가 설정의 명령을 넘김, `LspManager`의 탐지 캐시를 명령 목록으로, `close`가 `LspEnd.Closed`를 알림. `MainActivity`: `lspSend` 채널, 프로젝트마다 리스너, `openDefinition`, 문서의 `lsp`와 `col`, `documentsChanged`의 `col`, `onStop` 10분 뒤 `stopLanguageServers`.
+  - 페이지: `lsp.ts`(M0 스파이크를 갈아엎음), `lspPolicy.ts`, `sanitize.ts`, pane의 LSP compartment와 커서 두기, 팔레트 `Go to Definition`·`Show Hover`.
+  - 알려진 문제 10(`col`)을 풀었다. 팔레트 심볼 모드의 이동도 이제 그 줄 첫머리에 커서를 둔다(같은 `goToLine`을 쓴다).
+  - 테스트: JVM 265(+8: `LspUriTest` 4, `SettingsTomlTest` +2와 표 구조 테스트 둘 갱신, `LspManagerTest` +2), vitest 129(+8: `lspPolicy` 5, `sanitize` 2, `commands` 1). 린트 경고 11(기준과 같다).
+  - **탭에서 확인했다**(이 맥의 원격 로그인, 홈의 임시 레포 `skiff-lsp-check`, 실제 pyright). 진단 둘(`"한글" + 1`의 범위가 UTF-16으로 맞고, `util`에서 가져온 메서드의 인자 타입 오류). 링크 `line=12&col=7`이 커서를 12:7에. CDP 터치 길게 누르기로 hover 셋을 연달아, 툴팁의 버튼으로 같은 파일(4:5)과 다른 파일(`util.py` 1:5). editor 레이어에서 팔레트 UI로 `Show Hover`와 `Go to Definition`. 서버 프로세스를 죽이니 같은 초에 다시 떴고 진단이 돌아왔다. 버퍼를 고치니 그 진단이 사라졌다.
+  - 탭에서 찾아 고친 것 둘: CDP 터치 뒤에 오는 호환 mousemove가 라이브러리의 마우스 hover를 띄웠다(막음). 호환 mousedown이 선택을 옮겨 막 뜬 툴팁을 닫았다(선택으로는 닫지 않게).
+  - 두 번 탭으로 바꾼 뒤 탭에서 CDP 터치로 다시 봤다(2026-10-06): 120ms 간격 두 탭 → hover, 450ms 간격·60px 떨어진 두 탭·한 번 탭·800ms 길게 누르기 → 없음, 툴팁 뒤 한 번 탭 → 닫힘, 진단 자리 → 진단 문구, 버튼 → 같은 파일 4:5, editor 레이어에서 두 번 탭 → 단어 선택만.
+  - 서버가 없을 때 물으면 배너(2026-10-06 사용자 결정). 탭에서 `[lsp.python] command = ["no-such-langserver"]`로 봤다: 파일을 열 때는 배너 없음, 두 번 탭 → "이 프로젝트의 서버에서 Python 언어 서버를 찾지 못했습니다."가 잠깐 뜨고 사라짐. 설정을 되돌리고 앱을 다시 켜니 hover가 돌아왔다.
+  - PATH에 프로젝트 `.venv/bin`(앞)과 `~/.local/bin`(뒤)을 붙인다(2026-10-06 사용자 결정). 폴드8에서 원격 Ubuntu 서버의 프로젝트가 "언어 서버를 찾지 못했습니다"였던 원인. `LspManagerTest` 둘(가상환경·`~/.local/bin`에만 있는 명령을 찾음, 가상환경이 로그인 PATH보다 먼저). 그 서버에 같은 스크립트로 `.venv`의 pyright가 잡히고 `initialize`에 답하는 것을 ssh로 봤다.
+  - 링크가 끊겨 끝난 서버는 `LspEnd.Disconnected`로 조용히 내려 두고, 앱으로 돌아오면(`lspWake`) 다시 띄운다(2026-10-06, 폴드8을 닫았다 열면 "멈췄습니다 Connection lost"). `LspManagerTest` 둘(돌던 서버 아래 링크가 끊김, 링크가 끊긴 채로 시작). 탭에서 앱을 뒤로 보내고 이 맥에서 그 sshd 세션을 끊은 뒤 돌아오니 배너 없이 pyright가 새로 떠 진단 둘이 돌아왔다. 탭의 Wi-Fi를 40초 껐다 켜는 것으로는 링크가 끊기지 않았다.
+  - hover가 떠 있는 동안 그 단어를 선택색으로(2026-10-06 사용자 결정). 탭에서 CDP로: `local_helper`·`"한글"`의 `한글`에 표시, 툴팁 밖 탭으로 닫으면 사라짐, 스크린샷으로 색 확인.
+  - **폴드8에서 사용자가 확인했다**(2026-10-06): 원격 Ubuntu 서버의 프로젝트에서 두 번 탭 툴팁과 단어 강조, 폴드8을 닫았다 연 뒤에도 끊기지 않음.
+  - 보지 않은 것: **손가락**의 두 번 탭과 길게 누르기(브라우저 선택이 돌아왔는지), 자동완성 목록과 서명 도움말을 화면 키보드로, 마우스 hover, 유휴·백그라운드 종료 뒤 다시 띄우기(아래 **확인** 항목), 폴드8.
+  - pyright가 `File or directory "/<default workspace root>" does not exist.`를 로그로 낸다. 라이브러리가 `rootUri`만 보내고 `workspaceFolders`를 보내지 않아서다. import는 풀렸지만 `pyrightconfig.json` 같은 것이 루트에서 읽히는지는 보지 않았다.
 - [ ] `@` 심볼 모드를 프로젝트에서 LSP `documentSymbol`/`workspace/symbol`로 확장
 - [ ] **확인:** 실제 서버의 파이썬 프로젝트에서 정의 이동, 진단, 심볼 검색이 동작하고, 앱을 백그라운드에 오래 두면 원격 LSP 프로세스가 종료된다(`ps`로 확인)
 - [ ] **데몬 판정 측정:** 와이파이↔LTE를 전환한 뒤 재접속부터 진단이 다시 뜰 때까지를 재고, 그중
@@ -486,7 +499,6 @@
 - **확인이 실패했을 때의 배너(`project_unchecked`)를 기기에서 보지 못했다.** `NoExec`·`Missing` 배너는 M5 확인 항목에서 봤다.
 - **로그인 셸이 POSIX가 아니면(fish, csh) 따옴표가 맞는지 모른다.** `ShellQuote`는 sh 기준이고, sshd는 명령 줄을 사용자의 로그인 셸에 넘긴다.
   csh는 작은따옴표 안의 줄바꿈을 받지 않는다.
-- **실제 SSH 서버로 LSP를 띄워 본 적은 없다.** M0의 확인은 이 맥 안의 MINA 루프백이다.
 - 진단이 수백~수천 개일 때의 비용. 큰 파일에서 편집 중 동기화 비용. **2MB 파일에서 병합 diff가 얼마나
   드는지도 아직 안 쟀다.**
 - 테마 CSS 변수와 SAF import/export는 라이브러리 버전도 고르지 않았다. lezer 심볼 추출은 패키지가 이미
@@ -514,9 +526,7 @@
    접기/펴기 직후). 세 번 더 해봤지만 재현되지 않아 확정된 버그로 적지 않는다.
 8. ~~링크의 `layer`가 쓰이지 않는다.~~ 페이지로 넘기고, `diff`는 비교할 사본이 온 뒤에 들어가게 풀었다(2026-10-04).
 9. ~~팔레트가 열린 채로 링크가 다른 파일을 열면 앞 파일의 목록이 남는다.~~ 열린 파일이 바뀔 때마다 팔레트가 다시 찾게 풀었다(2026-10-04).
-10. **링크의 `col`이 쓰이지 않는다**(2026-10-04 8을 풀며 찾았다). `OpenAt.col`로 읽기만 하고 페이지로 넘기지 않는다.
-    `line`은 그 줄을 화면 맨 위로 올릴 뿐 커서를 두지 않으므로, `col`을 쓰려면 커서를 어디에 둘지부터 정해야 한다.
-    M6의 정의로 이동과 같은 결정이라 그 항목에서 같이 푼다.
+10. ~~링크의 `col`이 쓰이지 않는다.~~ 커서를 줄·열에 두고 줄을 맨 위로 올리게 풀었다(2026-10-05, M6 정의로 이동과 같은 결정).
 
 ## 검증 명령
 

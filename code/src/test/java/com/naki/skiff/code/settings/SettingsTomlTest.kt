@@ -1,5 +1,8 @@
 package com.naki.skiff.code.settings
 
+import com.naki.skiff.code.lsp.LanguageServer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.StructureKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,13 +29,17 @@ class SettingsTomlTest {
         assertEquals(SettingsRead(Settings(), emptyList()), SettingsToml.read(set))
     }
 
+    /** Every key under [descriptor] as `table.key`, a table inside a table (`[lsp.python]`) included. */
+    private fun keysOf(descriptor: SerialDescriptor, prefix: String): List<String> =
+        (0 until descriptor.elementsCount).flatMap { i ->
+            val name = prefix + descriptor.getElementName(i)
+            val element = descriptor.getElementDescriptor(i)
+            if (element.kind == StructureKind.CLASS) keysOf(element, "$name.") else listOf(name)
+        }
+
     @Test
     fun `every key in Settings is one the file shows`() {
-        val descriptor = Settings.serializer().descriptor
-        val inSettings = (0 until descriptor.elementsCount).flatMap { table ->
-            val keys = descriptor.getElementDescriptor(table)
-            (0 until keys.elementsCount).map { descriptor.getElementName(table) + "." + keys.getElementName(it) }
-        }
+        val inSettings = keysOf(Settings.serializer().descriptor, "")
         assertEquals(inSettings.toSet(), SettingsToml.KEYS.map { "${it.table}.${it.name}" }.toSet())
         assertEquals(SettingsToml.KEYS.size, inSettings.size)
     }
@@ -45,6 +52,17 @@ class SettingsTomlTest {
         }
     }
 
+    /** Each table's lines by its name, the lines before the first table under "". */
+    private fun tablesOf(text: String): Map<String, String> {
+        val tables = LinkedHashMap<String, StringBuilder>()
+        var current = tables.getOrPut("") { StringBuilder() }
+        for (line in text.lines()) {
+            if (line.startsWith("[")) current = tables.getOrPut(line.trim('[', ']')) { StringBuilder() }
+            else current.append(line).append('\n')
+        }
+        return tables.mapValues { it.value.toString() }
+    }
+
     @Test
     fun `a file made before a key was is given it, commented out, in its own table`() {
         val text = "# mine\n[editor]\ntheme = \"dark\"\nfont_size = 18\n\n[files]\npoll_seconds = 5\n"
@@ -54,11 +72,10 @@ class SettingsTomlTest {
         assertEquals(text.lines().filter { it.isNotBlank() }, kept)
         assertEquals(SettingsToml.read(text), SettingsToml.read(complete))
         // Every key is there now, and in its own table.
-        val editor = complete.substringBefore("[files]")
-        val files = complete.substringAfter("[files]").substringBefore("[search]")
-        val search = complete.substringAfter("[search]")
+        val tables = tablesOf(complete)
+        val editor = tables.getValue("editor")
         for (key in SettingsToml.KEYS) {
-            val inTable = mapOf("editor" to editor, "files" to files, "search" to search).getValue(key.table)
+            val inTable = tables.getValue(key.table)
             assertTrue(key.name, inTable.lines().any { it == "${key.name} = 18" || it == "# ${key.name} = ${key.default}" || it.startsWith("${key.name} = ") })
         }
         assertTrue(editor.contains(SettingsToml.KEYS.first { it.name == "diff_alpha" }.lines.joinToString("\n")))
@@ -82,7 +99,8 @@ class SettingsTomlTest {
         assertTrue(complete, complete.contains("wrap = false\n# A CSS font family"))
         assertTrue(complete, complete.contains("Default: 30.\n# diff_alpha = 30\n\n[files]\n# 1 to 64."))
         assertTrue(complete, complete.contains("# poll_seconds = 2\n\n[search]\n"))
-        assertTrue(complete.endsWith("# max_files = 5000\n"))
+        assertTrue(complete, complete.contains("# max_files = 5000\n\n[lsp]\n"))
+        assertTrue(complete.endsWith(SettingsToml.KEYS.last().lines.last() + "\n"))
         assertEquals(SettingsToml.read("[editor]\nwrap = false\n"), SettingsToml.read(complete))
     }
 
@@ -114,6 +132,12 @@ class SettingsTomlTest {
             [search]
             skip_dirs = ["vendor", ".tox"]
             max_files = 20000
+
+            [lsp]
+            timeout_seconds = 30
+
+            [lsp.python]
+            command = ["pylsp", "-v"]
             """.trimIndent(),
         )
         assertEquals(emptyList<SettingsProblem>(), read.problems)
@@ -122,6 +146,7 @@ class SettingsTomlTest {
                 Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45),
                 Settings.Files(8, 0, 5),
                 Settings.Search(listOf("vendor", ".tox"), 20000),
+                Settings.Lsp(30, python = Settings.Server(listOf("pylsp", "-v"))),
             ),
             read.settings,
         )
@@ -269,5 +294,31 @@ class SettingsTomlTest {
             SettingsToml.withTheme("[files]\ntheme = \"x\"\n", "light"),
         )
         assertEquals("[editor]\ntheme = \"dark\"\n", SettingsToml.withTheme("", "dark"))
+    }
+
+    @Test
+    fun `a server left at its default tries its own commands in order, and one set is the only one`() {
+        val defaults = Settings().lsp
+        assertEquals(LanguageServer.Python.commands, defaults.commandsFor(LanguageServer.Python))
+        assertEquals(1, defaults.commandsFor(LanguageServer.Markdown).size)
+
+        val set = SettingsToml.read("[lsp.python]\ncommand = [\"pylsp\"]\n").settings.lsp
+        assertEquals(listOf(listOf("pylsp")), set.commandsFor(LanguageServer.Python))
+        assertEquals(LanguageServer.TypeScript.commands, set.commandsFor(LanguageServer.TypeScript))
+    }
+
+    @Test
+    fun `a command without a program, or a timeout out of range, is replaced by its default`() {
+        val read = SettingsToml.read("[lsp]\ntimeout_seconds = 0\n\n[lsp.typescript]\ncommand = []\n\n[lsp.markdown]\ncommand = [\" \", \"server\"]\n")
+
+        assertEquals(Settings().lsp, read.settings.lsp)
+        assertEquals(
+            listOf(
+                SettingsProblem.Refused("lsp.timeout_seconds", "0", "10", SettingsToml.LSP_TIMEOUTS),
+                SettingsProblem.Refused("lsp.typescript.command", "[]", "[\"typescript-language-server\", \"--stdio\"]", null),
+                SettingsProblem.Refused("lsp.markdown.command", "[\" \", \"server\"]", "[\"marksman\", \"server\"]", null),
+            ),
+            read.problems,
+        )
     }
 }

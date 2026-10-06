@@ -40,6 +40,10 @@ import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.SkiffCodeUri
 import com.naki.skiff.code.intent.sentBySkiff
+import com.naki.skiff.code.lsp.LanguageServer
+import com.naki.skiff.code.lsp.LspEnd
+import com.naki.skiff.code.lsp.LspManager
+import com.naki.skiff.code.lsp.LspUri
 import com.naki.skiff.code.project.Project
 import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.project.ProjectTree
@@ -60,6 +64,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -97,6 +103,16 @@ class MainActivity : Activity() {
     private var opening: Job? = null
     private var watching: Job? = null
     private var inFront = false
+    /** Shuts the language servers down once the app has been away for [AWAY_MS]; cancelled by coming back. */
+    private var away: Job? = null
+
+    /**
+     * What the page sends its language servers, in the order it sent it: an `initialize` and the
+     * `didOpen` right behind it must not overtake each other while the project's session is found.
+     */
+    private val toLanguageServers = Channel<JSONObject>(Channel.UNLIMITED)
+    /** One per project, so a manager's messages reach the page tagged with the project they are from. */
+    private val languageListeners = HashMap<String, LspManager.Listener>()
 
     /** Every file that is open at once, and which of them the page is showing. */
     private lateinit var docs: OpenDocuments
@@ -335,6 +351,20 @@ class MainActivity : Activity() {
             val entry = docs.byId(params.getInt("id"))
             JSONObject().put("text", entry?.let { gitText(it, GitService::previousText) } ?: JSONObject.NULL)
         }
+        // A message from the page's LSP client for one of a project's language servers. See
+        // [toLanguageServer] for what happens when the project has none to give.
+        bridge.onNotify("lspSend") { params -> toLanguageServers.trySend(params) }
+        scope.launch { for (params in toLanguageServers) toLanguageServer(params) }
+        // Where a definition the language server found is. It names the file by URI, which may be
+        // outside the project — a library's, the standard library's — and is opened all the same: the
+        // user asked for it here, as with a file picked in the palette, so its path is not confirmed.
+        bridge.method("openDefinition") { params ->
+            val project = projectOf(params)
+            val path = LspUri.path(params.getString("uri")) ?: throw IllegalArgumentException("not a file on the server")
+            val request = OpenRequest.Remote(profileOf(project), path, OpenAt(params.getInt("line"), params.getInt("col")))
+            startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
+            JSONObject()
+        }
         bridge.method("labels") {
             JSONObject()
                 .put("sidebar", getString(R.string.menu_sidebar))
@@ -359,6 +389,8 @@ class MainActivity : Activity() {
                 .put("cancel", getString(R.string.action_cancel))
                 .put("saveFailed", getString(R.string.save_failed))
                 .put("reloadFailed", getString(R.string.reload_failed))
+                .put("goToDefinition", getString(R.string.lsp_go_to_definition))
+                .put("noDefinition", getString(R.string.lsp_no_definition))
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         bridge.method("settings") { pageSettings(container.settings.current()) }
@@ -550,6 +582,7 @@ class MainActivity : Activity() {
             .put("wrap", editor.wrap)
             .put("diffAlpha", editor.diffAlpha)
             .put("keptBuffers", files.keptBuffers)
+            .put("lspTimeoutMs", lsp.timeoutSeconds * 1000)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
             .put("themes", JSONArray(container.themes.names))
             .put("ownTheme", container.themes.isImported(container.themes.nameIn(editor.theme, night)))
@@ -745,11 +778,15 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         inFront = true
+        away?.cancel()
+        away = null
         // Every open file is looked at once here: the ones that are not showing are not polled, so
         // this is where a change made while the app was away reaches them (docs/skiffcode.spec.md "감시").
         startWatching(recheckAll = true)
         // A commit made while the app was away moves HEAD without touching the file, which no watch sees.
         bridge.notify("gitChanged", JSONObject())
+        // A language server the link dropped under while the app was away comes back with it.
+        bridge.notify("lspWake", JSONObject())
     }
 
     /**
@@ -762,6 +799,12 @@ class MainActivity : Activity() {
         inFront = false
         watching?.cancel()
         watching = null
+        // Nothing on the server should keep running for a screen nobody comes back to. Off the main
+        // thread: a server that will not shut down is waited on for a few seconds.
+        away = scope.launch {
+            delay(AWAY_MS)
+            withContext(Dispatchers.IO) { container.projectSessions.stopLanguageServers() }
+        }
     }
 
     /**
@@ -770,7 +813,10 @@ class MainActivity : Activity() {
      * file back to the screen asked for; a file being opened for the first time carries its own.
      */
     private fun documentsChanged(at: OpenAt? = null) {
-        bridge.notify("documentsChanged", JSONObject().putOpt("goToLine", at?.line).putOpt("layer", layerName(at)))
+        bridge.notify(
+            "documentsChanged",
+            JSONObject().putOpt("goToLine", at?.line).putOpt("col", at?.col).putOpt("layer", layerName(at)),
+        )
         startWatching(recheckAll = false)
     }
 
@@ -963,13 +1009,99 @@ class MainActivity : Activity() {
         val state = JSONObject().put("name", opened.name)
         val refusal = when (val result = opened.result) {
             is LoadResult.Text -> return state.put("state", "text").put("text", result.text)
-                .putOpt("line", opened.at.line).putOpt("layer", layerName(opened.at))
+                .putOpt("line", opened.at.line).putOpt("col", opened.at.col).putOpt("layer", layerName(opened.at))
+                .putOpt("lsp", languageServerFor(opened))
             // The limit is in binary megabytes; Formatter counts in thousands and calls 2 MiB "2.1 MB".
             is LoadResult.TooLarge -> getString(R.string.refused_too_large, DecimalFormat("0.#").format(result.limit / 1048576.0) + " MB")
             LoadResult.Binary -> getString(R.string.refused_binary)
             LoadResult.UnknownEncoding -> getString(R.string.refused_encoding)
         }
         return state.put("state", "refused").put("title", getString(R.string.error_open)).put("message", refusal)
+    }
+
+    /**
+     * Which of its project's language servers the page should connect a file to, and the names the
+     * server knows it and the project by; null for a file outside a project, or of a kind none of
+     * them takes. Whether the server is there is found out when the page first sends it something.
+     */
+    private fun languageServerFor(opened: OpenFlow.Opened): JSONObject? {
+        val file = opened.project ?: return null
+        val (server, languageId) = LanguageServer.forFile(opened.name) ?: return null
+        val path = ProjectTree.resolve(file.project.root, file.path) ?: return null
+        return JSONObject()
+            .put("project", file.project.id)
+            .put("server", server.name)
+            .put("languageId", languageId)
+            .put("rootUri", LspUri.of(file.project.root))
+            .put("uri", LspUri.of(path))
+    }
+
+    /**
+     * Hands one message to the project's language server. A project that has none to give — removed,
+     * its profile gone, or an account that runs no commands — is said to have ended, as a server
+     * that never started is, which the page reads as not to try again; one whose session could not
+     * be had is a failure, which it may try again. Either is said once, for the `initialize`, as
+     * [LspManager] does: whatever follows it before the page hears is dropped.
+     */
+    private suspend fun toLanguageServer(params: JSONObject) {
+        val projectId = params.getString("project")
+        val server = LanguageServer.entries.firstOrNull { it.name == params.optString("server") }
+        if (server == null) {
+            Log.w(TAG, "lspSend for no such server: ${params.optString("server")}")
+            return
+        }
+        val message = params.getString("message")
+        val listener = languageListeners.getOrPut(projectId) { languageListener(projectId) }
+        val ended = { why: LspEnd -> if (LspManager.initializeId(message) != null) listener.ended(server, why) }
+        val manager = try {
+            val project = container.projects.byId(projectId)
+            val profile = project?.let { p -> container.store.profiles.first().firstOrNull { it.id == p.profileId } }
+            if (project == null || profile == null) return ended(LspEnd.NotInstalled)
+            // Off the main thread: a profile that changed replaces its session, which disconnects the old one.
+            val session = withContext(Dispatchers.IO) { container.projectSessions.get(project, profile) }
+            val servers = session.languageServers()
+            if (servers == null) {
+                Log.i(TAG, "no language servers for ${project.name}: ${session.git}")
+                return ended(LspEnd.NotInstalled)
+            }
+            servers
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return ended(if (LspManager.droppedLink(e)) LspEnd.Disconnected else LspEnd.Failed(e, ""))
+        }
+        // The manager outlives this activity; the page it talks to is this one's.
+        manager.listener = listener
+        manager.send(server, message)
+    }
+
+    /** What the page hears from [projectId]'s language servers, from any thread. */
+    private fun languageListener(projectId: String) = object : LspManager.Listener {
+        override fun message(server: LanguageServer, message: String) {
+            bridge.notify("lspMessage", JSONObject().put("project", projectId).put("server", server.name).put("message", message))
+        }
+
+        override fun ended(server: LanguageServer, why: LspEnd) {
+            val (reason, message) = when (why) {
+                LspEnd.Idle -> "idle" to null
+                LspEnd.Stopped -> "stopped" to null
+                LspEnd.Closed -> "closed" to null
+                LspEnd.Disconnected -> "disconnected" to null
+                // The page says it only when asked for a hover or a definition (docs/skiffcode.spec.md "git과 LSP").
+                LspEnd.NotInstalled -> "notInstalled" to getString(R.string.lsp_not_installed, server.name)
+                is LspEnd.Unsupported -> "unsupported" to getString(R.string.lsp_unsupported, server.name, why.positionEncoding)
+                is LspEnd.Failed -> {
+                    Log.w(TAG, "language server ${server.name} for $projectId ended; stderr:\n${why.stderr}", why.cause)
+                    val said = why.stderr.lines().lastOrNull { it.isNotBlank() }?.trim()
+                        ?: why.cause?.let { it.message ?: it.javaClass.simpleName }
+                    "failed" to listOfNotNull(getString(R.string.lsp_failed, server.name), said).joinToString(" ")
+                }
+            }
+            bridge.notify(
+                "lspEnded",
+                JSONObject().put("project", projectId).put("server", server.name).put("reason", reason).putOpt("message", message),
+            )
+        }
     }
 
     /** A link's `layer` as the page names it. */
@@ -1030,6 +1162,12 @@ private const val REQUEST_IMPORT_SETTINGS = 2
 private const val REQUEST_IMPORT_THEME = 3
 private const val REQUEST_EXPORT_SETTINGS = 4
 private const val REQUEST_EXPORT_THEME = 5
+
+/**
+ * How long the app may be away before its language servers are shut down (2026-10-05 사용자 결정).
+ * The same as [LspManager.IDLE_MS], which a server left alone that long reaches first anyway.
+ */
+private const val AWAY_MS = 10 * 60_000L
 
 /** Larger than either file has any reason to be; what is picked is read whole, into memory. */
 private const val IMPORT_LIMIT = 256 * 1024

@@ -29,6 +29,7 @@ import { editorTheme } from '../theme'
 import { swatchesFor } from '../swatches'
 import { gitGutter, setBaseline } from '../gitGutter'
 import { unifiedDiff } from '../diff'
+import { type LspTarget, goToDefinition, lspAvailable, lspPlugin, lspSupport, showHover, wakeLsp, watchLsp } from '../lsp'
 
 /** ③ cycles through these, passing over `diff` while the file has nothing to be compared with. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -44,8 +45,12 @@ export interface TextDocument {
   text: string
   /** 1-based, from a link's `?line=`. */
   line?: number
+  /** 1-based, in UTF-16 code units as LSP counts them, from a link's `?col=` or a definition's place. */
+  col?: number
   /** From a link's `?layer=`. */
   layer?: LayerName
+  /** The project's language server for this file, when it has one. */
+  lsp?: LspTarget
 }
 
 /** Marks the transaction that takes a change made outside, so it does not count as the user typing. */
@@ -101,6 +106,8 @@ export function adoptInto(state: EditorState, text: string): EditorState {
  */
 const layerBundle = new Compartment()
 const syntax = new Compartment()
+/** The running language server's plugin, swapped whenever its server is started or let go of (`lsp.ts`). */
+const lspSlot = new Compartment()
 
 /**
  * How long the diff may spend being precise before it falls back to the coarser algorithm. The
@@ -135,6 +142,8 @@ export interface PaneMemory {
   line: number
   /** What ④ chose for the diff layer. The text it names is asked for again when the file is back. */
   compare: CompareTo
+  /** The file's language server, which Kotlin named only when the file was first read. */
+  lsp?: LspTarget
 }
 
 export interface Pane {
@@ -158,8 +167,17 @@ export interface Pane {
   /** Undo and redo for a finger: without a keyboard there is nothing else that reaches them. */
   undo(): void
   redo(): void
-  /** Puts [line] at the top of the screen, for a link that asked for one. */
-  goToLine(line: number): void
+  /**
+   * Puts [line] at the top of the screen and the cursor on it, at [col] or its start (2026-10-05
+   * 사용자 결정), for a link, a definition or a symbol.
+   */
+  goToLine(line: number, col?: number): void
+  /** Whether the file has a language server that may be asked about it, and a code view to ask from. */
+  readonly lsp: boolean
+  /** Asks the language server where what is at the cursor is defined, and goes there. */
+  goToDefinition(): void
+  /** Shows what the language server says about what is at the cursor. */
+  showHover(): void
   /** HEAD's copy of the file for the git gutter and the diff layer, or null for none. */
   setBaseline(text: string | null): void
   /** What the diff layer compares with, as ④ chose. */
@@ -219,6 +237,7 @@ export function openPane(
   let previous: string | null | undefined
   // What the diff layer's bundle compares with now, or null while it shows nothing to compare.
   let compared: string | null = null
+  let unwatchLsp: (() => void) | null = null
 
   /** What the diff layer would compare with: undefined while it is not known yet, null for nothing. */
   function original(): string | null | undefined {
@@ -232,7 +251,10 @@ export function openPane(
   }
 
   function createView(): EditorView {
-    const state = restore ?? EditorState.create({
+    // A buffer back from the background still holds the plugin of the client it left with, which
+    // may since have been let go of.
+    const restoring = restore && doc.lsp ? restore.update({ effects: lspSlot.reconfigure(lspPlugin(doc.lsp)) }).state : restore
+    const state = restoring ?? EditorState.create({
       doc: source,
       extensions: [
         lineNumbers(),
@@ -246,6 +268,7 @@ export function openPane(
         // Outside the compartment, so every layer shows them.
         swatchesFor(doc.name),
         layerBundle.of(bundleFor(layer)),
+        doc.lsp ? [lspSupport(doc.lsp), lspSlot.of(lspPlugin(doc.lsp))] : [],
         codeFontSize(),
         editorSettings(),
         EditorView.theme({
@@ -267,6 +290,9 @@ export function openPane(
         const before = isDirty(target.state)
         target.update(transactions)
         if (isDirty(target.state) !== before) onDirtyChange?.(!before)
+        // Typing is what wants an asleep server back. After this update, which starting one dispatches into.
+        const lsp = doc.lsp
+        if (lsp && transactions.some((tr) => tr.docChanged && !tr.annotation(External))) queueMicrotask(() => wakeLsp(lsp))
       },
     })
     // A state built before the last pinch carries that pinch's size, and one built before the last
@@ -277,6 +303,12 @@ export function openPane(
       applyEditorSettings(created)
     }
     if (baseline !== undefined) created.dispatch({ effects: setBaseline.of(baseline) })
+    if (doc.lsp) {
+      const lsp = doc.lsp
+      unwatchLsp = watchLsp(lsp, () => void (created.dom.isConnected && created.dispatch({ effects: lspSlot.reconfigure(lspPlugin(lsp)) })))
+      // A file coming to the screen is when its server is wanted.
+      wakeLsp(lsp)
+    }
     // A buffer back from the background brings the bundle it left with, which may compare with
     // something else by now.
     if (restored && layer === 'diff') {
@@ -299,6 +331,12 @@ export function openPane(
 
   function lineStart(target: EditorView, line: number): number {
     return target.state.doc.line(Math.min(Math.max(1, line), target.state.doc.lines)).from
+  }
+
+  /** The cursor on [line] at [col], or at the line's start; past its end is its end. */
+  function placeCursor(target: EditorView, line: number, col?: number): void {
+    const at = target.state.doc.line(Math.min(Math.max(1, line), target.state.doc.lines))
+    target.dispatch({ selection: { anchor: at.from + Math.min(Math.max(0, (col ?? 1) - 1), at.length) } })
   }
 
   /**
@@ -382,8 +420,12 @@ export function openPane(
     // the text focuses it and puts the caret where it landed. The caret goes to the line at the top
     // of the screen first: focusing on its own would leave it at the start of the document and take
     // the screen there with the first keystroke.
+    // A cursor already on the screen — a definition or a link put it there — stays where it is.
     if (next === 'editor' && view && hardwareKeyboard()) {
-      view.dispatch({ selection: { anchor: lineStart(view, line) } })
+      const head = view.state.selection.main.head
+      if (!view.visibleRanges.some((range) => range.from <= head && head <= range.to)) {
+        view.dispatch({ selection: { anchor: lineStart(view, line) } })
+      }
       view.focus()
     }
   }
@@ -404,19 +446,27 @@ export function openPane(
     scrollViewToLine(view, line)
   }
 
-  function goToLine(line: number): void {
+  function goToLine(line: number, col?: number): void {
+    // The rendered markdown has no cursor; the editor's is put there when the view is.
+    if (view) placeCursor(view, line, col)
     if (markdown && layer === 'viewer') markdown.scrollToLine(line)
     else if (view) scrollViewToLine(view, line)
   }
 
+  /** The code view, when it is the one showing: the rendered markdown has nothing to ask a server about. */
+  function codeView(): EditorView | null {
+    return markdown && layer === 'viewer' ? null : view
+  }
+
   // A file coming back shows the layer and the line it left; one being opened shows the layer and
-  // the line a link asked for.
+  // the line a link asked for, with the cursor there.
   const startLine = memory?.line ?? doc.line
   if (markdown && layer === 'viewer') {
     if (startLine) markdown.scrollToLine(startLine)
   } else {
     markdown?.visible(false)
     view = createView()
+    if (!memory && doc.line) placeCursor(view, doc.line, doc.col)
     if (startLine) scrollViewToLine(view, startLine)
   }
 
@@ -460,6 +510,17 @@ export function openPane(
     undo: () => void (view && undo(view)),
     redo: () => void (view && redo(view)),
     goToLine,
+    get lsp() {
+      return !!doc.lsp && lspAvailable(doc.lsp) && codeView() !== null
+    },
+    goToDefinition() {
+      const shown = codeView()
+      if (shown && doc.lsp) void goToDefinition(shown, doc.lsp, shown.state.selection.main.head)
+    },
+    showHover() {
+      const shown = codeView()
+      if (shown && doc.lsp) void showHover(shown, doc.lsp, shown.state.selection.main.head)
+    },
     setBaseline(text) {
       baseline = text
       view?.dispatch({ effects: setBaseline.of(text) })
@@ -478,10 +539,11 @@ export function openPane(
     },
     settingsChanged: () => void (view && applyEditorSettings(view)),
     close() {
+      unwatchLsp?.()
       window.removeEventListener('resize', keepCaretVisible)
       uninstallPinchZoom()
       // Read while both surfaces are still on screen, since this is where the file comes back to.
-      const memory: PaneMemory = { state: view?.state ?? null, source, layer, line: topLine(), compare }
+      const memory: PaneMemory = { state: view?.state ?? null, source, layer, line: topLine(), compare, lsp: doc.lsp }
       if (memory.state) memory.source = memory.state.doc.toString()
       view?.destroy()
       markdown?.remove()

@@ -45,7 +45,10 @@ class SkiffCodeContainer(app: Application) {
 
     val sessions = RemoteSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
 
-    val projectSessions = ProjectSessions(newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) })
+    val projectSessions = ProjectSessions(
+        newHostKeyGate = { HostKeyGate(store, hostKeyPrompter::ask) },
+        languageCommands = { settings.latest.lsp.commandsFor(it) },
+    )
 
     val themes = Themes(app.assets::open, File(app.filesDir, "themes"))
 

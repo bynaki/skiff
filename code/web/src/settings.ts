@@ -19,6 +19,8 @@ export interface Settings {
   diffAlpha: number
   /** How many files off the screen keep their buffer; see `memories.ts`. */
   keptBuffers: number
+  /** How long a language server has to answer a request; see `lsp.ts`. */
+  lspTimeoutMs: number
   /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
   theme: Theme
   /** Every name `theme` may take, imported themes included, for the palette's Theme commands. */

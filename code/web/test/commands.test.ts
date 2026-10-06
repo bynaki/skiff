@@ -4,7 +4,7 @@ import { type CommandSource, commands } from '../src/commands'
 import type { LayerName } from '../src/layers/pane'
 
 /** A source that says what it was asked to do, over a screen described by [state]. */
-function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean }) {
+function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean }) {
   const ran: string[] = []
   const command: CommandSource = {
     open: () => state.open,
@@ -30,11 +30,14 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
     deleteTheme: () => ran.push('deleteTheme'),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
+    lsp: () => state.lsp ?? false,
+    goToDefinition: () => ran.push('goToDefinition'),
+    showHover: () => ran.push('showHover'),
   }
   return { command, ran }
 }
 
-const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean }) =>
+const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean }) =>
   commands(source(state).command).map((item) => item.name)
 
 describe('what the palette offers', () => {
@@ -63,6 +66,15 @@ describe('what the palette offers', () => {
       'Reload File',
       'Close File',
     ])
+  })
+
+  test('asks the language server only for a file that has one', () => {
+    expect(names({ open: true, layer: 'viewer' })).not.toContain('Go to Definition')
+    const asked = names({ open: true, layer: 'viewer', lsp: true })
+    expect(asked.slice(asked.indexOf('Show Viewer') + 1, asked.indexOf('Show Viewer') + 3)).toEqual(['Go to Definition', 'Show Hover'])
+    const { command, ran } = source({ open: true, layer: 'editor', lsp: true })
+    for (const item of commands(command)) if (item.name === 'Go to Definition' || item.name === 'Show Hover') item.run()
+    expect(ran).toEqual(['goToDefinition', 'showHover'])
   })
 
   test('leaves out undo and redo where there is no typing', () => {

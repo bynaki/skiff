@@ -18,6 +18,7 @@ import { createLoadingView } from './chrome/loading'
 import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
 import { type DocSymbol, outlineOf, symbols } from './symbols'
+import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
 import { type Settings, showSettings } from './settings'
@@ -26,7 +27,7 @@ import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontS
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
   | { state: 'empty'; message: string }
-  | { state: 'text'; name: string; text: string; line?: number; layer?: LayerName }
+  | { state: 'text'; name: string; text: string; line?: number; col?: number; layer?: LayerName; lsp?: LspTarget }
   | { state: 'refused'; name: string; title: string; message: string }
 
 /** What the file did while it was open, from Kotlin's `FileWatcher`, and which file it was. */
@@ -54,6 +55,9 @@ interface DocumentLabels {
   reloadFailed: string
   /** ④ chose the commit before, and there is none. */
   noPrevious: string
+  /** The touch hover's button, and what is said when a definition is not found; see `lsp.ts`. */
+  goToDefinition: string
+  noDefinition: string
 }
 
 type Labels = TopbarLabels & BannerLabels & SidebarLabels & OpenFilesLabels & MoreLabels & DocumentLabels
@@ -264,6 +268,9 @@ const palette: CommandSource = {
   deleteTheme: () => void rpc('deleteTheme').catch((error) => console.log(`deleteTheme: ${error}`)),
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
+  lsp: () => pane?.lsp ?? false,
+  goToDefinition: () => pane?.goToDefinition(),
+  showHover: () => pane?.showHover(),
 }
 
 /**
@@ -339,7 +346,7 @@ function dirtyInBackground(id: number): boolean {
  * with a link that named a file which was already open, since that file keeps the buffer it has
  * rather than being read again.
  */
-async function reconcile(goToLine?: number | null, layer?: LayerName | null): Promise<void> {
+async function reconcile(goToLine?: number | null, col?: number | null, layer?: LayerName | null): Promise<void> {
   const { active, files } = await rpc<Documents>('documents')
   openList = files
   // What was listed left out the files that were open then, and was beside the file on the screen then.
@@ -366,7 +373,7 @@ async function reconcile(goToLine?: number | null, layer?: LayerName | null): Pr
   // The layer first: entering one keeps the line at the top, and a scroll asked for just before has
   // not been measured yet.
   if (layer) showLayer(layer)
-  if (goToLine) pane?.goToLine(goToLine)
+  if (goToLine) pane?.goToLine(goToLine, col ?? undefined)
   // A palette left open across a link would still offer what was beside the file before.
   paletteView.refresh()
 }
@@ -378,7 +385,7 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   // A file that has been on the screen is rebuilt from its own buffer, which may be ahead of the
   // text Kotlin holds. Anything else — the first look at a file, a refusal, nothing open — is asked.
   const doc: DocumentState = memory && file
-    ? { state: 'text', name: file.name, text: memory.source }
+    ? { state: 'text', name: file.name, text: memory.source, lsp: memory.lsp }
     : await rpc<DocumentState>('document', id === null ? {} : { id })
   banner.hide()
   // What it would choose for is the file leaving.
@@ -460,8 +467,8 @@ function notice(title: string | null, message: string): HTMLElement {
 // One at a time, in the order they were asked for: two of these overlapping would each close a pane
 // the other is still counting on.
 let queue: Promise<void> = Promise.resolve()
-const refresh = (goToLine?: number | null, layer?: LayerName | null) => {
-  queue = queue.then(() => reconcile(goToLine, layer)).catch((error) => console.log(`documents: ${error}`))
+const refresh = (goToLine?: number | null, col?: number | null, layer?: LayerName | null) => {
+  queue = queue.then(() => reconcile(goToLine, col, layer)).catch((error) => console.log(`documents: ${error}`))
 }
 
 /**
@@ -502,6 +509,7 @@ function applySettings(settings: Settings, first: boolean): void {
   const moved = settings.fontSize !== chosenFontSize
   chosenFontSize = settings.fontSize
   keptBuffers = settings.keptBuffers
+  setLspTimeout(settings.lspTimeoutMs)
   themes = settings.themes
   ownTheme = settings.ownTheme
   showSettings(settings)
@@ -510,6 +518,13 @@ function applySettings(settings: Settings, first: boolean): void {
   if (first ? !pinched : moved) zoomTo(settings.fontSize)
 }
 
+// A definition in the file on the screen is gone to the way a link's line is.
+setLspHooks({
+  tell: (message) => banner.tell(message),
+  flash: (message) => banner.flash(message),
+  labels: () => labels,
+  goTo: (line, col) => pane?.goToLine(line, col),
+})
 setFontSize(currentFontSize())
 rpc<Labels>('labels').then((answer) => {
   labels = answer
@@ -520,8 +535,8 @@ rpc<Labels>('labels').then((answer) => {
   moreMenu.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
-onNotify<{ goToLine?: number | null; layer?: LayerName | null }>('documentsChanged', (params) => {
-  refresh(params?.goToLine, params?.layer)
+onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | null }>('documentsChanged', (params) => {
+  refresh(params?.goToLine, params?.col, params?.layer)
   sidebar.changed()
 })
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))

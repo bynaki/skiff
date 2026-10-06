@@ -49,6 +49,11 @@ export interface CommandSource {
   deleteTheme(): void
   undo(): void
   redo(): void
+  /** Whether the file on the screen has a language server to ask, from a code view. */
+  lsp(): boolean
+  /** Each at the cursor. */
+  goToDefinition(): void
+  showHover(): void
 }
 
 /**
@@ -64,6 +69,12 @@ export function commands(source: CommandSource): PaletteItem[] {
       { name: 'Toggle Layer', run: () => source.toggleLayer() },
       { name: 'Show Editor', run: () => source.show('editor') },
       { name: 'Show Viewer', run: () => source.show('viewer') },
+    )
+  }
+  if (source.lsp()) {
+    items.push(
+      { name: 'Go to Definition', run: () => source.goToDefinition() },
+      { name: 'Show Hover', run: () => source.showHover() },
     )
   }
   // Only where typing is: undo in the reading layer would take back what cannot be seen from there.

@@ -120,4 +120,10 @@
     <string name="watch_reload">다시 불러오기</string>
     <string name="watch_keep">내 것 유지</string>
     <string name="watch_dismiss">닫기</string>
+
+    <string name="lsp_go_to_definition">정의로 이동</string>
+    <string name="lsp_no_definition">여기서는 정의를 찾지 못했습니다.</string>
+    <string name="lsp_not_installed">이 프로젝트의 서버에서 %1$s 언어 서버를 찾지 못했습니다.</string>
+    <string name="lsp_failed">%1$s 언어 서버가 멈췄습니다.</string>
+    <string name="lsp_unsupported">%1$s 언어 서버가 위치를 %2$s로 세는데, 이 앱은 그 방식을 따를 수 없어 쓰지 않습니다.</string>
 </resources>
