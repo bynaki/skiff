@@ -238,3 +238,26 @@ describe('the command palette', () => {
     expect(machine.results).toEqual([])
   })
 })
+
+describe('a source that searches by the query itself', () => {
+  test('is handed what is typed, trimmed', () => {
+    const queries: string[] = []
+    const machine = createPalette({ items: (_mode, query) => (queries.push(query), []) })
+    machine.open()
+    machine.type(' gr ')
+    expect(queries).toEqual(['', 'gr'])
+  })
+
+  test('has what is elsewhere put after everything that is here, however well it fits', () => {
+    const machine = createPalette({
+      items: () => [
+        { name: 'greet', elsewhere: 'util.py', run: () => {} },
+        { name: 'Greeter.hello', run: () => {} },
+        { name: 'grow', run: () => {} },
+      ],
+    })
+    machine.open()
+    machine.type('gr')
+    expect(names(machine.results)).toEqual(['Greeter.hello', 'grow', 'greet'])
+  })
+})

@@ -45,7 +45,7 @@ const SWIPE_STEP = 24
  * What comes back is how to say that [items] has more to give than it gave the last time it was
  * asked.
  */
-export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], opened: () => void): { refresh(): void } {
+export function createPaletteView(items: (mode: PaletteMode, query: string) => PaletteItem[], opened: () => void): { refresh(): void } {
   const machine: Palette = createPalette({ items })
 
   // Covers the screen while the palette is open so that a tap anywhere else cancels it, which is
@@ -116,6 +116,8 @@ export function createPaletteView(items: (mode: PaletteMode) => PaletteItem[], o
     results.replaceChildren(...machine.results.map((item, index) => {
       const entry = document.createElement('li')
       entry.textContent = item.name
+      // Before the name, so that it floats to the right of the name's first line rather than below it.
+      if (item.elsewhere) entry.prepend(Object.assign(document.createElement('span'), { className: 'elsewhere', textContent: item.elsewhere }))
       if (index === machine.selected) entry.className = 'selected'
       entry.addEventListener('pointerdown', keepFocus)
       entry.addEventListener('click', () => {

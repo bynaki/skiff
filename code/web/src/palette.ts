@@ -30,6 +30,11 @@ export type PaletteStage = 'button' | 'input' | 'results'
 /** One thing the palette can run. Its name is what is searched and what is shown. */
 export interface PaletteItem {
   name: string
+  /**
+   * The file it is in, when that is not the one on the screen: shown beside the name, and ranked
+   * after everything that is here, however well it fits.
+   */
+  elsewhere?: string
   run(): void
 }
 
@@ -61,7 +66,13 @@ export interface Palette {
   refresh(): void
 }
 
-export function createPalette(sources: { items(mode: PaletteMode): PaletteItem[] }): Palette {
+/** What is in the file on the screen first, then what is [PaletteItem.elsewhere], each in the order it came. */
+function here(items: PaletteItem[]): PaletteItem[] {
+  return [...items.filter((item) => !item.elsewhere), ...items.filter((item) => item.elsewhere)]
+}
+
+/** [query] is what is typed, trimmed, for a source that searches by it itself: a language server. */
+export function createPalette(sources: { items(mode: PaletteMode, query: string): PaletteItem[] }): Palette {
   let stage: PaletteStage = 'button'
   let mode: PaletteMode = 'command'
   let query = ''
@@ -81,12 +92,12 @@ export function createPalette(sources: { items(mode: PaletteMode): PaletteItem[]
    */
   function search(): void {
     const needle = query.trim()
-    const offered = sources.items(mode)
+    const offered = sources.items(mode, needle)
     stage = query === '' ? 'input' : 'results'
     results = needle === ''
       // By name, because the items are made fresh each time and the one remembered may be gone.
       ? (recent.get(mode) ?? []).map((name) => offered.find((item) => item.name === name)).filter((item): item is PaletteItem => item !== undefined)
-      : rank(needle, offered, (item) => item.name)
+      : here(rank(needle, offered, (item) => item.name))
     selected = 0
   }
 

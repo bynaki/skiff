@@ -452,8 +452,15 @@
   - hover가 떠 있는 동안 그 단어를 선택색으로(2026-10-06 사용자 결정). 탭에서 CDP로: `local_helper`·`"한글"`의 `한글`에 표시, 툴팁 밖 탭으로 닫으면 사라짐, 스크린샷으로 색 확인.
   - **폴드8에서 사용자가 확인했다**(2026-10-06): 원격 Ubuntu 서버의 프로젝트에서 두 번 탭 툴팁과 단어 강조, 폴드8을 닫았다 연 뒤에도 끊기지 않음.
   - 보지 않은 것: **손가락**의 두 번 탭과 길게 누르기(브라우저 선택이 돌아왔는지), 자동완성 목록과 서명 도움말을 화면 키보드로, 마우스 hover, 유휴·백그라운드 종료 뒤 다시 띄우기(아래 **확인** 항목).
-  - pyright가 `File or directory "/<default workspace root>" does not exist.`를 로그로 낸다. 라이브러리가 `rootUri`만 보내고 `workspaceFolders`를 보내지 않아서다. import는 풀렸지만 `pyrightconfig.json` 같은 것이 루트에서 읽히는지는 보지 않았다.
-- [ ] `@` 심볼 모드를 프로젝트에서 LSP `documentSymbol`/`workspace/symbol`로 확장
+  - pyright가 `File or directory "/<default workspace root>" does not exist.`를 로그로 냈다. 라이브러리가 `rootUri`만 보내고 `workspaceFolders`를 보내지 않아서였고, 아래 심볼 항목에서 `initialize`에 워크스페이스 폴더를 더해 사라졌다. `pyrightconfig.json` 같은 것이 루트에서 읽히는지는 보지 않았다.
+- [x] `@` 심볼 모드를 프로젝트에서 LSP `documentSymbol`/`workspace/symbol`로 확장
+  - **한 목록으로**(2026-10-06 사용자 결정): 이 파일 심볼이 위, 프로젝트 심볼이 경로와 함께 아래. 설계와 이유는 spec "심볼 검색"의 LSP 쪽.
+  - 페이지: `symbols.ts`(`outlineFromServer`, `projectSymbols`, `projectItems`, `createProjectSearch`), `lsp.ts`(`documentSymbols`, `workspaceSymbols`, `openInProject`, `withWorkspaceFolder`, 트리 개요 capability), pane의 `serverOutline`·`projectSymbols`·`openSymbol`, `palette.ts`(항목의 `elsewhere`, 소스에 입력을 넘김), `chrome/palette.ts`와 `index.html`(경로를 오른쪽에 흐리게). Kotlin은 바뀌지 않았다.
+  - pyright를 이 맥에서 stdio로 직접 물어 정했다: `documentSymbol`이 인자와 지역 변수까지 준다, `workspaceFolders` 없이는 `workspace/symbol`이 비어 있다, 인자·지역 변수·클래스 속성이 모두 Variable이다.
+  - 테스트: vitest 146(+17: `symbols` 13, `palette` 2, 새 `lsp` 2). JVM 269 그대로. 린트 경고 11(기준과 같다).
+  - **탭에서 확인했다**(이 맥의 원격 로그인, `skiff-lsp-check`, 실제 pyright, CDP 터치로 팔레트를 `@`로). `app.py`에서 `m` → `main`, `LIMIT`(모듈 상수를 잠깐 더해 lezer가 아니라 LSP가 공급원인 것을 봤다, 인자 `name`은 안 나옴), `hel` → `local_helper` 아래 `Greeter.hello ⟶ util.py`. 그것을 고르니 `util.py`가 확인 창 없이 7:9(`hello`)에 열렸다. `util.py`에서 `m` → `main ⟶ app.py`, `LIMIT ⟶ app.py`. 언어 서버가 없는 기기 로컬 `hello.py`는 lezer로 `인사`가 나왔다. 새 빌드에서는 `/<default workspace root>` 로그가 없었다. 스크린샷으로 경로 표시를 봤다.
+  - **폴드8에서 사용자가 확인했다**(2026-10-06, APK를 손으로 설치): 원격 서버의 파이썬 프로젝트에서 `@` 모드가 잘 돈다.
+  - 보지 않은 것: 큰 프로젝트에서 `workspace/symbol`이 입력을 따라오는 속도, TypeScript 서버의 심볼(`containerName` 모양이 다를 수 있다), 서버가 막 뜨는 중(초기화 몇 초)에 팔레트를 열 때 — 그동안 이 파일 개요는 비어 있다가 답이 오면 찬다.
 - [ ] **확인:** 실제 서버의 파이썬 프로젝트에서 정의 이동, 진단, 심볼 검색이 동작하고, 앱을 백그라운드에 오래 두면 원격 LSP 프로세스가 종료된다(`ps`로 확인)
 - [ ] **데몬 판정 측정:** 와이파이↔LTE를 전환한 뒤 재접속부터 진단이 다시 뜰 때까지를 재고, 그중
       서버 재인덱싱이 차지하는 몫을 나눠서 `skiffcode.spec.md`의 "범위 밖" 표에 적는다. 데몬 결정의 유일한 실데이터다

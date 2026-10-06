@@ -29,7 +29,8 @@ import { editorTheme } from '../theme'
 import { swatchesFor } from '../swatches'
 import { gitGutter, setBaseline } from '../gitGutter'
 import { unifiedDiff } from '../diff'
-import { type LspTarget, goToDefinition, lspAvailable, lspPlugin, lspSupport, showHover, wakeLsp, watchLsp } from '../lsp'
+import { type LspTarget, documentSymbols, goToDefinition, lspAvailable, lspPlugin, lspSupport, openInProject, showHover, wakeLsp, watchLsp, workspaceSymbols } from '../lsp'
+import type { DocSymbol, ProjectSymbol } from '../symbols'
 
 /** ③ cycles through these, passing over `diff` while the file has nothing to be compared with. */
 export type LayerName = 'viewer' | 'editor' | 'diff'
@@ -178,6 +179,12 @@ export interface Pane {
   goToDefinition(): void
   /** Shows what the language server says about what is at the cursor. */
   showHover(): void
+  /** The language server's outline of the file, or null when the palette is to read the file's own. */
+  serverOutline(): Promise<DocSymbol[] | null>
+  /** What the language server finds across the project for [query], other than in this file. */
+  projectSymbols(query: string): Promise<ProjectSymbol[]>
+  /** Opens what [projectSymbols] found, in its own file. */
+  openSymbol(symbol: ProjectSymbol): void
   /** HEAD's copy of the file for the git gutter and the diff layer, or null for none. */
   setBaseline(text: string | null): void
   /** What the diff layer compares with, as ④ chose. */
@@ -520,6 +527,14 @@ export function openPane(
     showHover() {
       const shown = codeView()
       if (shown && doc.lsp) void showHover(shown, doc.lsp, shown.state.selection.main.head)
+    },
+    serverOutline() {
+      const shown = codeView()
+      return shown && doc.lsp ? documentSymbols(shown, doc.lsp) : Promise.resolve(null)
+    },
+    projectSymbols: (query) => (doc.lsp ? workspaceSymbols(doc.lsp, query) : Promise.resolve([])),
+    openSymbol(symbol) {
+      if (doc.lsp) void openInProject(doc.lsp, symbol.uri, symbol.line, symbol.col).catch((error) => console.log(`openSymbol: ${error}`))
     },
     setBaseline(text) {
       baseline = text

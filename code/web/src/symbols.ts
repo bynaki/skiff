@@ -1,14 +1,15 @@
-// What the palette's `@` mode can go to while no language server is behind the file
-// (docs/skiffcode.spec.md "심볼 검색"): read from the file's lezer tree, and kept small on purpose —
-// functions, classes, the methods in them, and Markdown headings, in three languages. A language
-// server takes its place in M6, and the shape here is its `DocumentSymbol` so that the palette does
-// not have to change when it does.
+// What the palette's `@` mode can go to (docs/skiffcode.spec.md "심볼 검색"). With a language server
+// behind the file it is the server's outline of the file, and below that what the server finds across
+// the project for what is typed. Without one it is read from the file's lezer tree, and kept small on
+// purpose — functions, classes, the methods in them, and Markdown headings, in three languages. The
+// shape is the server's `DocumentSymbol` either way, so the palette does not know which it got.
 import type { SyntaxNode } from '@lezer/common'
 import { LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import type { PaletteItem } from './palette'
 
-export type SymbolKind = 'class' | 'function' | 'method' | 'heading'
+/** `other` is a server's alone: a variable, a constant, a field, and the rest of what LSP names. */
+export type SymbolKind = 'class' | 'function' | 'method' | 'heading' | 'other'
 
 export interface DocSymbol {
   name: string
@@ -139,4 +140,155 @@ export function symbols(outline: DocSymbol[], goTo: (line: number) => void, with
     const name = within + symbol.name
     return [{ name, run: () => goTo(symbol.line) }, ...symbols(symbol.children, goTo, `${name}.`)]
   })
+}
+
+interface LspPosition { line: number; character: number }
+interface LspRange { start: LspPosition; end: LspPosition }
+
+/** A server's `DocumentSymbol`, as much of it as is read here. */
+export interface LspDocumentSymbol {
+  name: string
+  kind: number
+  selectionRange: LspRange
+  children?: LspDocumentSymbol[]
+}
+
+/** A server's `SymbolInformation`, the shape `workspace/symbol` answers in. */
+export interface LspSymbolInformation {
+  name: string
+  kind: number
+  location: { uri: string; range: LspRange }
+  containerName?: string
+}
+
+/** LSP's `SymbolKind` numbers, the ones that are told apart here. */
+const LSP_CLASS = new Set([5, 10, 11, 23]) // class, enum, interface, struct
+const LSP_METHOD = new Set([6, 9]) // method, constructor
+const LSP_FUNCTION = 12
+const LSP_VARIABLE = 13
+
+/**
+ * The outline a server answered `textDocument/documentSymbol` with, or null when it answered with the
+ * flat list instead of the tree, which says less than lezer does. What is inside a function is left
+ * out, as the lezer outline leaves it: pyright lists every parameter and local variable there. So is
+ * a variable anywhere but at the top of the file, by the rule [projectSymbols] has to keep.
+ */
+export function outlineFromServer(answer: LspDocumentSymbol[] | LspSymbolInformation[] | null): DocSymbol[] | null {
+  if (!answer) return []
+  if (answer.some((symbol) => !('selectionRange' in symbol))) return null
+  const convert = (symbol: LspDocumentSymbol): DocSymbol => {
+    const kind: SymbolKind = LSP_CLASS.has(symbol.kind) ? 'class'
+      : LSP_METHOD.has(symbol.kind) ? 'method'
+        : symbol.kind === LSP_FUNCTION ? 'function' : 'other'
+    const inside = kind === 'method' || kind === 'function' ? []
+      : (symbol.children ?? []).filter((child) => child.kind !== LSP_VARIABLE).map(convert)
+    return { name: symbol.name, kind, line: symbol.selectionRange.start.line + 1, children: inside }
+  }
+  return (answer as LspDocumentSymbol[]).map(convert)
+}
+
+/** Something the server found in another file of the project, and where. */
+export interface ProjectSymbol {
+  /** Named through what holds it, as the file's own outline is: `Greeter.hello`. */
+  name: string
+  /** Where it is from the project's root, for the palette to show beside it. */
+  path: string
+  uri: string
+  /** 1-based, and the column in UTF-16 code units, as `openDefinition` takes them. */
+  line: number
+  col: number
+}
+
+/** A `file:` URI's path, or the URI itself when it does not decode. */
+function pathOf(uri: string): string {
+  try {
+    return decodeURIComponent(uri.replace(/^file:\/\//, ''))
+  } catch {
+    return uri
+  }
+}
+
+/**
+ * What a server answered `workspace/symbol` with, less what is in [here] — the file on the screen,
+ * whose own outline is already above it. The path is from [rootUri], or whole for a file outside it.
+ *
+ * A variable is kept only at the top of a file. pyright names a function's parameters and locals as
+ * variables held by the function, and an attribute as one held by its class, and the flat list does
+ * not say which kind of thing holds it; the locals are the many, so both go.
+ */
+export function projectSymbols(answer: LspSymbolInformation[] | null, here: string, rootUri: string): ProjectSymbol[] {
+  const root = pathOf(rootUri).replace(/\/+$/, '') + '/'
+  const herePath = pathOf(here)
+  return (answer ?? []).flatMap((symbol) => {
+    const path = pathOf(symbol.location.uri)
+    if (path === herePath || (symbol.kind === LSP_VARIABLE && symbol.containerName)) return []
+    const start = symbol.location.range.start
+    return [{
+      name: symbol.containerName ? `${symbol.containerName}.${symbol.name}` : symbol.name,
+      path: path.startsWith(root) ? path.slice(root.length) : path,
+      uri: symbol.location.uri,
+      line: start.line + 1,
+      col: start.character + 1,
+    }]
+  })
+}
+
+/** The palette's entries for [found], each showing which file it is in. */
+export function projectItems(found: ProjectSymbol[], open: (symbol: ProjectSymbol) => void): PaletteItem[] {
+  return found.map((symbol) => ({ name: symbol.name, elsewhere: symbol.path, run: () => open(symbol) }))
+}
+
+export interface ProjectSearch {
+  /**
+   * What the server found for [query]. Until it has answered, what it found for the query before,
+   * which the palette's own ranking narrows to what still fits; [arrived] is called when the answer
+   * is in. Nothing for nothing typed: a server answers an empty query with nothing, or with all of it.
+   */
+  find(query: string): ProjectSymbol[]
+  /** Asks again from the next [find]: the palette has opened, or the file on the screen has changed. */
+  forget(): void
+}
+
+/**
+ * The server is asked as the query is typed, but one question at a time: while one is out, only the
+ * latest query is kept, and asked once the answer is in. A server slower than the typing is asked
+ * less often instead of falling further behind.
+ */
+export function createProjectSearch(ask: (query: string) => Promise<ProjectSymbol[]>, arrived: () => void): ProjectSearch {
+  let known: { query: string; found: ProjectSymbol[] } | null = null
+  let asking: Promise<ProjectSymbol[]> | null = null
+  let next: string | null = null
+
+  function send(query: string): void {
+    const sent = ask(query).catch((error) => {
+      console.log(`workspace symbols: ${error}`)
+      return []
+    })
+    asking = sent
+    void sent.then((found) => {
+      // Forgotten since: this answer is about a palette that has closed, or a file that has gone.
+      if (asking !== sent) return
+      asking = null
+      known = { query, found }
+      const waiting = next
+      next = null
+      if (waiting !== null && waiting !== query) send(waiting)
+      arrived()
+    })
+  }
+
+  return {
+    find(query) {
+      if (query === '') return []
+      if (known?.query === query) return known.found
+      if (asking) next = query
+      else send(query)
+      return known?.found ?? []
+    },
+    forget() {
+      known = null
+      asking = null
+      next = null
+    },
+  }
 }

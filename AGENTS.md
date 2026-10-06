@@ -379,6 +379,10 @@ These apply to `:code` only:
   server to use UTF-16, and pyright does. A server that counts UTF-8 bytes anyway would put every
   diagnostic in the wrong place on a line with Korean text, so `LspManager` still checks the
   `initialize` reply rather than trusting it.
+- **`@codemirror/lsp-client` sends `rootUri` in `initialize` and no `workspaceFolders`,** and pyright
+  answers `workspace/symbol` with an empty list for as long as it has no folder (it also logs that
+  `/<default workspace root>` does not exist). `lsp.ts`'s transport adds the project root as the one
+  folder to that message alone (`withWorkspaceFolder`).
 - **`org.json` is part of the Android framework, so the unit test JVM gets a stub** whose every
   method throws "not mocked". A test that touches it needs `org.json:json` as a test dependency.
 - **Android's `EUC-KR` decoder is wider than the JVM's.** It takes UHC's extra hangul, `80` as

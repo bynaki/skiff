@@ -17,7 +17,7 @@ import { createFolder, files } from './files'
 import { createLoadingView } from './chrome/loading'
 import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
-import { type DocSymbol, outlineOf, symbols } from './symbols'
+import { type DocSymbol, createProjectSearch, outlineOf, projectItems, symbols } from './symbols'
 import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
@@ -301,30 +301,45 @@ function fileItems() {
 }
 
 /**
- * The outline of the file on the screen, read from its buffer once each time the palette opens.
- * A file Kotlin refused has no pane, and so no outline.
+ * The outline of the file on the screen, asked for once each time the palette opens: from its language
+ * server when it has one that answers, otherwise read from its buffer (2026-09-27 사용자 결정). A file
+ * Kotlin refused has no pane, and so no outline.
  */
 const outline = createFolder<DocSymbol>(
   (id) => {
     const name = openList.find((file) => file.id === id)?.name
-    return pane && name ? outlineOf(name, pane.text) : Promise.resolve([])
+    const showing = pane
+    if (!showing || !name) return Promise.resolve([])
+    return showing.serverOutline().then((found) => found ?? outlineOf(name, showing.text))
   },
   () => paletteView.refresh(),
 )
 
-/** Where the palette's symbol mode goes: to the symbol's line, on whichever layer is showing. */
-function symbolItems() {
+/** What the language server of the file on the screen finds across its project, as it is typed. */
+const projectSearch = createProjectSearch(
+  (query) => pane?.projectSymbols(query) ?? Promise.resolve([]),
+  () => paletteView.refresh(),
+)
+
+/**
+ * Where the palette's symbol mode goes: to the symbol's line, on whichever layer is showing, and
+ * below those to what the project has elsewhere for [query] (2026-10-06 사용자 결정: one list).
+ */
+function symbolItems(query: string) {
   const showing = pane
   if (activeId === null || !showing) return []
-  return symbols(outline.names(activeId), (line) => {
-    if (pane === showing) showing.goToLine(line)
-  })
+  return [
+    ...symbols(outline.names(activeId), (line) => {
+      if (pane === showing) showing.goToLine(line)
+    }),
+    ...projectItems(projectSearch.find(query), (symbol) => showing.openSymbol(symbol)),
+  ]
 }
 
 // The open files menu goes away when the palette opens: both are ways to another file, and one at a
 // time is the one being used.
 const paletteView = createPaletteView(
-  (mode) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : symbolItems()),
+  (mode, query) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : symbolItems(query)),
   () => {
     openFiles.hide()
     moreMenu.hide()
@@ -332,6 +347,7 @@ const paletteView = createPaletteView(
     // have been typed in since the last opening, so the outline is read again too.
     folder.forget()
     outline.forget()
+    projectSearch.forget()
   },
 )
 
@@ -351,6 +367,8 @@ async function reconcile(goToLine?: number | null, col?: number | null, layer?: 
   openList = files
   // What was listed left out the files that were open then, and was beside the file on the screen then.
   folder.forget()
+  // And what the project had was the project of the file on the screen then, less that file.
+  projectSearch.forget()
   const open = (id: number) => files.some((file) => file.id === id)
   for (const id of [...memories.keys()]) if (!open(id)) memories.delete(id)
   for (const id of [...waiting.keys()]) if (!open(id)) waiting.delete(id)

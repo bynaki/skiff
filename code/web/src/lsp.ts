@@ -16,6 +16,7 @@ import { Decoration, EditorView, type Tooltip, ViewPlugin, keymap, showTooltip }
 import { notify, onNotify, rpc } from './bridge'
 import { type EndReason, afterEnd } from './lspPolicy'
 import { sanitizeHTML } from './sanitize'
+import { type DocSymbol, type LspDocumentSymbol, type LspSymbolInformation, type ProjectSymbol, outlineFromServer, projectSymbols } from './symbols'
 
 /** Which language server a file goes to, as Kotlin's document says (`MainActivity.languageServerFor`). */
 export interface LspTarget {
@@ -113,7 +114,7 @@ function connectionOf(target: LspTarget): Connection {
 function transportOf(connection: Connection): Transport {
   return {
     send(message) {
-      notify('lspSend', { project: connection.project, server: connection.server, message })
+      notify('lspSend', { project: connection.project, server: connection.server, message: withWorkspaceFolder(message, connection.rootUri) })
     },
     subscribe(handler) {
       connection.handlers.add(handler)
@@ -123,6 +124,24 @@ function transportOf(connection: Connection): Transport {
     },
   }
 }
+
+/**
+ * [message], with the project's root as its one workspace folder if it is `initialize`. The library
+ * sends `rootUri` alone, and pyright answers `workspace/symbol` with nothing at all until it has a
+ * folder (seen on this Mac's pyright) — it also logs that `/<default workspace root>` does not exist.
+ */
+export function withWorkspaceFolder(message: string, rootUri: string): string {
+  // Parsed only when it can be `initialize`: the rest, whole buffers among them, pass as they are.
+  if (!message.includes('"method":"initialize"')) return message
+  const parsed = JSON.parse(message)
+  if (parsed.method !== 'initialize' || parsed.params.workspaceFolders) return message
+  const name = decodeURIComponent(rootUri.replace(/\/+$/, '').split('/').pop() ?? '')
+  parsed.params.workspaceFolders = [{ uri: rootUri, name }]
+  return JSON.stringify(parsed)
+}
+
+/** The outline as a tree, which the library does not ask for: without it pyright sends a flat list. */
+const documentSymbolTree = { clientCapabilities: { textDocument: { documentSymbol: { hierarchicalDocumentSymbolSupport: true } } } }
 
 /** The library keeps the request timeout private; `initialize` needs a longer one than the rest. */
 const requestTimeout = (client: LSPClient) => client as unknown as { timeout: number }
@@ -134,7 +153,7 @@ function start(connection: Connection): void {
     rootUri: connection.rootUri,
     timeout: Math.max(INITIALIZE_TIMEOUT_MS, timeoutMs),
     sanitizeHTML,
-    extensions: languageServerExtensions(),
+    extensions: [...languageServerExtensions(), documentSymbolTree],
   })
   connection.client = client
   connection.startedAt = performance.now()
@@ -251,7 +270,7 @@ export async function goToDefinition(view: EditorView, target: LspTarget, pos: n
       const line = view.state.doc.lineAt(found.at)
       hooks?.goTo(line.number, found.at - line.from + 1)
     } else {
-      await rpc('openDefinition', { project: target.project, uri: found.uri, line: found.line, col: found.col })
+      await openInProject(target, found.uri, found.line, found.col)
     }
   } catch (error) {
     console.log(`lsp definition: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
@@ -296,6 +315,46 @@ export async function showHover(view: EditorView, target: LspTarget, pos: number
       word: word && word.from < word.to ? { from: word.from, to: word.to } : null,
     }),
   })
+}
+
+/**
+ * The outline of the view's file as its server has it, for the palette's symbol mode, or null when the
+ * server cannot say — it is not running, has no outline to give, or failed — and the file's own tree
+ * is read instead. Nothing is said on the banner: the palette has an answer either way.
+ */
+export async function documentSymbols(view: EditorView, target: LspTarget): Promise<DocSymbol[] | null> {
+  wakeLsp(target)
+  const plugin = LSPPlugin.get(view)
+  if (!plugin) return null
+  const client = plugin.client
+  client.sync()
+  try {
+    await client.initializing
+    if (!client.serverCapabilities?.documentSymbolProvider) return null
+    return outlineFromServer(await client.request<object, LspDocumentSymbol[] | LspSymbolInformation[] | null>(
+      'textDocument/documentSymbol',
+      { textDocument: { uri: plugin.uri } },
+    ))
+  } catch (error) {
+    console.log(`lsp documentSymbol: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
+    return null
+  }
+}
+
+/** What [target]'s server finds across the project for [query], leaving out [target]'s own file. */
+export async function workspaceSymbols(target: LspTarget, query: string): Promise<ProjectSymbol[]> {
+  wakeLsp(target)
+  const client = connectionOf(target).client
+  if (!client) return []
+  await client.initializing
+  if (!client.serverCapabilities?.workspaceSymbolProvider) return []
+  const answer = await client.request<object, LspSymbolInformation[] | null>('workspace/symbol', { query })
+  return projectSymbols(answer, target.uri, target.rootUri)
+}
+
+/** Opens [uri] in [target]'s project at [line] and [col], both 1-based: a definition or a symbol in another file. */
+export function openInProject(target: LspTarget, uri: string, line: number, col: number): Promise<unknown> {
+  return rpc('openDefinition', { project: target.project, uri, line, col })
 }
 
 /** Where a definition is: a place in the same buffer, or a file the server names and where in it. */
