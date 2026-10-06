@@ -45,7 +45,8 @@ import java.util.concurrent.ConcurrentHashMap
  * A server whose link dropped under it may still be running on the server: a phone that moved from
  * Wi-Fi to LTE never got its goodbye across, and sshd keeps the session until TCP gives up on it, two
  * hours on Linux. The start script announces the server's pid, and the next start of that server ends
- * what is left of the old one first ([orphans]).
+ * what is left of the old one once the new one is running ([orphans]) — not before it, which held the
+ * new one back by a round trip (0.47 s of the 3.4 s back to diagnostics on the Fold8, 2026-10-06).
  */
 class LspManager(
     private val exec: RemoteExec,
@@ -72,8 +73,8 @@ class LspManager(
     private val inbox = Channel<Op>(Channel.UNLIMITED)
     private val running = ConcurrentHashMap<LanguageServer, Running>()
 
-    /** Servers whose link dropped under them, to be ended on the server before they start again. Touched only from the inbox. */
-    private val orphans = HashMap<LanguageServer, Running>()
+    /** Servers whose link dropped under them, to be ended on the server when they start again. Touched only from the inbox. */
+    private val orphans = HashMap<LanguageServer, MutableList<Running>>()
 
     private val detecting = Mutex()
 
@@ -88,7 +89,7 @@ class LspManager(
                     is Op.Ended -> if (running.remove(op.server, op.running)) {
                         op.running.idle?.cancel()
                         val dropped = droppedLink(op.cause)
-                        if (dropped) orphans[op.server] = op.running
+                        if (dropped) orphans.getOrPut(op.server) { mutableListOf() } += op.running
                         val why = if (dropped) LspEnd.Disconnected else LspEnd.Failed(op.cause, op.running.process.stderrTail())
                         listener?.ended(op.server, why)
                     }
@@ -97,6 +98,7 @@ class LspManager(
                         stop(op.server, op.running, LspEnd.Unsupported(op.positionEncoding))
                     }
                     is Op.StopAll -> running.entries.toList().forEach { (server, it) -> stop(server, it, LspEnd.Stopped) }
+                    is Op.Unreaped -> orphans.getOrPut(op.server) { mutableListOf() } += op.orphan
                 }
             }
         }
@@ -165,7 +167,21 @@ class LspManager(
 
     /** [server] started and recorded as running, or null when it could not be, which the page is told. */
     private suspend fun start(server: LanguageServer): Running? {
-        orphans[server]?.let { reap(server, it) }
+        val leftOver = orphans.remove(server).orEmpty()
+        val started = spawn(server)
+        if (started == null) {
+            // Not started, so nothing was ended either: they wait for the next start.
+            if (leftOver.isNotEmpty()) orphans[server] = leftOver.toMutableList()
+            return null
+        }
+        // A pid the new server was given is one the old server no longer has, and the name check
+        // in [kill] would take the new server for it.
+        leftOver.filter { it.pid != started.pid }.forEach { scope.launch { reap(server, it) } }
+        return started
+    }
+
+    /** [start] apart from the orphans. */
+    private suspend fun spawn(server: LanguageServer): Running? {
         val argv: List<String>
         val channel = try {
             argv = command(server) ?: run {
@@ -231,17 +247,17 @@ class LspManager(
     }
 
     /**
-     * Ends what is left of [server] from before its link dropped. Once it has run the orphan is
-     * forgotten whatever it found; a link still down keeps it for the next start.
+     * Ends what is left of [server] from before its link dropped, beside the new one rather than
+     * ahead of it. Once it has run the orphan is forgotten whatever it found; a link that dropped
+     * again meanwhile hands it back for the next start.
      */
     private suspend fun reap(server: LanguageServer, orphan: Running) {
         try {
             exec.run(kill(orphan.pid, orphan.program))
-            orphans.remove(server)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            if (!droppedLink(e)) orphans.remove(server)
+            if (droppedLink(e)) inbox.trySend(Op.Unreaped(server, orphan))
         }
     }
 
@@ -304,6 +320,7 @@ class LspManager(
         class Idle(val server: LanguageServer, val running: Running) : Op
         class Refuse(val server: LanguageServer, val running: Running, val positionEncoding: String) : Op
         data object StopAll : Op
+        class Unreaped(val server: LanguageServer, val orphan: Running) : Op
     }
 
     companion object {

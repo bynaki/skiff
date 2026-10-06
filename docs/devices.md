@@ -104,6 +104,9 @@
 - **앱을 백그라운드로 보내면 6초쯤 뒤 Android가 앱의 TCP 소켓을 닫는다**(2026-10-06, 와이파이·LTE 둘 다,
   logcat `InetDiagMessage: Destroyed … sockets … uids={<앱 uid>}`). 그래서 서버 쪽 세션과 언어 서버가 바로 끝나고,
   앱으로 돌아오면 다시 접속한다. 백그라운드 데이터 제한(`cmd netpolicy get restrict-background`)은 꺼져 있었다.
+- **`svc wifi disable`은 연결이 와이파이 위에 있을 때만 끊는다**(2026-10-06). 앱을 보는 중이면 0.25초쯤 뒤
+  `Software caused connection abort`로 끊긴다. LTE 위에서 맺은 연결은 와이파이를 켜도 LTE에 남아, 그 뒤 와이파이를
+  껐다 켜도 끊기지 않는다. 와이파이 위의 연결을 만들려면 와이파이를 켠 채로 앱을 홈으로 보냈다가(6초 뒤 끊김) 돌아온다.
 - **사용자가 실제로 쓰는 기기다.** `settings.toml`과 `files/themes/`에 사용자가 고른 값과 가져온 테마가 있으니,
   설정을 바꾸는 시험 전에 `run-as … cat`으로 백업하고 끝나면 되돌린다(md5로 맞춰 본다). 시험 중에 사용자가 다른
   앱을 띄울 수 있으니 화면을 쓰는 시험은 먼저 말하고 한다.

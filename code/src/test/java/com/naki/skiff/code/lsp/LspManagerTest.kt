@@ -266,9 +266,32 @@ class LspManagerTest {
     }
 
     @Test
-    fun `a server whose link dropped is ended on the server before another starts`() {
+    fun `a server whose link dropped is ended on the server once another has started`() {
         val lsp = start()
-        // What the server would still be running after a phone changed networks: a process named as the server.
+        val process = droppedWithLeftOver(lsp)
+        stubPid = Int.MAX_VALUE.toLong()
+        lsp.send(LanguageServer.Python, initialize(1))
+
+        assertEquals(1, nextMessage().getInt("id"))
+        assertTrue(process.waitFor(10, TimeUnit.SECONDS))
+        assertEquals(2, starts.get())
+    }
+
+    @Test
+    fun `a new server given the pid of one whose link dropped is not ended for it`() {
+        val lsp = start()
+        // The old server's pid is now the new one's, and its name is the same.
+        val process = droppedWithLeftOver(lsp)
+        lsp.send(LanguageServer.Python, initialize(1))
+
+        assertEquals(1, nextMessage().getInt("id"))
+        assertFalse(process.waitFor(1, TimeUnit.SECONDS))
+        process.destroy()
+    }
+
+    /** A server started on [lsp] whose link then dropped, left running as a process named as the server. */
+    private fun droppedWithLeftOver(lsp: LspManager): Process {
+        // What the server would still be running after a phone changed networks.
         val leftOver = executable(File(tmp.root, "bin"), installed.first(), "while :; do sleep 1; done")
         val (process, pid) = spawn(leftOver.path)
         stubPid = pid
@@ -278,11 +301,7 @@ class LspManagerTest {
         stubChannel!!.session.close(true)
         assertEquals(LspEnd.Disconnected, next())
         assertTrue(process.isAlive)
-        lsp.send(LanguageServer.Python, initialize(1))
-
-        assertEquals(1, nextMessage().getInt("id"))
-        assertTrue(process.waitFor(10, TimeUnit.SECONDS))
-        assertEquals(2, starts.get())
+        return process
     }
 
     @Test
