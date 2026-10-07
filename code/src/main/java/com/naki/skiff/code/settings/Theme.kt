@@ -195,6 +195,13 @@ class Themes(private val open: (path: String) -> InputStream, private val dir: F
         importedNames = null
     }
 
+    /** Removes every theme of the person's own, as Reset Data does, leaving the bundled ones. */
+    fun deleteAllImported() {
+        dir.listFiles { file -> file.isFile && file.name.endsWith(SUFFIX) }.orEmpty().forEach { it.delete() }
+        imported.clear()
+        importedNames = null
+    }
+
     companion object {
         const val SUFFIX = ".toml"
 

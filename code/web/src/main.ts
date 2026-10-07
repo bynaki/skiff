@@ -112,7 +112,7 @@ const openFiles = createOpenFiles({
   activate: (id) => void rpc('activate', { id }).catch((error) => console.log(`activate: ${error}`)),
   close: (id) => void rpc('close', { id }).catch((error) => console.log(`close: ${error}`)),
   // Only this side knows: Kotlin is never told whether a buffer has been typed in.
-  dirty: (id) => (id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)),
+  dirty: (id) => isFileDirty(id),
   opened: (open) => topbar.setFilesOpen(open),
 })
 
@@ -266,6 +266,11 @@ const palette: CommandSource = {
   copyTheme: () => void rpc('copyTheme').catch((error) => console.log(`copyTheme: ${error}`)),
   editTheme: () => void rpc('editTheme').catch((error) => console.log(`editTheme: ${error}`)),
   deleteTheme: () => void rpc('deleteTheme').catch((error) => console.log(`deleteTheme: ${error}`)),
+  // Only this side knows which buffers have been typed in, so it says, for Kotlin to ask before closing them.
+  resetData: () => {
+    const dirty = openList.filter((file) => isFileDirty(file.id)).map((file) => file.id)
+    void rpc('resetData', { dirty }).catch((error) => console.log(`resetData: ${error}`))
+  },
   undo: () => pane?.undo(),
   redo: () => pane?.redo(),
   lsp: () => pane?.lsp ?? false,
@@ -350,6 +355,10 @@ const paletteView = createPaletteView(
     projectSearch.forget()
   },
 )
+
+function isFileDirty(id: number): boolean {
+  return id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)
+}
 
 function dirtyInBackground(id: number): boolean {
   const memory = memories.get(id)
@@ -559,6 +568,7 @@ onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | nu
 })
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
 onNotify('projectsChanged', () => sidebar.changed())
+onNotify('paletteRecentsCleared', () => paletteView.forgetRecent())
 onNotify('gitChanged', askBaseline)
 // What came of an import or export, which Kotlin finishes after the file picker has gone, and what
 // a project could not have. It waits its turn behind [refresh]: putting a file on the screen hides

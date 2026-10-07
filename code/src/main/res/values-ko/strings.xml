@@ -126,4 +126,18 @@
     <string name="lsp_not_installed">이 프로젝트의 서버에서 %1$s 언어 서버를 찾지 못했습니다.</string>
     <string name="lsp_failed">%1$s 언어 서버가 멈췄습니다.</string>
     <string name="lsp_unsupported">%1$s 언어 서버가 위치를 %2$s로 세는데, 이 앱은 그 방식을 따를 수 없어 쓰지 않습니다.</string>
+    <string name="reset_title">데이터 초기화</string>
+    <string name="reset_profiles">서버 프로필 — 비밀번호 포함, 열린 원격 파일도 닫힘</string>
+    <string name="reset_host_keys">호스트키</string>
+    <string name="reset_projects">프로젝트</string>
+    <string name="reset_open_files">열린 파일 — 전부 닫기</string>
+    <string name="reset_recent_files">최근 파일</string>
+    <string name="reset_settings">설정 — 초기 설정으로, 열려 있으면 닫힘</string>
+    <string name="reset_themes">테마 — 기본 light/dark만 남김, 열려 있으면 닫힘</string>
+    <string name="reset_palette_recents">팔레트 최근 기록</string>
+    <string name="reset_skiff_note">Skiff에 있는 서버는 다음 링크 때 프로필과 호스트키를 다시 가져옵니다.</string>
+    <string name="reset_unsaved_title">저장하지 않은 파일이 있습니다</string>
+    <string name="reset_unsaved">저장하지 않고 닫을까요?\n\n%1$s</string>
+    <string name="action_close_and_reset">닫고 진행</string>
+    <string name="reset_done">초기화했습니다.</string>
 </resources>

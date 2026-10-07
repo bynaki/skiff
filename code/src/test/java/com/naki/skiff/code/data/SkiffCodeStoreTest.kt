@@ -1,5 +1,7 @@
 package com.naki.skiff.code.data
 
+import androidx.datastore.core.DataStore
+import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.data.store.AuthMethod
 import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.ServerProfile
@@ -26,8 +28,8 @@ class SkiffCodeStoreTest {
 
     private val file by lazy { File(tmp.root, "skiffcode.json") }
 
-    /** Runs [block] against a store on [file], then closes that DataStore so another may open it. */
-    private suspend fun TestScope.withStore(block: suspend (SkiffCodeStore) -> Unit) {
+    /** Runs [block] against a DataStore on [file], then closes it so another may open it. */
+    private suspend fun TestScope.withData(block: suspend (DataStore<SkiffCodeData>) -> Unit) {
         val job = Job()
         val dataStore = jsonDataStore(
             file = file,
@@ -35,9 +37,11 @@ class SkiffCodeStoreTest {
             defaultValue = SkiffCodeData(),
             scope = CoroutineScope(StandardTestDispatcher(testScheduler) + job),
         )
-        block(SkiffCodeStore(dataStore))
+        block(dataStore)
         job.cancelAndJoin()
     }
+
+    private suspend fun TestScope.withStore(block: suspend (SkiffCodeStore) -> Unit) = withData { block(SkiffCodeStore(it)) }
 
     private val home = ServerProfile(
         id = "p1",
@@ -217,6 +221,28 @@ class SkiffCodeStoreTest {
             )
             assertEquals("SHA256:OURS", store.knownHost("192.0.2.10", 22)?.fingerprint)
             assertEquals("SHA256:NEW", store.knownHost("192.0.2.10", 2222)?.fingerprint)
+        }
+    }
+
+    @Test
+    fun `reset empties what it is asked to, together, and leaves the rest`() = runTest {
+        withData { data ->
+            val store = SkiffCodeStore(data)
+            val projects = ProjectStore(data)
+            store.upsertProfile(home)
+            store.rememberHost(KnownHost("192.0.2.10", 22, "ssh-ed25519", "SHA256:AAAA"))
+            store.addRecentFile("skiffcode://alice@192.0.2.10/home/alice/a.md", 100)
+            projects.add("p1", "/home/alice/demo")
+
+            store.reset(profiles = true, knownHosts = false, projects = true, recentFiles = false)
+            assertEquals(emptyList<ServerProfile>(), store.profiles.first())
+            assertEquals(emptyList<Any>(), projects.projects.first())
+            assertEquals("SHA256:AAAA", store.knownHost("192.0.2.10", 22)?.fingerprint)
+            assertEquals(1, store.recentFiles.first().size)
+
+            store.reset(profiles = false, knownHosts = true, projects = false, recentFiles = true)
+            assertNull(store.knownHost("192.0.2.10", 22))
+            assertEquals(emptyList<RecentFile>(), store.recentFiles.first())
         }
     }
 }

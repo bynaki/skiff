@@ -28,6 +28,7 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
     copyTheme: () => ran.push('copyTheme'),
     editTheme: () => ran.push('editTheme'),
     deleteTheme: () => ran.push('deleteTheme'),
+    resetData: () => ran.push('resetData'),
     undo: () => ran.push('undo'),
     redo: () => ran.push('redo'),
     lsp: () => state.lsp ?? false,
@@ -63,6 +64,7 @@ describe('what the palette offers', () => {
       'Export Theme',
       'Copy Theme',
       'Edit Theme',
+      'Reset Data…',
       'Reload File',
       'Close File',
     ])
@@ -99,6 +101,7 @@ describe('what the palette offers', () => {
       'Export Theme',
       'Copy Theme',
       'Edit Theme',
+      'Reset Data…',
       'Reload File',
       'Close File',
     ])
@@ -120,6 +123,7 @@ describe('what the palette offers', () => {
       'Export Theme',
       'Copy Theme',
       'Edit Theme',
+      'Reset Data…',
     ])
   })
 
@@ -147,6 +151,7 @@ describe('what the palette offers', () => {
       'exportTheme',
       'copyTheme',
       'editTheme',
+      'resetData',
       'reload',
       'close',
     ])
@@ -170,8 +175,14 @@ describe('what the palette offers', () => {
     expect(names({ open: false, layer: null })).not.toContain('Delete Theme')
     const { command, ran } = source({ open: false, layer: null, ownTheme: true })
     const listed = commands(command)
-    expect(listed.map((item) => item.name).slice(-4)).toEqual(['Export Theme', 'Copy Theme', 'Edit Theme', 'Delete Theme'])
-    listed[listed.length - 1].run()
+    expect(listed.map((item) => item.name).slice(-5)).toEqual(['Export Theme', 'Copy Theme', 'Edit Theme', 'Delete Theme', 'Reset Data…'])
+    listed[listed.length - 2].run()
     expect(ran).toEqual(['deleteTheme'])
+  })
+
+  test('offers Reset Data with or without a file, and leaves the asking to Kotlin', () => {
+    const { command, ran } = source({ open: false, layer: null })
+    commands(command).find((item) => item.name === 'Reset Data…')?.run()
+    expect(ran).toEqual(['resetData'])
   })
 })

@@ -518,11 +518,15 @@
     잠깐 보였는데(와이파이를 끈 4초 뒤) 왜 떴는지는 보지 못했다 — 임시 로그가 없는 빌드였다. 복귀 뒤에는 그것도 없었다.
 
 ### M7. 마무리
-- [ ] 팔레트에 store 초기화 명령(2026-10-01 사용자 요청, **store에 들어갈 것이 다 정해진 뒤에 하려고 맨 끝에 둔다**)
-  - 대상은 `files/datastore/skiffcode.json`(프로필과 비밀번호, 호스트키, 최근 파일, 프로젝트). `settings.toml`, 테마, 페이지의 `localStorage`는 store가 아니다.
-  - 제안: 프로젝트만 지우는 `Reset Projects`와 전체를 지우는 `Reset Store` 둘. 네이티브 확인 창에서 지울 것을 보여 주고, 메모리의 프로젝트 세션(전체면 SFTP 세션도)을 닫는다. 열린 파일은 그대로 둔다.
-  - 정할 것(사용자에게 묻는다): 범위(프로젝트만 / 전체 / 둘 다), 명령 이름. **호스트키를 지우면 다음 접속이 "키가 바뀜"이 아니라 "처음 보는 서버"로 묻는다** — 이것을 알리고 정한다. Skiff에 있는 서버는 다음 링크 때 비밀번호 없이 다시 들어온다.
-  - 사이드바 항목에서 프로젝트를 하나씩 지우는 길이 생기면 `Reset Projects`가 아직 필요한지도 다시 본다.
+- [x] 팔레트에 데이터 초기화 명령 `Reset Data…`(2026-10-01 사용자 요청)
+  - 2026-10-07 사용자 결정: 명령 하나, 체크리스트 창 하나. 항목은 서버 프로필, 호스트키, 프로젝트, 열린 파일, 최근 파일, 설정(초기 설정으로), 테마(기본만 남김), 팔레트 최근 기록. 처음엔 모두 꺼짐. 프로필을 켜면 프로젝트가 따라 켜진다. 프로필을 지우면 열린 원격 파일도 닫고, 닫힐 파일 중 저장하지 않은 것이 있으면 한 번 더 묻는다. 원래 제안(`Reset Projects`/`Reset Store` 둘)은 이것으로 바꿨다. 설계는 spec "데이터 초기화".
+  - Kotlin: `ui/ResetData.kt`(`ResetItem`, 함께 지울 것, 닫을 파일), `Dialogs.askReset`(`await`에 `shown`), `MainActivity.resetData`·`kindOf`, `SkiffCodeStore.reset`, `SettingsFile.reset`, `Themes.deleteAllImported`, `ProjectSessions.closeAll`, 문자열 ko/en. 페이지: `commands.ts`, `palette.ts`의 `forgetRecent`, `main.ts`(`isFileDirty`로 고친 문서 id를 보냄, `paletteRecentsCleared`).
+  - 테스트: JVM 280(+7: `ResetDataTest` 4, `SkiffCodeStoreTest` +1, `ThemesTest` +1, `SettingsFileTest` 1), vitest 148(+2). 린트 경고 11(기준과 같다).
+  - **탭에서 확인했다**(2026-10-07, DevTools와 `uiautomator`): 처음 모두 꺼짐·삭제 꺼짐, 프로필 켬 → 프로젝트 켜지고 잠김(눌러도 안 바뀜), 끄면 풀림, 손으로 켜 둔 프로젝트는 프로필을 켰다 꺼도 켜진 채. 취소하면 store·설정·테마·열린 파일 다 그대로. 고친 `hello.py`가 열린 채 열린 파일 → 확인 창에 `hello.py`만(깨끗한 `readme.md`는 없음), 취소하면 그대로. `ocean` 테마를 쓰는 중 테마만 → 폴더가 비고 `theme = "system"`, 다른 것은 그대로, 확인 창 없음. 고친 `settings.toml`이 열린 채 설정만 → 확인 창에 `settings.toml`, 진행하니 그것만 닫히고 파일은 템플릿. 전부 → store 네 항목 0, 설정 템플릿, 테마 폴더 빔, 열린 파일 없음, `palette.recent`가 `{}`, "초기화했습니다." 배너.
+  - 탭에서 찾아 고친 것: 열린 파일 전부를 닫을 때 `docs.all`을 돌며 지워 `ConcurrentModificationException`이 났다(복사본을 돈다). 첫 파일을 닫은 뒤 멈춰 store는 그대로였다.
+  - 확인 뒤 탭의 store와 `settings.toml`은 백업으로 되돌렸다. 팔레트 최근 기록은 WebView의 것이라 백업하지 못해 비어 있다.
+  - 팔레트에 `Reset`만 치면 `Reset Zoom`이 먼저 잡힌다. `Reset Data`까지 쳐야 한다.
+  - **폴드8에서 사용자가 확인했다**(2026-10-07, APK를 손으로 설치, 커밋 전 빌드): 커버 화면에서 긴 창이 스크롤되어 버튼까지 닿고, 고친 원격 파일이 열린 채 프로필을 지우면 확인 창이 뜨고 허락하면 닫힌다.
 
 ## 아직 확인하지 않은 것
 

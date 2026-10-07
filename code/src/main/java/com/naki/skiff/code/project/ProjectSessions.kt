@@ -107,4 +107,10 @@ class ProjectSessions(
         val session = synchronized(lock) { open.remove(projectId)?.second }
         session?.close()
     }
+
+    /** Ends every project's session, for Reset Data taking the projects away. */
+    fun closeAll() {
+        val sessions = synchronized(lock) { open.values.map { it.second }.also { open.clear() } }
+        sessions.forEach { it.close() }
+    }
 }

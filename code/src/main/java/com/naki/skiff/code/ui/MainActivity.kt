@@ -441,6 +441,13 @@ class MainActivity : Activity() {
             deleteTheme(shownTheme())
             JSONObject()
         }
+        // The palette's Reset Data. Which buffers have been typed in is the page's to know, so it
+        // sends them along; the dialogs are modal, so the list cannot change while they are up.
+        bridge.method("resetData") { params ->
+            val dirty = params.optJSONArray("dirty")?.let { ids -> (0 until ids.length()).map(ids::getInt).toSet() } ?: emptySet()
+            resetData(dirty)
+            JSONObject()
+        }
         getSystemService(InputManager::class.java).registerInputDeviceListener(keyboards, null)
         bridge.attach(webView)
 
@@ -696,6 +703,63 @@ class MainActivity : Activity() {
         }
         withContext(Dispatchers.IO) { container.themes.delete(name) }
         bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(SettingsToml.SYSTEM_THEME)))
+    }
+
+    /**
+     * Asks what to clear, then whether the files that go with it may close unsaved, and only then
+     * clears anything: a no to either leaves everything as it was (2026-10-07 사용자 결정).
+     */
+    private suspend fun resetData(dirty: Set<Int>) {
+        val chosen = askReset() ?: return
+        // A copy: closing takes each one out of the list this would otherwise still be walking.
+        val closing = ResetData.closing(chosen, docs.all.toList(), ::kindOf)
+        val unsaved = closing.filter { it.id in dirty }
+        if (unsaved.isNotEmpty()) {
+            val names = unsaved.joinToString("\n") { "· ${it.name}\n  ${it.where}" }
+            if (!confirm(getString(R.string.reset_unsaved_title), getString(R.string.reset_unsaved, names), getString(R.string.action_close_and_reset))) return
+        }
+        // A file still on its way in would land after the list it belongs to has gone.
+        if (ResetItem.OpenFiles in chosen || ResetItem.Profiles in chosen) opening?.cancel()
+        closing.forEach { docs.close(it.id) }
+        if (closing.isNotEmpty()) documentsChanged()
+        // Disconnecting writes to the socket, which the main thread may not.
+        withContext(Dispatchers.IO) {
+            if (ResetItem.Projects in chosen) container.projectSessions.closeAll()
+            if (ResetItem.Profiles in chosen) container.sessions.closeAll()
+        }
+        container.store.reset(
+            profiles = ResetItem.Profiles in chosen,
+            knownHosts = ResetItem.HostKeys in chosen,
+            projects = ResetItem.Projects in chosen,
+            recentFiles = ResetItem.RecentFiles in chosen,
+        )
+        // The projects' open files lose their gutter, as removing one from the sidebar does.
+        if (ResetItem.Projects in chosen) bridge.notify("gitChanged", JSONObject())
+        if (ResetItem.Themes in chosen) {
+            val wasOwn = container.themes.isImported(container.settings.current().settings.editor.theme)
+            withContext(Dispatchers.IO) { container.themes.deleteAllImported() }
+            // Settings being reset as well name no theme of their own, so this only matters without.
+            if (wasOwn && ResetItem.Settings !in chosen) container.settings.setTheme(SettingsToml.SYSTEM_THEME)
+        }
+        if (ResetItem.Settings in chosen) {
+            container.settings.reset()
+            // A language server already running was started by the command the old file named.
+            withContext(Dispatchers.IO) { container.projectSessions.stopLanguageServers() }
+        }
+        if (ResetItem.Themes in chosen || ResetItem.Settings in chosen) {
+            bridge.notify("settingsChanged", pageSettings(container.settings.reload()))
+        }
+        if (ResetItem.PaletteRecents in chosen) bridge.notify("paletteRecentsCleared", JSONObject())
+        notice(getString(R.string.reset_done), lasting = false)
+    }
+
+    /** Which reset closes [entry]; see [ResetData.closing]. Only files in this app's own files are the settings or a theme. */
+    private fun kindOf(entry: OpenDocuments.Entry): OpenFileKind {
+        if (entry.key.startsWith("remote:")) return OpenFileKind.Remote
+        val path = entry.save?.path ?: return OpenFileKind.Other
+        if (entry.key != keyOf(OpenRequest.LocalPath(path, OpenAt()))) return OpenFileKind.Other
+        if (path == container.settings.file.path) return OpenFileKind.Settings
+        return if (container.themes.ownAt(path) != null) OpenFileKind.Theme else OpenFileKind.Other
     }
 
     /** The picked document as text, or null — said on the banner — when it is too large to be either file. */

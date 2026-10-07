@@ -128,4 +128,18 @@
     <string name="lsp_not_installed">No %1$s language server was found on this project\'s server.</string>
     <string name="lsp_failed">The %1$s language server stopped.</string>
     <string name="lsp_unsupported">The %1$s language server counts positions in %2$s, which this app cannot follow, so it is not used.</string>
+    <string name="reset_title">Reset data</string>
+    <string name="reset_profiles">Server profiles — passwords too; open server files close</string>
+    <string name="reset_host_keys">Host keys</string>
+    <string name="reset_projects">Projects</string>
+    <string name="reset_open_files">Open files — every one closes</string>
+    <string name="reset_recent_files">Recent files</string>
+    <string name="reset_settings">Settings — back to the defaults; closes if open</string>
+    <string name="reset_themes">Themes — only light and dark are kept; close if open</string>
+    <string name="reset_palette_recents">Palette history</string>
+    <string name="reset_skiff_note">Servers in Skiff bring their profile and host key back the next time one of their links is opened.</string>
+    <string name="reset_unsaved_title">Unsaved files</string>
+    <string name="reset_unsaved">These close without being saved:\n\n%1$s</string>
+    <string name="action_close_and_reset">Close and reset</string>
+    <string name="reset_done">Reset.</string>
 </resources>

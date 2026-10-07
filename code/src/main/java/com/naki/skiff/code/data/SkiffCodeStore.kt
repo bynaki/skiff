@@ -138,6 +138,22 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
         }
     }
 
+    /**
+     * Empties each list asked for, in one write, as the palette's Reset Data does. The projects are
+     * [com.naki.skiff.code.project.ProjectStore]'s, but they sit in this blob, and a profile going
+     * without its projects in the same write would leave projects pointing at nothing.
+     */
+    suspend fun reset(profiles: Boolean, knownHosts: Boolean, projects: Boolean, recentFiles: Boolean) {
+        dataStore.updateData { data ->
+            data.copy(
+                profiles = if (profiles) emptyList() else data.profiles,
+                knownHosts = if (knownHosts) emptyList() else data.knownHosts,
+                projects = if (projects) emptyList() else data.projects,
+                recentFiles = if (recentFiles) emptyList() else data.recentFiles,
+            )
+        }
+    }
+
     companion object {
         const val MAX_RECENT_FILES = 50
     }

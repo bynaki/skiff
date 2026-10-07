@@ -58,4 +58,17 @@ describe('what the palette ran last', () => {
     next.open()
     expect(next.results.map((item) => item.name)).toEqual(['Toggle Layer'])
   })
+
+  test('is gone from the palette and from storage once it is forgotten', () => {
+    give(fakeStorage())
+    const machine = createPalette({ items: () => [{ name: 'Toggle Layer', run: () => {} }] })
+    machine.open()
+    machine.type('layer')
+    machine.run()
+    machine.open()
+    expect(machine.results.map((item) => item.name)).toEqual(['Toggle Layer'])
+    machine.forgetRecent()
+    expect(machine.results).toEqual([])
+    expect([...readRecents()]).toEqual([])
+  })
 })

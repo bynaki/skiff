@@ -47,6 +47,8 @@ export interface CommandSource {
   copyTheme(): void
   editTheme(): void
   deleteTheme(): void
+  /** Kotlin asks what to clear, in a dialog of its own. */
+  resetData(): void
   undo(): void
   redo(): void
   /** Whether the file on the screen has a language server to ask, from a code view. */
@@ -97,6 +99,7 @@ export function commands(source: CommandSource): PaletteItem[] {
   )
   // A bundled theme is part of the app: there is nothing to delete.
   if (source.ownTheme()) items.push({ name: 'Delete Theme', run: () => source.deleteTheme() })
+  items.push({ name: 'Reset Data…', run: () => source.resetData() })
   if (source.open()) {
     items.push(
       { name: 'Reload File', run: () => source.reload() },

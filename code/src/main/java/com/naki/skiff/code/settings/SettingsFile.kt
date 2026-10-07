@@ -63,6 +63,9 @@ class SettingsFile(val file: File, private val themes: () -> Collection<String>)
         return reload()
     }
 
+    /** Puts [SettingsToml.TEMPLATE] in place of the file, as Reset Data does, and reads it. */
+    suspend fun reset(): SettingsRead = import(SettingsToml.TEMPLATE)
+
     /** What Export Settings writes out: the file, or the one `Open Settings` would make when there is none. */
     suspend fun text(): String = lock.withLock {
         withContext(Dispatchers.IO) { if (file.exists()) file.readText() else SettingsToml.TEMPLATE }

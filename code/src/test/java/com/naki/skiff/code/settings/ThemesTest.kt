@@ -139,6 +139,20 @@ class ThemesTest {
     }
 
     @Test
+    fun `deleting every imported theme leaves the bundled ones`() {
+        val themes = themes()
+        themes.import("ocean", "base = \"dark\"\n")
+        themes.import("sand", "base = \"light\"\n")
+        themes.resolve("ocean", night = false)
+        themes.deleteAllImported()
+        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertFalse(themes.file("ocean").exists())
+        assertFalse(themes.file("sand").exists())
+        assertTrue(themes.resolve("dark", night = false).dark)
+        assertEquals(listOf("system", "light", "dark"), themes().names)
+    }
+
+    @Test
     fun `a bundled theme cannot be deleted`() {
         val themes = themes()
         for (name in listOf("light", "dark", "system", "ocean")) {

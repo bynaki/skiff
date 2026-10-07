@@ -59,6 +59,8 @@ export interface Palette {
   run(): void
   /** B or C → A, keeping the mode. */
   cancel(): void
+  /** Lets go of the last things run, in every mode and in storage, as Reset Data asks. */
+  forgetRecent(): void
   /**
    * What the mode offers has changed while the palette is open — a directory listing has come in —
    * so what is typed is searched again.
@@ -156,6 +158,11 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
     },
     cancel: close,
     refresh() {
+      if (stage !== 'button') search()
+    },
+    forgetRecent() {
+      recent.clear()
+      writeRecents(recent)
       if (stage !== 'button') search()
     },
   }

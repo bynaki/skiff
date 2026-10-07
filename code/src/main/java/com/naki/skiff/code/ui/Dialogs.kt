@@ -9,6 +9,7 @@ import android.text.TextWatcher
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import com.naki.skiff.code.R
 import com.naki.skiff.code.intent.OpenRequest
@@ -25,11 +26,13 @@ import kotlin.coroutines.resume
 
 /**
  * Shows the dialog [build] makes and waits for [finish], or [dismissed] if it goes away unanswered.
- * [required] fields keep the positive button disabled while any of them is empty.
+ * [required] fields keep the positive button disabled while any of them is empty. [shown] gets the
+ * dialog once it is up, which is when its buttons exist.
  */
 private suspend fun <T> Activity.await(
     dismissed: T,
     required: List<EditText> = emptyList(),
+    shown: (AlertDialog) -> Unit = {},
     build: AlertDialog.Builder.(finish: (T) -> Unit) -> Unit,
 ): T =
     suspendCancellableCoroutine { cont ->
@@ -52,6 +55,7 @@ private suspend fun <T> Activity.await(
             required.forEach { it.addTextChangedListener(watcher) }
             update()
         }
+        shown(dialog)
         // A button's listener runs before the dismissal, so this only fires for back or outside taps.
         dialog.setOnDismissListener { finish(dismissed) }
         cont.invokeOnCancellation { dialog.dismiss() }
@@ -117,6 +121,57 @@ suspend fun Activity.confirmUnknownServer(request: OpenRequest.UnknownServer): U
         setPositiveButton(R.string.action_connect) { _, _ ->
             finish(UnknownServerAnswer(user.text.toString().trim(), password.text.toString(), save.isChecked))
         }
+        setNegativeButton(android.R.string.cancel) { _, _ -> finish(null) }
+    }
+}
+
+/**
+ * Reset Data's checklist: what to clear, each item whole. Nothing is ticked to begin with, and
+ * Delete stays off until something is. A ticked item ticks and locks what it implies
+ * ([ResetData.implied]); unticking it gives back what was there before. Null is "cancel".
+ */
+suspend fun Activity.askReset(): Set<ResetItem>? {
+    val labels = mapOf(
+        ResetItem.Profiles to R.string.reset_profiles,
+        ResetItem.HostKeys to R.string.reset_host_keys,
+        ResetItem.Projects to R.string.reset_projects,
+        ResetItem.OpenFiles to R.string.reset_open_files,
+        ResetItem.RecentFiles to R.string.reset_recent_files,
+        ResetItem.Settings to R.string.reset_settings,
+        ResetItem.Themes to R.string.reset_themes,
+        ResetItem.PaletteRecents to R.string.reset_palette_recents,
+    )
+    val form = Form(this)
+    val boxes = ResetItem.entries.associateWith { form.checkbox(getString(labels.getValue(it)), checked = false) }
+    form.text(getString(R.string.reset_skiff_note))
+    val chosenByHand = ResetItem.entries.associateWith { false }.toMutableMap()
+    fun chosen() = boxes.filterValues { it.isChecked }.keys
+
+    return await(null, shown = { dialog ->
+        val delete = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+        var applying = false
+        fun apply() {
+            applying = true
+            val implied = boxes.keys.filter { box -> chosenByHand.any { (item, on) -> on && box in ResetData.implied(item) } }
+            for ((item, box) in boxes) {
+                box.isEnabled = item !in implied
+                box.isChecked = item in implied || chosenByHand.getValue(item)
+            }
+            applying = false
+            delete.isEnabled = chosen().isNotEmpty()
+        }
+        for ((item, box) in boxes) {
+            box.setOnCheckedChangeListener { _, checked ->
+                if (applying) return@setOnCheckedChangeListener
+                chosenByHand[item] = checked
+                apply()
+            }
+        }
+        apply()
+    }) { finish ->
+        setTitle(R.string.reset_title)
+        setView(ScrollView(this@askReset).apply { addView(form.root) })
+        setPositiveButton(R.string.action_delete) { _, _ -> finish(ResetData.complete(chosen())) }
         setNegativeButton(android.R.string.cancel) { _, _ -> finish(null) }
     }
 }
