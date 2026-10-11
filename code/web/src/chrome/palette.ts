@@ -1,4 +1,4 @@
-// The button in the bottom-right corner and what opens out of it (docs/skiffcode.spec.md "커맨드 버튼과 팔레트").
+// The button in the bottom-right corner and what opens out of it (docs/skiffcode.spec/palette.md).
 // `palette.ts` holds which of A, B and C it is in; this draws that and hands the taps back.
 //
 // **Everything a person reads in here is English** (2026-09-21 사용자 결정), and it is written in

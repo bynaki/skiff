@@ -1,4 +1,4 @@
-// What `settings.toml` says about how text is shown (docs/skiffcode.spec.md "설정과 테마"). Kotlin
+// What `settings.toml` says about how text is shown (docs/skiffcode.spec/settings-theme.md). Kotlin
 // reads and checks the file and hands over the part the page applies; the size limit and the poll
 // are its own. The font goes to the whole page as a CSS variable. Tab size and wrapping go to a code
 // view through a compartment, for the reason [codeFontSize] gives in `zoom.ts`: a line that changes

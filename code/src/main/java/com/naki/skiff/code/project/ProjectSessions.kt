@@ -20,7 +20,7 @@ enum class GitState {
 
 /**
  * Whether git can be run here. [RemoteExec.supported] is asked first because `command -v git` alone
- * fails the same way on an account with no git and on one that runs nothing (`docs/skiffcode.spec.md`).
+ * fails the same way on an account with no git and on one that runs nothing (`docs/skiffcode.spec/open-flow.md`).
  */
 suspend fun checkGit(exec: RemoteExec): GitState = when {
     !exec.supported() -> GitState.NoExec

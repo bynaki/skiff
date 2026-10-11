@@ -1,4 +1,4 @@
-// What the 🔍 mode of the palette can go to (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"): the other
+// What the 🔍 mode of the palette can go to (docs/skiffcode.spec/palette.md): the other
 // open files, and then the files beside the one on the screen — or, for a file in a project, every
 // file in the project by its path from the root, which Kotlin lists from `git ls-files` or a walk.
 import type { OpenFile } from './chrome/openfiles'

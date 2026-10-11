@@ -1,7 +1,7 @@
 package com.naki.skiff.code.lsp
 
 /**
- * The language servers a project can have, one running per kind (docs/skiffcode.spec.md "git과 LSP").
+ * The language servers a project can have, one running per kind (docs/skiffcode.spec/lsp.md).
  * [commands] are tried in order with `command -v`; none is installed on the server by this app.
  * [languageIds] gives the LSP language id of each file extension the server takes.
  */

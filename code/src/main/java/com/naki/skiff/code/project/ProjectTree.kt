@@ -12,7 +12,7 @@ data class ProjectFile(val project: Project, val path: String)
 
 /**
  * What the sidebar shows of a project: one directory at a time, listed when it is opened
- * (docs/skiffcode.spec.md "화면 메뉴").
+ * (docs/skiffcode.spec/top-menu.md).
  *
  * The page names a place in the tree by the project and a path relative to its root, never by an
  * absolute path. [resolve] is what keeps that inside the root: the page cannot send anything that
@@ -62,7 +62,7 @@ object ProjectTree {
 
     /**
      * Every file under [root], relative to it, for the palette's file mode in a project without git —
-     * where `git ls-files` cannot be asked (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"). A folder named
+     * where `git ls-files` cannot be asked (docs/skiffcode.spec/palette.md). A folder named
      * in [skip] is not gone into, nor is `.git`; a link to a folder is not followed, which is also what
      * keeps a link back up the tree from going round forever. A link to a file is listed, as the
      * single file mode lists one; one that reaches nothing is not. A folder below the root that

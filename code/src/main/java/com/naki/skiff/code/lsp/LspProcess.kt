@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * One language server, talked to over the channel [RemoteExec.start] left running for it
- * (docs/skiffcode.spec.md "git과 LSP"). This frames and unframes and nothing more: messages go in and
+ * (docs/skiffcode.spec/lsp.md). This frames and unframes and nothing more: messages go in and
  * come out as the JSON strings the page's LSP client exchanges, and are never parsed here.
  *
  * [onMessage] hears each message the server sends, in order, on a background thread. [onEnd] is

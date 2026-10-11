@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A theme's colors, keyed `section.name` the way the file spells them (`ui.background`), which the
- * page turns into one CSS variable each (docs/skiffcode.spec.md "설정과 테마"). [dark] is the `base`
+ * page turns into one CSS variable each (docs/skiffcode.spec/settings-theme.md). [dark] is the `base`
  * the theme is drawn over: what fills in a color it lacks, and which way the system bars go.
  */
 data class Theme(val dark: Boolean, val colors: Map<String, String>) {
@@ -101,7 +101,7 @@ object ThemeToml {
 
 /**
  * The themes the app ships, `assets/themes/<name>.toml`, and the person's own — brought in with Import
- * Theme or made with Copy Theme — `<dir>/<name>.toml` (docs/skiffcode.spec.md "설정과 테마"). Each is
+ * Theme or made with Copy Theme — `<dir>/<name>.toml` (docs/skiffcode.spec/settings-theme.md). Each is
  * read once, the first time it is asked for. The bundled ones are read against nothing —
  * `ThemeTomlTest` holds both to having every key — and an imported one against the bundled theme on
  * its `base` side.

@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * What `settings.toml` holds: what the person chose, as opposed to what the page noticed as it was
- * used, which stays in its `localStorage` (docs/skiffcode.spec.md "상태 저장"). Only the keys that
+ * used, which stays in its `localStorage` (docs/skiffcode.spec/state.md). Only the keys that
  * something reads today are here. A key left out of the file takes the default written here, and
  * [SettingsToml.KEYS] says the same thing in the file a person opens — `SettingsTomlTest` holds the two to it.
  */
@@ -56,7 +56,7 @@ data class Settings(
         @SerialName("max_files") val maxFiles: Int = 5000,
     )
 
-    /** A project's language servers (docs/skiffcode.spec.md "git과 LSP"): how long to wait for one, and what starts each. */
+    /** A project's language servers (docs/skiffcode.spec/lsp.md): how long to wait for one, and what starts each. */
     @Serializable
     data class Lsp(
         /** How long the page waits for an answer before giving up on a request. */

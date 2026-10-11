@@ -1,4 +1,4 @@
-// The diff layer (docs/skiffcode.spec.md "레이어"): a read-only unified diff on @codemirror/merge.
+// The diff layer (docs/skiffcode.spec/layers.md): a read-only unified diff on @codemirror/merge.
 // The buffer is the new text and deleted lines come from the original as block widgets. A sign gutter
 // puts "+" beside inserted lines and one "-" per deleted line beside each deletion widget; line
 // backgrounds take their opacity from --diff-alpha, which `settings.toml`'s `diff_alpha` sets.

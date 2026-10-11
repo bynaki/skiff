@@ -8,7 +8,7 @@ import com.naki.skiff.link.SkiffCodeLink
 
 /**
  * The directory an open file is in, which the palette's file mode lists and opens files from
- * (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"). A `content://` document has none: it is a grant for
+ * (docs/skiffcode.spec/palette.md). A `content://` document has none: it is a grant for
  * one file, with no directory behind it that we may read.
  *
  * [fs] is the filesystem the file itself was read through, so listing a remote directory goes over

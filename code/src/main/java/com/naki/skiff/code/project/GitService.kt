@@ -23,8 +23,8 @@ import java.io.EOFException
 import java.io.IOException
 
 /**
- * What a project's git says, asked on its server through [RemoteExec] (docs/skiffcode.spec.md "git과
- * LSP"). Everything here reads; nothing changes the repository. Paths are relative to [root], the
+ * What a project's git says, asked on its server through [RemoteExec] (docs/skiffcode.spec/git.md).
+ * Everything here reads; nothing changes the repository. Paths are relative to [root], the
  * repository's top, as [ProjectFile.path] has them.
  *
  * File contents come over one `git cat-file --batch` left running: a command per file would be a

@@ -1,4 +1,4 @@
-// The git gutter (docs/skiffcode.spec.md "git과 LSP"): a thin bar beside the line numbers wherever
+// The git gutter (docs/skiffcode.spec/git.md): a thin bar beside the line numbers wherever
 // the buffer differs from the file as HEAD has it — lines added, lines changed, and a mark where
 // lines were deleted. Every layer shows it, so it sits outside the layer compartment.
 //

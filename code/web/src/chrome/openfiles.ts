@@ -1,4 +1,4 @@
-// The files that are open, behind the file's name in the menu (docs/skiffcode.spec.md "화면 메뉴"). It
+// The files that are open, behind the file's name in the menu (docs/skiffcode.spec/top-menu.md). It
 // drops down from behind the menu, five rows tall at most, and goes back up when the name is tapped
 // again, when anything outside it is, or when the bar along its bottom is tapped or drawn upwards.
 //

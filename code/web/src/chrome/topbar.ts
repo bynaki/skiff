@@ -1,4 +1,4 @@
-// The menu along the top (docs/skiffcode.spec.md "화면 메뉴"): ① sidebar on the left, then the file on the
+// The menu along the top (docs/skiffcode.spec/top-menu.md): ① sidebar on the left, then the file on the
 // screen with a dot while it has been typed in, which opens the list of open files when tapped;
 // ② original size, ③ layer and ④ more on the right. It floats over the layer, slides away while the
 // layer scrolls down and comes back when it scrolls up. ④ opens `more.ts`'s menu.

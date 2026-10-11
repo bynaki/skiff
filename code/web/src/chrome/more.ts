@@ -1,4 +1,4 @@
-// ④'s menu (docs/skiffcode.spec.md "화면 메뉴"): what the diff layer compares the file on the screen
+// ④'s menu (docs/skiffcode.spec/top-menu.md): what the diff layer compares the file on the screen
 // with — HEAD, or the file before the last commit that changed it. It hangs below ④ at the right and
 // goes away when one is chosen, when ④ is tapped again, or when anything outside it is: a clear scrim
 // takes that tap, so it does not land on the document as well.

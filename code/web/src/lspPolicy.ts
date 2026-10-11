@@ -1,4 +1,4 @@
-// When a language server ended, whether the page starts it again (docs/skiffcode.spec.md "git과 LSP").
+// When a language server ended, whether the page starts it again (docs/skiffcode.spec/lsp.md).
 // Apart from `lsp.ts` so it can be tested without a bridge.
 
 /** Why Kotlin says a server is not running (`LspEnd`). */

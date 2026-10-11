@@ -1,4 +1,4 @@
-// A project's language servers, as the page talks to them (docs/skiffcode.spec.md "git과 LSP").
+// A project's language servers, as the page talks to them (docs/skiffcode.spec/lsp.md).
 //
 // One connection per project and kind of server, as Kotlin runs one `LspProcess` per pair. Each time
 // a server is started the connection gets a new `LSPClient`, and the file on the screen swaps its

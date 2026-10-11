@@ -1,4 +1,4 @@
-// The sidebar's tree (docs/skiffcode.spec.md "화면 메뉴"): every project is a line of its own with its
+// The sidebar's tree (docs/skiffcode.spec/top-menu.md): every project is a line of its own with its
 // files folded under it, and each directory is listed by Kotlin the first time it is unfolded.
 //
 // What is kept here is what is unfolded and what each directory held when it was last listed; how it

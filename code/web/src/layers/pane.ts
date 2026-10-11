@@ -1,4 +1,4 @@
-// A pane is one file, full screen, with the layers stacked on it (docs/skiffcode.spec.md "레이어").
+// A pane is one file, full screen, with the layers stacked on it (docs/skiffcode.spec/layers.md).
 //
 // The layers are not separate editors. One `EditorView` and one `EditorState` hold the file, and a
 // layer is the bundle of extensions a `Compartment` carries: CodeMirror keeps the value of every

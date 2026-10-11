@@ -539,7 +539,7 @@ class MainActivity : Activity() {
 
     /**
      * Every file in [project] that is not open, relative to its root, for the palette's file mode
-     * (docs/skiffcode.spec.md "커맨드 버튼과 팔레트"): what `git ls-files` lists, or where git cannot be
+     * (docs/skiffcode.spec/palette.md): what `git ls-files` lists, or where git cannot be
      * asked, what a walk over SFTP finds within `settings.toml`'s `[search]`. A walk that stopped at
      * its limit says so in `truncated`, for the page to tell the user why a file is missing.
      */
@@ -845,7 +845,7 @@ class MainActivity : Activity() {
         away?.cancel()
         away = null
         // Every open file is looked at once here: the ones that are not showing are not polled, so
-        // this is where a change made while the app was away reaches them (docs/skiffcode.spec.md "감시").
+        // this is where a change made while the app was away reaches them (docs/skiffcode.spec/document-io.md).
         startWatching(recheckAll = true)
         // A commit made while the app was away moves HEAD without touching the file, which no watch sees.
         bridge.notify("gitChanged", JSONObject())
@@ -1151,7 +1151,7 @@ class MainActivity : Activity() {
                 LspEnd.Stopped -> "stopped" to null
                 LspEnd.Closed -> "closed" to null
                 LspEnd.Disconnected -> "disconnected" to null
-                // The page says it only when asked for a hover or a definition (docs/skiffcode.spec.md "git과 LSP").
+                // The page says it only when asked for a hover or a definition (docs/skiffcode.spec/lsp.md).
                 LspEnd.NotInstalled -> "notInstalled" to getString(R.string.lsp_not_installed, server.name)
                 is LspEnd.Unsupported -> "unsupported" to getString(R.string.lsp_unsupported, server.name, why.positionEncoding)
                 is LspEnd.Failed -> {

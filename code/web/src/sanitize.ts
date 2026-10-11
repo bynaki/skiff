@@ -1,7 +1,7 @@
 // What a language server says in markdown — a hover, a completion's documentation — is rendered by
 // `@codemirror/lsp-client` with `marked`, which lets raw HTML through. Docstrings come from files on
 // the server, and the page they land in holds the bridge, so the HTML is cut down to the shapes a
-// rendered docstring has before it is shown (docs/skiffcode.spec.md "보안 규칙").
+// rendered docstring has before it is shown (docs/skiffcode.spec/security.md).
 
 /** Elements a rendered docstring is made of. Any other is replaced by its text. */
 const KEPT = new Set([

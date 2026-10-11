@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A project's language servers, one per [LanguageServer], each run on its server through [exec]
- * (docs/skiffcode.spec.md "git과 LSP"). Messages pass through as the strings the page's LSP client
+ * (docs/skiffcode.spec/lsp.md). Messages pass through as the strings the page's LSP client
  * writes; only an `initialize` and its reply are read.
  *
  * A server starts when the page sends `initialize` for it, and nothing else starts one: a message

@@ -7,7 +7,7 @@ import java.io.InputStream
 
 /**
  * LSP's base protocol below the JSON: a `Content-Length` header, a blank line, and that many bytes of
- * UTF-8 (docs/skiffcode.spec.md "git과 LSP"). The JSON itself is never parsed here — the page's client
+ * UTF-8 (docs/skiffcode.spec/lsp.md). The JSON itself is never parsed here — the page's client
  * writes it and reads it.
  */
 internal object LspFraming {

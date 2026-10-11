@@ -1,4 +1,4 @@
-// What the palette's `@` mode can go to (docs/skiffcode.spec.md "심볼 검색"). With a language server
+// What the palette's `@` mode can go to (docs/skiffcode.spec/palette.md). With a language server
 // behind the file it is the server's outline of the file, and below that what the server finds across
 // the project for what is typed. Without one it is read from the file's lezer tree, and kept small on
 // purpose — functions, classes, the methods in them, and Markdown headings, in three languages. The

@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream
 
 /**
  * `file://` URIs for paths on the server, the way language servers name documents
- * (docs/skiffcode.spec.md "git과 LSP"). The page's client finds a document a server talks about by
+ * (docs/skiffcode.spec/lsp.md). The page's client finds a document a server talks about by
  * comparing URI strings, so a path is encoded the way servers built on `vscode-uri` write it back:
  * every byte but the unreserved characters and `/` percent-encoded, as UTF-8.
  */

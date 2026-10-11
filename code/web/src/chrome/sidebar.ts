@@ -1,4 +1,4 @@
-// The drawer behind ① (docs/skiffcode.spec.md "화면 메뉴"): it slides in from the left, and slides back
+// The drawer behind ① (docs/skiffcode.spec/top-menu.md): it slides in from the left, and slides back
 // when ① or anything outside it is tapped.
 //
 // It carries ① again at the top, in the place the menu's own sits, so the button that opened the

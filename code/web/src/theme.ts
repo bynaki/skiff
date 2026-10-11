@@ -1,4 +1,4 @@
-// The theme (docs/skiffcode.spec.md "설정과 테마"): one set of CSS variables that the menu, the
+// The theme (docs/skiffcode.spec/settings-theme.md): one set of CSS variables that the menu, the
 // sidebar, the palette and every layer read, so changing it changes all of them at once. Kotlin
 // reads the theme file, checks each color and fills in what is missing from the bundled theme; what
 // arrives here is a whole set. Until it does, the page wears `index.html`'s `:root`, which is the

@@ -254,7 +254,7 @@ class OpenFlow(
     }
 
     /**
-     * Steps 2 to 4 of opening a remote file (`docs/skiffcode.spec.md`): the saved project the file is
+     * Steps 2 to 4 of opening a remote file (`docs/skiffcode.spec/open-flow.md`): the saved project the file is
      * under, or — when it is in a git working tree — one made now if the user wants it, then activated
      * by asking what the server runs. Returns where the file is in it, and what to tell about that the
      * first time only; null when it opens as a single file.
