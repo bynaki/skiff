@@ -528,6 +528,29 @@
   - 팔레트에 `Reset`만 치면 `Reset Zoom`이 먼저 잡힌다. `Reset Data`까지 쳐야 한다.
   - **폴드8에서 사용자가 확인했다**(2026-10-07, APK를 손으로 설치, 커밋 전 빌드): 커버 화면에서 긴 창이 스크롤되어 버튼까지 닿고, 고친 원격 파일이 열린 채 프로필을 지우면 확인 창이 뜨고 허락하면 닫힌다.
 
+### M8. 전 화면, 앞 화면 (점프 목록)
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md), 설계는 spec "전 화면, 앞 화면 (점프 목록)". 2026-10-11 사용자 결정: 닫힌 파일의 칸은 건너뛰고, 레이어는 적지 않고, 가장자리 제스처가 없는 내비게이션 모드는 기기를 본 뒤 정한다.
+
+- [ ] `web/src/jumps.ts`와 vitest
+  - 순수 모듈(DOM 없음): `record(at)`, `back(now)`, `forward()`, `forget(fileId)`, `canBack`/`canForward`.
+  - 테스트: 끝에서 뒤로 가면 지금 자리가 적혀 앞으로 돌아옴, 뒤로 간 채 새로 적으면 앞 칸이 잘림, 같은 파일·같은 줄 합치기, 100칸 상한, 닫힌 파일의 칸이 빠지고 그 앞뒤가 이어짐, 비었을 때 `back`/`forward`가 null.
+- [ ] 페이지에 연결: 적기, 움직이기, 키, 팔레트
+  - `main.ts`의 `reconcile`에서 화면의 파일이 바뀔 때 떠나는 자리(`pane.close()`의 `line`)를 적는다. 같은 파일의 `goToLine`(링크의 줄, 같은 파일의 정의, 심볼 모드) 앞에서도 적는다. 점프 목록으로 움직인 것은 적지 않는다.
+  - Kotlin `activate`가 `goToLine`을 받아 `documentsChanged`에 실어 돌려주게 한다.
+  - `reconcile`이 목록에서 사라진 파일을 `forget`한다.
+  - `Ctrl+O`/`Ctrl+I` 키(`Mod-i`의 `selectParentSyntax`보다 높은 우선순위), 팔레트 `Go Back`/`Go Forward`(`commands.ts`).
+  - 여기까지면 키보드와 팔레트로 쓸 수 있다. 탭의 외장 키보드로 확인: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 건너뛰기, viewer·editor·diff·마크다운 각각에서.
+- [ ] Kotlin: 뒤로 가기 제스처
+  - 페이지가 `navigationState {back, forward, overlay}`를 알리고(점프 목록이 바뀔 때, 사이드바·팔레트·메뉴가 열리고 닫힐 때), `MainActivity`가 하나라도 참이면 `onBackInvokedDispatcher`에 콜백을 등록하고 셋 다 거짓이면 내린다.
+  - API 34+는 `OnBackAnimationCallback`: `onBackStarted`에서 `swipeEdge`를 들고 있다가 `onBackInvoked`에서 `EDGE_RIGHT`·`EDGE_NONE` → 전 화면, `EDGE_LEFT` → 앞 화면을 페이지에 알린다. `onBackCancelled`면 아무것도 안 한다. 33은 `OnBackInvokedCallback`, 30~32는 `onBackPressed`로 전 화면만.
+  - 페이지: 겹쳐 나온 것(사이드바, 팔레트, 열린 파일 메뉴, 더보기)이 있으면 그것부터 닫고, 없으면 방향대로 움직인다. 갈 곳이 없으면 아무것도 안 한다.
+  - 테스트: 방향 판별을 `MainActivity` 밖의 작은 함수로 빼서 JVM 테스트(가장자리 셋 × 콜백이 켜질 조건). 페이지 쪽 "겹친 것부터 닫기"는 vitest.
+- [ ] 확인: 탭과 폴드8
+  - 두 기기의 내비게이션 모드를 먼저 본다(`adb shell settings get secure navigation_mode`: 0은 3버튼, 2는 제스처. 삼성의 "아래에서 스와이프"가 어느 값으로 나오는지는 그때 본다). **가장자리 제스처가 없는 모드면 페이지가 가장자리 스와이프를 직접 받을지 사용자에게 묻는다.**
+  - 제스처 모드에서: 오른쪽에서 밀어 전 화면, 왼쪽에서 밀어 앞 화면, viewer·editor·diff 각각, 파일 사이, 폴드8 커버 화면. 사이드바·팔레트가 열린 채 밀면 그것만 닫힘. 점프 목록이 비면 홈으로 나감. editor에서 소프트 키보드가 떠 있으면 키보드가 먼저 닫힘.
+  - 3버튼 모드에서 뒤로 버튼이 전 화면.
+
 ## 아직 확인하지 않은 것
 
 세션이 지나도 이어지는 목록이다. 확인하면 지우고, 안 되는 게 나오면 [`skiffcode.spec.md`](skiffcode.spec.md)의 설계를 먼저 고친다.
