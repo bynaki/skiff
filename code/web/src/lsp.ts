@@ -303,7 +303,11 @@ export async function showHover(view: EditorView, target: LspTarget, pos: number
   if (!view.dom.isConnected) return
   const at = Math.min(pos, view.state.doc.length)
   const diagnostics = diagnosticsAt(view.state, at)
-  const html = contents === null ? null : contentsToHTML(plugin, contents)
+  const parts = contents === null ? null : splitHover(contents)
+  const html = {
+    signature: parts?.signature.length ? partsToHTML(plugin, parts.signature) : null,
+    docs: parts?.docs.length ? partsToHTML(plugin, parts.docs) : null,
+  }
   const word = view.state.wordAt(at)
   view.dispatch({
     effects: setHover.of({
@@ -367,14 +371,61 @@ interface Range { start: Position; end: Position }
 interface Location { uri: string; range: Range }
 interface LocationLink { targetUri: string; targetRange: Range; targetSelectionRange: Range }
 
-/** Each shape LSP allows a hover's contents in, as the plugin renders docs: sanitized. */
-function contentsToHTML(plugin: LSPPlugin, contents: HoverContents): string {
-  const one = (part: MarkedString | { kind: string; value: string }): string => {
-    if (typeof part === 'string') return plugin.docToHTML(part, 'markdown')
-    if ('kind' in part) return plugin.docToHTML(part as { kind: 'markdown' | 'plaintext'; value: string })
-    return plugin.docToHTML('```' + part.language + '\n' + part.value + '\n```', 'markdown')
+/** A piece of a hover, in the form the plugin renders docs from. */
+export interface HoverPart { kind: 'markdown' | 'plaintext'; value: string }
+
+/**
+ * A hover's contents in two: the signature, which is the code block or blocks it starts with, and the
+ * docs after it, so the touch hover can put its button between them (2026-10-12 사용자 결정). The rule
+ * a server draws between the two (pyright's `---`) is dropped; the hover draws its own before the docs.
+ * Contents that do not start with code have no signature.
+ */
+export function splitHover(contents: HoverContents): { signature: HoverPart[]; docs: HoverPart[] } {
+  const signature: HoverPart[] = []
+  const docs: HoverPart[] = []
+  for (const item of Array.isArray(contents) ? contents : [contents]) {
+    if (docs.length) {
+      docs.push(toPart(item))
+      continue
+    }
+    if (typeof item === 'object' && 'language' in item) {
+      signature.push(toPart(item))
+      continue
+    }
+    const part = toPart(item)
+    if (part.kind !== 'markdown') {
+      docs.push(part)
+      continue
+    }
+    const { code, rest } = leadingCode(part.value)
+    if (code) signature.push({ kind: 'markdown', value: code })
+    if (rest) docs.push({ kind: 'markdown', value: rest })
   }
-  return Array.isArray(contents) ? contents.map(one).join('<hr>') : one(contents)
+  return { signature, docs }
+}
+
+function toPart(item: MarkedString | { kind: string; value: string }): HoverPart {
+  if (typeof item === 'string') return { kind: 'markdown', value: item }
+  if ('kind' in item) return { kind: item.kind === 'plaintext' ? 'plaintext' : 'markdown', value: item.value }
+  return { kind: 'markdown', value: '```' + item.language + '\n' + item.value + '\n```' }
+}
+
+/** The fenced code blocks a markdown text opens with, and what follows them less a rule right after. */
+function leadingCode(markdown: string): { code: string; rest: string } {
+  const fence = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n[ \t]*\1[`~]*[ \t]*(?:\n|$)/
+  let rest = markdown.replace(/^\s*\n/, '')
+  let code = ''
+  for (let found = fence.exec(rest); found; found = fence.exec(rest)) {
+    code += found[0]
+    rest = rest.slice(found[0].length).replace(/^\s*\n/, '')
+  }
+  if (code) rest = rest.replace(/^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*(?:\n|$)/, '')
+  return { code: code.trimEnd(), rest: rest.trim() }
+}
+
+/** Hover parts as the plugin renders docs: sanitized, with a rule between parts. */
+function partsToHTML(plugin: LSPPlugin, parts: HoverPart[]): string {
+  return parts.map((part) => plugin.docToHTML(part)).join('<hr>')
 }
 
 function diagnosticsAt(state: EditorState, pos: number): Diagnostic[] {
@@ -385,20 +436,23 @@ function diagnosticsAt(state: EditorState, pos: number): Diagnostic[] {
   return found
 }
 
-function hoverDom(view: EditorView, target: LspTarget, pos: number, html: string | null, diagnostics: Diagnostic[]): HTMLElement {
+/**
+ * The touch hover: the signature, the way to the definition, the diagnostics there, then the docs, so a
+ * long docstring pushes nothing out of reach (2026-10-12 사용자 결정). With no signature the button is on
+ * top. It scrolls within itself when it is taller than the room it has.
+ */
+function hoverDom(
+  view: EditorView, target: LspTarget, pos: number,
+  html: { signature: string | null; docs: string | null }, diagnostics: Diagnostic[],
+): HTMLElement {
   const dom = document.createElement('div')
   dom.className = 'cm-lsp-hover-tooltip cm-lsp-documentation skiff-hover'
-  if (html) {
+  const block = (inner: string) => {
     const body = document.createElement('div')
-    body.innerHTML = html
+    body.innerHTML = inner
     dom.append(body)
   }
-  for (const diagnostic of diagnostics) {
-    dom.append(Object.assign(document.createElement('p'), {
-      className: `skiff-diagnostic skiff-diagnostic-${diagnostic.severity}`,
-      textContent: diagnostic.message,
-    }))
-  }
+  if (html.signature) block(html.signature)
   const label = hooks?.labels()?.goToDefinition
   if (label) {
     const button = Object.assign(document.createElement('button'), { className: 'skiff-definition', textContent: label })
@@ -407,6 +461,16 @@ function hoverDom(view: EditorView, target: LspTarget, pos: number, html: string
       void goToDefinition(view, target, pos)
     })
     dom.append(button)
+  }
+  for (const diagnostic of diagnostics) {
+    dom.append(Object.assign(document.createElement('p'), {
+      className: `skiff-diagnostic skiff-diagnostic-${diagnostic.severity}`,
+      textContent: diagnostic.message,
+    }))
+  }
+  if (html.docs) {
+    if (dom.childElementCount) dom.append(document.createElement('hr'))
+    block(html.docs)
   }
   return dom
 }
@@ -531,8 +595,16 @@ const lspTheme = EditorView.theme({
     border: '1px solid var(--ui-border)',
     borderRadius: '6px',
   },
-  '.cm-tooltip.cm-tooltip-hover, .cm-tooltip .skiff-hover': { maxWidth: 'min(90vw, 40em)', maxHeight: '40vh', overflow: 'auto' },
-  '.skiff-hover': { padding: '4px 8px' },
+  '.cm-tooltip.cm-tooltip-hover': { maxWidth: 'min(90vw, 40em)', maxHeight: '40vh', overflow: 'auto' },
+  // The touch hover is the tooltip's own element, not inside it: CodeMirror adds `cm-tooltip` to what
+  // `create` returns. A drag in it stays in it rather than going on to the document behind.
+  '.cm-tooltip.skiff-hover': {
+    maxWidth: 'min(90vw, 40em)',
+    maxHeight: '40vh',
+    overflowY: 'auto',
+    overscrollBehavior: 'contain',
+    padding: '4px 8px',
+  },
   '.skiff-hover-word': { backgroundColor: 'var(--editor-selection)' },
   '.skiff-hover pre': { whiteSpace: 'pre-wrap', margin: '4px 0' },
   '.skiff-diagnostic': { margin: '4px 0' },

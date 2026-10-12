@@ -117,10 +117,12 @@ export function createTopbar(
   // Scroll events do not bubble, so one capturing listener hears every scroller: CodeMirror's and
   // the markdown one alike. A scroller seen for the first time only records where it is, so jumping
   // to a link's line does not count as scrolling down. It hears the palette's list and the open files
-  // menu's too, which are not the document and must not move the menu.
+  // menu's too, which are not the document and must not move the menu, and so is a tooltip that
+  // scrolls within itself, though it sits inside the layers (the touch hover).
   let lastTop = new WeakMap<Element, number>()
   document.addEventListener('scroll', (event) => {
     if (!(event.target instanceof Element) || !layers.contains(event.target)) return
+    if (event.target.closest('.cm-tooltip')) return
     const top = event.target.scrollTop
     const last = lastTop.get(event.target)
     lastTop.set(event.target, top)

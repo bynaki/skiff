@@ -515,3 +515,21 @@
   - 확인 뒤 탭의 store와 `settings.toml`은 백업으로 되돌렸다. 팔레트 최근 기록은 WebView의 것이라 백업하지 못해 비어 있다.
   - 팔레트에 `Reset`만 치면 `Reset Zoom`이 먼저 잡힌다. `Reset Data`까지 쳐야 한다.
   - **폴드8에서 사용자가 확인했다**(2026-10-07, APK를 손으로 설치, 커밋 전 빌드): 커버 화면에서 긴 창이 스크롤되어 버튼까지 닿고, 고친 원격 파일이 열린 채 프로필을 지우면 확인 창이 뜨고 허락하면 닫힌다.
+
+### F1. hover 툴팁 (fix: 01)
+
+읽을 spec: [`lsp.md`](skiffcode.spec/lsp.md)("터치"와 "툴팁의 차례와 스크롤").
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "fix: 01". 2026-10-12 사용자 결정: M8보다 먼저 하고, 차례는 시그니처 → 버튼 → 진단 → docstring.
+
+- [x] hover 툴팁: 스크롤, 버튼 위치
+  - 원인(코드로 확인, 기기에서 맞았다): `lspTheme`의 `'.cm-tooltip.cm-tooltip-hover, .cm-tooltip .skiff-hover'`가 우리 툴팁에 걸리지 않는다. `.skiff-hover`는 `.cm-tooltip`과 같은 요소이고 `cm-tooltip-hover`는 `hoverTooltips`의 것이다. 그래서 `maxHeight`도 `overflow`도 없고, 공간이 모자라면 CodeMirror가 인라인 `height`로 줄인 상자 밖으로 내용이 넘친다.
+  - 스타일: `.cm-tooltip.skiff-hover`에 `maxHeight`, `overflowY: auto`, `overscrollBehavior: contain`. 상한(지금 40vh)은 기기에서 보고 정한다.
+  - `lsp.ts`: hover 내용을 시그니처와 나머지로 나누는 순수 함수(`splitHover`). 마크다운은 맨 앞 펜스 코드 블록까지가 시그니처, 바로 뒤의 `---` 줄은 docstring 쪽 구분선. 배열은 앞쪽의 `{language, value}` 원소들. plaintext나 앞에 코드 블록이 없으면 시그니처 없음. `hoverDom`이 시그니처 → 버튼 → 진단 → (구분선) docstring으로 그린다. 시그니처가 없으면 버튼이 맨 위.
+  - vitest: pyright 모양(코드 블록 + `---` + 문서), 코드 블록만, 배열, plaintext, 코드 블록이 앞에 없는 마크다운, 빈 내용.
+  - 탭에서 확인(맥의 임시 파이썬 프로젝트, pyright): `json.dumps`처럼 docstring이 긴 이름을 두 번 탭해 — 화면 위쪽 줄과 아래쪽 줄 각각에서 툴팁 안 스크롤이 끝까지 닿고, 끌어도 문서가 안 움직이고, 스크롤해도 툴팁이 안 닫힘. 버튼이 시그니처 바로 밑, 눌러 정의로 감. 진단이 있는 자리에서 진단이 버튼 밑. 시그니처 없는 hover. 폴드8 커버 화면.
+  - 한 것: `lsp.ts`의 `splitHover`(내보냄)·`leadingCode`·`partsToHTML`, `hoverDom`의 차례, `lspTheme`의 `.cm-tooltip.skiff-hover`(40vh, `overflowY: auto`, `overscrollBehavior: contain`). 탭에서 툴팁을 스크롤하면 상단 메뉴가 숨는 것을 찾아 `chrome/topbar.ts`가 `.cm-tooltip` 안의 스크롤을 건너뛰게 했다.
+  - 테스트: vitest 155(+7, `lsp.test.ts`의 `splitHover`), JVM 280, `:code` 린트 경고 11(기준과 같다).
+  - **탭에서 확인했다**(2026-10-12, DevTools와 `adb input swipe`, 맥의 임시 프로젝트와 pyright): `json.dumps`를 화면 위쪽 줄에서 두 번 탭 → 아래로 270px, 내용 818px, 차례가 시그니처·버튼·구분선·docstring. 툴팁 안을 밀면 끝(550px)까지 스크롤되고 문서(`scrollTop` 2)와 상단 메뉴는 그대로, 툴팁도 열린 채. 툴팁 밖을 밀면 툴팁이 닫히고 문서가 스크롤되며 메뉴가 숨는다(전과 같다). 아래쪽 줄의 `json.dumps` → 위로 뜨고 같은 차례. 정의되지 않은 이름 → 시그니처·버튼·진단. 키워드(hover 없음) → 버튼만. `helper`의 버튼 → 9번 줄이 맨 위.
+  - **폴드8 커버 화면에서 확인했다**(475×694): 툴팁 폭 428px(90vw), 높이 278px, 내용 1967px을 끝까지 스크롤, 문서와 메뉴 그대로. 확인용으로 만든 프로젝트는 지웠다.
+  - 시그니처가 긴 함수(pyright의 `json.dumps`는 14줄)는 버튼이 툴팁 아래 끝에 걸쳐 보인다. 시그니처 바로 밑이라는 차례는 지켰다.

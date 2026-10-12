@@ -18,19 +18,6 @@
 
 ## 할 일
 
-### F1. hover 툴팁 (fix: 01)
-
-읽을 spec: [`lsp.md`](skiffcode.spec/lsp.md)("터치"와 "툴팁의 차례와 스크롤").
-
-원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "fix: 01". 2026-10-12 사용자 결정: M8보다 먼저 하고, 차례는 시그니처 → 버튼 → 진단 → docstring.
-
-- [ ] hover 툴팁: 스크롤, 버튼 위치
-  - 원인(코드로 확인, 기기 재현은 아직): `lspTheme`의 `'.cm-tooltip.cm-tooltip-hover, .cm-tooltip .skiff-hover'`가 우리 툴팁에 걸리지 않는다. `.skiff-hover`는 `.cm-tooltip`과 같은 요소이고 `cm-tooltip-hover`는 `hoverTooltips`의 것이다. 그래서 `maxHeight`도 `overflow`도 없고, 공간이 모자라면 CodeMirror가 인라인 `height`로 줄인 상자 밖으로 내용이 넘친다.
-  - 스타일: `.cm-tooltip.skiff-hover`에 `maxHeight`, `overflowY: auto`, `overscrollBehavior: contain`. 상한(지금 40vh)은 기기에서 보고 정한다.
-  - `lsp.ts`: hover 내용을 시그니처와 나머지로 나누는 순수 함수(`splitHover`). 마크다운은 맨 앞 펜스 코드 블록까지가 시그니처, 바로 뒤의 `---` 줄은 docstring 쪽 구분선. 배열은 앞쪽의 `{language, value}` 원소들. plaintext나 앞에 코드 블록이 없으면 시그니처 없음. `hoverDom`이 시그니처 → 버튼 → 진단 → (구분선) docstring으로 그린다. 시그니처가 없으면 버튼이 맨 위.
-  - vitest: pyright 모양(코드 블록 + `---` + 문서), 코드 블록만, 배열, plaintext, 코드 블록이 앞에 없는 마크다운, 빈 내용.
-  - 탭에서 확인(맥의 임시 파이썬 프로젝트, pyright): `json.dumps`처럼 docstring이 긴 이름을 두 번 탭해 — 화면 위쪽 줄과 아래쪽 줄 각각에서 툴팁 안 스크롤이 끝까지 닿고, 끌어도 문서가 안 움직이고, 스크롤해도 툴팁이 안 닫힘. 버튼이 시그니처 바로 밑, 눌러 정의로 감. 진단이 있는 자리에서 진단이 버튼 밑. 시그니처 없는 hover. 폴드8 커버 화면.
-
 ### M8. 전 화면, 앞 화면 (점프 목록)
 
 읽을 spec: [`jumps.md`](skiffcode.spec/jumps.md). 겹쳐 나온 것을 닫는 쪽은 [`top-menu.md`](skiffcode.spec/top-menu.md)(사이드바, 열린 파일 메뉴, 더보기)와 [`palette.md`](skiffcode.spec/palette.md), 정의로 이동은 [`lsp.md`](skiffcode.spec/lsp.md)의 그 항목만.
@@ -59,6 +46,7 @@
 ## 아직 확인하지 않은 것
 
 세션이 지나도 이어지는 목록이다. 확인하면 지우고, 안 되는 게 나오면 그 주제의 spec 파일(목차는 [`skiffcode.spec.md`](skiffcode.spec.md))의 설계를 먼저 고친다.
+- **hover 툴팁이 위아래 어느 쪽에도 40vh가 안 남는 자리**(CodeMirror가 인라인 `height`로 줄이는 경우)는 만들어 보지 못했다(F1). 그때도 `overflowY: auto`로 스크롤되어야 한다.
 - **로딩 라인과 스켈레톤의 `prefers-reduced-motion` 쪽을 보지 못했다.** 보통 쪽은 2026-09-27 사용자가 SFTP
   링크로 봤다. 로컬 파일은 설계상 아무것도 띄우지 않으므로 **SFTP 링크로만 볼 수 있다.**
 - **기준선이 한 칸 앞설 수 있는 창**(한 왕복 안에 변경이 두 번, 그 사이에 타이핑)은 만들어 보지 못했다.
