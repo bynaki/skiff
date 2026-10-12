@@ -168,8 +168,12 @@ class MainActivity : Activity() {
             entry?.state ?: emptyDocument()
         }
         bridge.method("documents") { docs.listed() }
+        // A jump back or forward names the line it is going to (docs/skiffcode.spec/jumps.md), which
+        // goes back to the page the way a link's line does. Only a line in a file already open: there
+        // is nothing here the page could not already scroll to itself.
         bridge.method("activate") { params ->
-            if (docs.activate(params.getInt("id"))) documentsChanged()
+            val line = params.optInt("goToLine", 0).takeIf { it > 0 }
+            if (docs.activate(params.getInt("id"))) documentsChanged(line?.let { OpenAt(line = it) })
             JSONObject()
         }
         // Whether the buffer had been typed in is the page's to know, so it is the page that asks

@@ -56,6 +56,11 @@ export interface CommandSource {
   /** Each at the cursor. */
   goToDefinition(): void
   showHover(): void
+  /** Whether the jump list has a spot that way; see `jumps.ts`. */
+  canBack(): boolean
+  canForward(): boolean
+  back(): void
+  forward(): void
 }
 
 /**
@@ -79,6 +84,8 @@ export function commands(source: CommandSource): PaletteItem[] {
       { name: 'Show Hover', run: () => source.showHover() },
     )
   }
+  if (source.canBack()) items.push({ name: 'Go Back', run: () => source.back() })
+  if (source.canForward()) items.push({ name: 'Go Forward', run: () => source.forward() })
   // Only where typing is: undo in the reading layer would take back what cannot be seen from there.
   if (layer === 'editor') {
     items.push({ name: 'Undo', run: () => source.undo() }, { name: 'Redo', run: () => source.redo() })

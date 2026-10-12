@@ -173,6 +173,8 @@ export interface Pane {
    * 사용자 결정), for a link, a definition or a symbol.
    */
   goToLine(line: number, col?: number): void
+  /** The source line at the top of the screen, whichever surface is showing: where a jump leaves from. */
+  topLine(): number
   /** Whether the file has a language server that may be asked about it, and a code view to ask from. */
   readonly lsp: boolean
   /** Asks the language server where what is at the cursor is defined, and goes there. */
@@ -329,9 +331,19 @@ export function openPane(
     return created
   }
 
+  /**
+   * The line a scroll was asked to put at the top, until it has been drawn there. CodeMirror scrolls
+   * in its next measure, and until then the screen still says where it was: a file just built says
+   * line 1. HEAD's copy arriving in that window rebuilt the diff layer around what [topLine] read,
+   * and a jump back to line 199 landed on line 1 with the cursor on 199 (measured on the tablet).
+   */
+  let scrollingTo: number | null = null
+  let scrolls = 0
+
   /** The source line at the top of the screen, whichever surface is showing. */
   function topLine(): number {
     if (markdown && layer === 'viewer') return markdown.topLine()
+    if (scrollingTo !== null) return scrollingTo
     const top = view!.scrollDOM.getBoundingClientRect().top + TOPBAR_SPACE
     return view!.state.doc.lineAt(anchorAt(view!, top).pos).number
   }
@@ -353,6 +365,10 @@ export function openPane(
    * until they have been drawn, which the first scroll does, so it is done once more after that.
    */
   function scrollViewToLine(target: EditorView, line: number): void {
+    scrollingTo = line
+    const asked = ++scrolls
+    // Two frames: the measure that scrolls runs in the first. A later scroll keeps its own line.
+    requestAnimationFrame(() => requestAnimationFrame(() => void (scrolls === asked && (scrollingTo = null))))
     const pos = lineStart(target, line)
     const scroll = () => {
       const block = target.lineBlockAt(pos)
@@ -517,6 +533,7 @@ export function openPane(
     undo: () => void (view && undo(view)),
     redo: () => void (view && redo(view)),
     goToLine,
+    topLine,
     get lsp() {
       return !!doc.lsp && lspAvailable(doc.lsp) && codeView() !== null
     },

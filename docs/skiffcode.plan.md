@@ -29,7 +29,7 @@
 
 - ⬜ vitest: 점프 목록의 규칙(끝에서 뒤로 가면 지금 자리가 적힘, 뒤로 간 채 새로 적으면 앞 칸이 잘림, 같은 파일·같은 줄 합치기, 100칸 상한, 닫힌 파일의 칸이 빠지고 앞뒤가 이어짐, 비었을 때 null)과 "겹친 것부터 닫기"가 통과한다.
 - ⬜ JVM: 가장자리 셋(`EDGE_RIGHT`·`EDGE_NONE` → 전 화면, `EDGE_LEFT` → 앞 화면)과 콜백이 켜질 조건이 통과한다. `:code` 린트에 새 경고가 없다.
-- ⬜ 탭의 외장 키보드 `Ctrl+O`/`Ctrl+I`와 팔레트 `Go Back`/`Go Forward`로: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 그 칸을 건너뜀 — viewer·editor·diff·렌더된 마크다운 각각에서. 돌아간 줄이 화면 맨 위이고 커서도 그 줄이다.
+- ⬜ (DevTools 키로는 모두 됨, 2026-10-12 — 실제 외장 키보드로는 아직) 탭의 외장 키보드 `Ctrl+O`/`Ctrl+I`와 팔레트 `Go Back`/`Go Forward`로: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 그 칸을 건너뜀 — viewer·editor·diff·렌더된 마크다운 각각에서. 돌아간 줄이 화면 맨 위이고 커서도 그 줄이다.
 - ⬜ 탭과 폴드8(펼친 화면, 커버 화면)에서 adb 스와이프로: 오른쪽 가장자리에서 밀면 전 화면, 왼쪽 가장자리에서 밀면 앞 화면, 파일 사이도. 시스템이 adb 스와이프를 뒤로 가기로 받지 않으면 사용자에게 손으로 확인해 달라고 한다.
 - ⬜ 사이드바·팔레트·열린 파일 메뉴·더보기가 나와 있으면 어느 쪽에서 밀든 그것만 닫힌다. 점프 목록이 비어 있으면 시스템의 뒤로 가기(홈)가 그대로다. editor에서 소프트 키보드가 떠 있으면 키보드가 먼저 닫힌다.
 - ⬜ 탭을 잠시 3버튼 내비게이션으로 바꿔 뒤로 버튼이 전 화면인지 보고, 제스처로 되돌린다.
@@ -37,12 +37,14 @@
 - [x] `web/src/jumps.ts`와 vitest
   - 순수 모듈(DOM 없음): `record(at)`, `back(now)`, `forward()`, `forget(fileId)`, `canBack`/`canForward`.
   - 테스트: 끝에서 뒤로 가면 지금 자리가 적혀 앞으로 돌아옴, 뒤로 간 채 새로 적으면 앞 칸이 잘림, 같은 파일·같은 줄 합치기, 100칸 상한, 닫힌 파일의 칸이 빠지고 그 앞뒤가 이어짐, 비었을 때 `back`/`forward`가 null.
-- [ ] 페이지에 연결: 적기, 움직이기, 키, 팔레트
+- [x] 페이지에 연결: 적기, 움직이기, 키, 팔레트
   - `main.ts`의 `reconcile`에서 화면의 파일이 바뀔 때 떠나는 자리(`pane.close()`의 `line`)를 적는다. 같은 파일의 `goToLine`(링크의 줄, 같은 파일의 정의, 심볼 모드) 앞에서도 적는다. 점프 목록으로 움직인 것은 적지 않는다.
   - Kotlin `activate`가 `goToLine`을 받아 `documentsChanged`에 실어 돌려주게 한다.
   - `reconcile`이 목록에서 사라진 파일을 `forget`한다.
   - `Ctrl+O`/`Ctrl+I` 키(`Mod-i`의 `selectParentSyntax`보다 높은 우선순위), 팔레트 `Go Back`/`Go Forward`(`commands.ts`).
   - 여기까지면 키보드와 팔레트로 쓸 수 있다. 탭의 외장 키보드로 확인: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 건너뛰기, viewer·editor·diff·마크다운 각각에서.
+  - 확인(2026-10-12, 탭, 이 맥의 임시 git 프로젝트와 pyright): 키는 DevTools `Input.dispatchKeyEvent`(Ctrl)로 보냈다 — 탭에 외장 키보드가 잡히지 않았다(`nokeys`). viewer에서 같은 파일 정의(1→200) 왕복, 다른 파일 정의(main 1 ↔ util 120) 뒤로·앞으로, 열린 파일 메뉴로 바꾼 것(notes.md 85 ↔ main.py) 되돌리기, 렌더된 마크다운 안에서 링크의 `?line=` 되돌리기, editor에서 같은 파일·다른 파일과 팔레트 `Go Back`/`Go Forward`, `Ctrl+I`가 선택을 넓히지 않음(선택 비어 있음), diff에서 같은 파일·다른 파일, util.py를 닫은 뒤 notes → main으로 건너뜀. 돌아간 줄이 맨 위였고 커서도 그 줄이었다(렌더된 마크다운에는 커서가 없다). 링크의 줄이 문서 끝 가까이면 스크롤이 끝에서 멈추고, 그 멈춘 줄이 적힌다.
+  - 확인 중 고친 것: diff 레이어 파일로 돌아갈 때 HEAD 사본이 첫 측정보다 먼저 오면 `compareChanged`가 아직 0인 스크롤을 읽어 1줄로 돌아갔다(커서는 199). `pane.ts`의 `topLine()`이 요청한 스크롤이 그려질 때까지 그 줄을 답한다. `requestAnimationFrame`을 300ms 늦춰 고치기 전 빌드에서 재현했고, 고친 빌드에서는 두 번 다 199였다.
 - [ ] Kotlin: 뒤로 가기 제스처
   - 페이지가 `navigationState {back, forward, overlay}`를 알리고(점프 목록이 바뀔 때, 사이드바·팔레트·메뉴가 열리고 닫힐 때), `MainActivity`가 하나라도 참이면 `onBackInvokedDispatcher`에 콜백을 등록하고 셋 다 거짓이면 내린다.
   - API 34+는 `OnBackAnimationCallback`: `onBackStarted`에서 `swipeEdge`를 들고 있다가 `onBackInvoked`에서 `EDGE_RIGHT`·`EDGE_NONE` → 전 화면, `EDGE_LEFT` → 앞 화면을 페이지에 알린다. `onBackCancelled`면 아무것도 안 한다. 33은 `OnBackInvokedCallback`, 30~32는 `onBackPressed`로 전 화면만.

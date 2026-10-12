@@ -14,6 +14,7 @@ import { type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type CommandSource, commands } from './commands'
 import { createFolder, files } from './files'
+import { type Jump, createJumps } from './jumps'
 import { createLoadingView } from './chrome/loading'
 import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
@@ -79,6 +80,13 @@ const memories = new Map<number, PaneMemory>()
  * file comes to the screen.
  */
 const waiting = new Map<number, { message: string; text?: string }>()
+/** Where the reader has been, for Go Back and Go Forward; see `jumps.ts`. */
+const jumps = createJumps()
+/**
+ * The file a jump asked Kotlin to put on the screen. Arriving there is the jump list's own move, so
+ * the spot it leaves is not written down; anything else that changes the file is a move of the reader's.
+ */
+let jumpingTo: number | null = null
 /** Null until Kotlin has answered `labels`, which is before anything in here can be asked for. */
 let labels: Labels | null = null
 /** Where Reset Zoom goes: the size `settings.toml` chose. */
@@ -276,6 +284,10 @@ const palette: CommandSource = {
   lsp: () => pane?.lsp ?? false,
   goToDefinition: () => pane?.goToDefinition(),
   showHover: () => pane?.showHover(),
+  canBack: () => jumps.canBack,
+  canForward: () => jumps.canForward,
+  back: goBack,
+  forward: goForward,
 }
 
 /**
@@ -335,7 +347,7 @@ function symbolItems(query: string) {
   if (activeId === null || !showing) return []
   return [
     ...symbols(outline.names(activeId), (line) => {
-      if (pane === showing) showing.goToLine(line)
+      if (pane === showing) moveTo(line)
     }),
     ...projectItems(projectSearch.find(query), (symbol) => showing.openSymbol(symbol)),
   ]
@@ -373,6 +385,13 @@ function dirtyInBackground(id: number): boolean {
  */
 async function reconcile(goToLine?: number | null, col?: number | null, layer?: LayerName | null): Promise<void> {
   const { active, files } = await rpc<Documents>('documents')
+  // What was open before and is not now has been closed, and a jump does not go back to it
+  // (2026-10-11 사용자 결정).
+  for (const file of openList) {
+    if (files.some((each) => each.id === file.id)) continue
+    jumps.forget(file.id)
+    if (jumpingTo === file.id) jumpingTo = null
+  }
   openList = files
   // What was listed left out the files that were open then, and was beside the file on the screen then.
   folder.forget()
@@ -381,10 +400,16 @@ async function reconcile(goToLine?: number | null, col?: number | null, layer?: 
   const open = (id: number) => files.some((file) => file.id === id)
   for (const id of [...memories.keys()]) if (!open(id)) memories.delete(id)
   for (const id of [...waiting.keys()]) if (!open(id)) waiting.delete(id)
-  if (active !== activeId) {
+  const switching = active !== activeId
+  if (switching) {
     const leaving = pane?.close()
     // Not for a file that has just been closed: what it left is not coming back.
     if (leaving && activeId !== null && open(activeId)) memories.set(activeId, leaving)
+    // Every way to another file comes through here — a link, the open files menu, the palette, the
+    // sidebar, a definition or a symbol elsewhere — so this is where the spot it leaves is written.
+    const jumped = active !== null && active === jumpingTo
+    jumpingTo = null
+    if (!jumped && activeId !== null && open(activeId)) jumps.record({ file: activeId, line: leaving?.line ?? 1 })
     pane = null
     activeId = active
     // The file arriving is the pane's from here, not the map's. Taking it out is also what puts it
@@ -400,9 +425,50 @@ async function reconcile(goToLine?: number | null, col?: number | null, layer?: 
   // The layer first: entering one keeps the line at the top, and a scroll asked for just before has
   // not been measured yet.
   if (layer) showLayer(layer)
-  if (goToLine) pane?.goToLine(goToLine, col ?? undefined)
+  // A line in the file already on the screen is a move within it, which is written down as one; a
+  // file arriving has had the spot it left written above.
+  if (goToLine) {
+    if (switching) pane?.goToLine(goToLine, col ?? undefined)
+    else moveTo(goToLine, col ?? undefined)
+  }
   // A palette left open across a link would still offer what was beside the file before.
   paletteView.refresh()
+}
+
+/**
+ * Where the reader is: the file on the screen and the source line at its top. A file showing only a
+ * notice has no lines, and is the spot at its first.
+ */
+function here(): Jump | null {
+  return activeId === null ? null : { file: activeId, line: pane?.topLine() ?? 1 }
+}
+
+/** Goes to [line] in the file on the screen, as a move the jump list remembers: a link's line, a definition, a symbol. */
+function moveTo(line: number, col?: number): void {
+  const at = here()
+  if (at && pane) jumps.record(at)
+  pane?.goToLine(line, col)
+}
+
+/**
+ * Goes to a spot the jump list gave back, which is not written down again. In this file that is a
+ * scroll; another file is asked of Kotlin, which sends the line back with `documentsChanged` the way
+ * a link's line comes, so the file arrives on it.
+ */
+function jumpTo(to: Jump | null): void {
+  if (!to) return
+  if (to.file === activeId) return pane?.goToLine(to.line)
+  jumpingTo = to.file
+  void rpc('activate', { id: to.file, goToLine: to.line }).catch((error) => console.log(`activate: ${error}`))
+}
+
+function goBack(): void {
+  const at = here()
+  if (at) jumpTo(jumps.back(at))
+}
+
+function goForward(): void {
+  jumpTo(jumps.forward())
 }
 
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
@@ -550,8 +616,19 @@ setLspHooks({
   tell: (message) => banner.tell(message),
   flash: (message) => banner.flash(message),
   labels: () => labels,
-  goTo: (line, col) => pane?.goToLine(line, col),
+  goTo: (line, col) => moveTo(line, col),
 })
+// Ctrl+O and Ctrl+I as vim has them, wherever the focus is. Caught on the way down, ahead of
+// CodeMirror, whose default keymap has Mod-i for selectParentSyntax; and the rendered markdown has no
+// keymap to put them in. By the key's place, not its letter, so a Korean layout still has them.
+window.addEventListener('keydown', (event) => {
+  if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return
+  const go = event.code === 'KeyO' ? goBack : event.code === 'KeyI' ? goForward : null
+  if (!go) return
+  event.preventDefault()
+  event.stopPropagation()
+  go()
+}, true)
 setFontSize(currentFontSize())
 rpc<Labels>('labels').then((answer) => {
   labels = answer

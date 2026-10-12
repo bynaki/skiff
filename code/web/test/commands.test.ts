@@ -4,7 +4,7 @@ import { type CommandSource, commands } from '../src/commands'
 import type { LayerName } from '../src/layers/pane'
 
 /** A source that says what it was asked to do, over a screen described by [state]. */
-function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean }) {
+function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) {
   const ran: string[] = []
   const command: CommandSource = {
     open: () => state.open,
@@ -34,11 +34,15 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
     lsp: () => state.lsp ?? false,
     goToDefinition: () => ran.push('goToDefinition'),
     showHover: () => ran.push('showHover'),
+    canBack: () => state.back ?? false,
+    canForward: () => state.forward ?? false,
+    back: () => ran.push('back'),
+    forward: () => ran.push('forward'),
   }
   return { command, ran }
 }
 
-const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean }) =>
+const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) =>
   commands(source(state).command).map((item) => item.name)
 
 describe('what the palette offers', () => {
@@ -77,6 +81,20 @@ describe('what the palette offers', () => {
     const { command, ran } = source({ open: true, layer: 'editor', lsp: true })
     for (const item of commands(command)) if (item.name === 'Go to Definition' || item.name === 'Show Hover') item.run()
     expect(ran).toEqual(['goToDefinition', 'showHover'])
+  })
+
+  test('goes back and forward only where the jump list has somewhere to go', () => {
+    expect(names({ open: true, layer: 'viewer' })).not.toContain('Go Back')
+    expect(names({ open: true, layer: 'viewer' })).not.toContain('Go Forward')
+    const { command, ran } = source({ open: true, layer: 'diff', back: true, forward: true })
+    const listed = commands(command)
+    const at = listed.findIndex((item) => item.name === 'Go Back')
+    expect(listed.slice(at - 1, at + 2).map((item) => item.name)).toEqual(['Show Viewer', 'Go Back', 'Go Forward'])
+    listed[at].run()
+    listed[at + 1].run()
+    expect(ran).toEqual(['back', 'forward'])
+    // A file that could not be shown is still a spot to leave from.
+    expect(names({ open: true, layer: null, back: true })).toEqual(['Go Back', ...names({ open: true, layer: null })])
   })
 
   test('leaves out undo and redo where there is no typing', () => {
