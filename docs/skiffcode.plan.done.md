@@ -1,15 +1,30 @@
 # Skiff Code 끝난 할 일
 
 [`skiffcode.plan.md`](skiffcode.plan.md)에서 끝난 마일스톤을 옮겨 둔 기록이다. 세션을 시작할 때 읽지 않는다.
-무엇을 왜 그렇게 했는지, 무엇을 어떻게 확인했는지 찾을 때 본다. 설계는 [`skiffcode.spec.md`](skiffcode.spec.md)의 목차에서 찾는다.
+무엇을 왜 그렇게 했는지, 무엇을 어떻게 확인했는지 찾을 때 본다. 마일스톤마다의 **성공 조건**은 2026-10-12에 그 마일스톤의 확인 기록에서 거꾸로 적어 넣었다(그 전에는 성공 조건을 따로 두지 않았다). 설계는 [`skiffcode.spec.md`](skiffcode.spec.md)의 목차에서 찾는다.
 
 ### 0. 문서화
+
+**성공 조건**
+
+- ✅ 새 세션이 `AGENTS.md`에서 계획과 설계를 찾아 첫 `- [ ]`부터 이어 갈 수 있다 — 확인: M0부터 세션마다 그렇게 이어 왔다.
+- ✅ 원래 요구사항과 손그림이 레포에 있다 — 확인: `docs/my.skiffcode.spec.md`, `docs/menu.layout.jpg`.
+
 - [x] 이 계획을 `plan.md`(지금의 `docs/skiffcode.spec.md`와 이 문서)에 체크리스트로 적고 `AGENTS.md`에서 가리키게 하기
 - [x] `skiff.code.plan.md`(지금의 `docs/my.skiffcode.spec.md`), `menu.layout.jpg`를 레포에 커밋하기 (이 문서가 두 파일을 참조한다)
 - [x] 인수인계 문서 `HANDOFF.md` 작성
 
 ### M0. 스파이크: 전부 WebView에 붙는지 먼저 확인
 버리는 코드로 확인만 한다. 결론과 확정된 라이브러리 버전은 `AGENTS.md`에 남긴다.
+
+**성공 조건**
+
+- ✅ WebView 하나에서 CM6가 2MB 파일을 부드럽게 다룬다(스크롤 86–91fps, 핀치 한 단계 3ms+8ms) — 확인: 탭 측정, 사용자가 손으로 보고 좋다고 함.
+- ✅ 줄 단위 unified diff가 2MB에서 1초 안(약 240ms) — 확인: 탭 측정.
+- ✅ `@codemirror/lsp-client`가 Kotlin 브리지 위에서 동작하고 위치가 맞는다(진단 252ms, 한글 줄 범위 정확) — 확인: 탭의 스텁 서버, 실제 pyright.
+- ✅ ktoml이 이 툴체인에서 컴파일되고 APK에 들어간다 — 확인: `KtomlSpikeTest`.
+- ✅ 결론과 버전이 `AGENTS.md`에 있다.
+
 - [x] `:code` 최소 앱: WebView 하나 + `WebViewAssetLoader` + `addWebMessageListener`로 JSON-RPC 한 번 왕복
 - [x] `code/web` Vite+TS 프로젝트와 Gradle `buildWeb` Exec 태스크(inputs/outputs 지정, `preBuild`에 연결, 증분 빌드 확인)
 - [x] CM6로 2MB 파일 스크롤 성능과 핀치 줌(`--code-font-size`, 줌 중심 줄 고정)을 실기기(갤럭시탭 S10 FE, SM-X526N)에서 확인
@@ -28,6 +43,12 @@
     LSP 위치 인코딩과 동기화 방식이고 모두 `skiffcode.spec.md` 본문에 반영했다.
 
 ### M1. `:core` 추출 (Skiff 동작 변화 없음)
+
+**성공 조건**
+
+- ✅ `:core`·`:app` 테스트와 `:app` 린트가 통과한다 — 확인: 52개가 28+24로 갈려 모두 통과.
+- ✅ 실기기에서 Skiff의 SFTP 탐색, 분할 화면, 양방향 전송이 이전과 같다 — 확인: 실제 SSH 서버, 전송한 파일의 MD5가 원본과 같음.
+
 - [x] `:core` 라이브러리 모듈 추가, 공통 코드와 해당 테스트 이동(패키지명 유지, slf4j 런타임 규칙 동일하게 적용)
   - `SftpTestServer`는 `:core`의 testFixtures로 내보냈다. `CopyEngine`은 `:app`에 남아서, 실서버 위에서
     `CopyEngine`을 돌리던 테스트 3개를 `:app`의 `SftpTransferTest`로 옮겼기 때문이다.
@@ -44,6 +65,13 @@
     M1이 건드린 곳이 아니고, 내려받기 속도는 read-ahead가 살아 있다는 증거다(없으면 약 1 MB/s).
 
 ### M2. 골격 + URI 인텐트 + 단일 파일 viewer
+
+**성공 조건**
+
+- ✅ adb 링크, Skiff에서 파일 탭, 파일 매니저의 "다른 앱으로 열기" 세 길로 파일이 viewer에 열린다 — 확인: 탭.
+- ✅ 링크 파싱·프로필 찾기·`TextLoader`·브리지가 테스트로 덮인다 — 확인: `SkiffCodeUriTest`, `OpenRequestTest`, `TextLoaderTest`, `WebBridgeTest`.
+- ✅ 보안 규칙(origin 하나, CSP, 링크 가로채기, raw HTML 끔)이 적용된다 — 확인: 코드 읽기, vitest `sanitize.test.ts`.
+
 - [x] `SkiffCodeUri` 파서 + `SkiffCodeUriTest`(퍼센트 인코딩, IPv6, 비밀번호 거부, alias 우선순위, 로컬 형식)
   - 파서는 alias와 (user, host, port)를 둘 다 넘기기만 한다. alias 우선으로 프로필을 찾는 것은 프로필 저장소가 있어야 해서 OpenRequest 해석 항목에서 테스트한다.
   - `android.net.Uri`(유닛 테스트에서 스텁)와 `java.net.URI`(인코딩 안 된 한글 경로를 거부)를 쓰지 않고 직접 파싱한다. user 없이 alias만으로 서버를 가리키는 링크도 받는다.
@@ -87,6 +115,14 @@
   - 탭(갤럭시탭 S10 FE)에서 확인: adb로 원격 링크(`?alias=`와 `line=300`, 그 줄 근처 블록이 맨 위)와 로컬 링크(`skiffcode:///…/hello.py`, 하이라이팅). Skiff에서 원격 파일 탭(서명 확인과 프로필 가져오기를 거쳐 대화상자 없이 열림). 삼성 "내 파일"의 "다른 앱에서 열기" → 연결 앱 목록에 Skiff Code → "한 번만"으로 `content://` 마크다운이 열림.
 
 ### M3. editor, 저장, 실시간 반영, 열린 파일
+
+**성공 조건**
+
+- ✅ editor로 바꿔 쳐도 보던 줄과 undo가 이어지고, 하드웨어 키보드 없이는 소프트 키보드가 저절로 뜨지 않는다 — 확인: 탭, 폴더블.
+- ✅ 저장이 고친 줄만 바꾸고 충돌을 잡는다 — 확인: `DocumentSaverTest`(MINA), 기기 확인은 M4로 옮겨 마쳤다.
+- ✅ 서버의 변경이 약 2초 안에 보이고 수정 중이면 배너가 뜬다 — 확인: `FileWatcherTest`, 탭 2.05초·폴더블 1초.
+- ✅ 열린 파일 사이를 오가도 버퍼가 남는다(상한 30, 수정 중은 내리지 않음) — 확인: `OpenDocumentsTest`, vitest `memories.test.ts`.
+
 - [x] editor 레이어: `Compartment`로 viewer↔editor 전환, 레이어를 바꿔도 보던 줄을 잇기, ③ 토글 순환과 아이콘 연결
   - 레이어는 **뷰를 나누지 않는다.** `EditorView` 하나와 파일당 `EditorState` 하나를 두고, 레이어는 `Compartment`가 나르는 확장 묶음이다(`code/web/src/layers/pane.ts`). 근거는 `AGENTS.md`의 CM6 관찰.
   - 스크롤은 "레이어별로 따로 기억"이 아니라 **보던 줄을 잇는다**(2026-09-20 사용자 결정). 코드 파일은 같은 뷰라 저절로 그렇게 되고, 마크다운은 렌더된 블록의 `data-line`과 소스 줄을 서로 옮긴다.
@@ -154,6 +190,15 @@
 - (M3의 확인 항목은 **M4로 옮겼다**(2026-09-21 사용자 결정). 앞 절반인 실시간 반영과 배너는 이 마일스톤에서 이미 봤고, 뒤 절반인 저장은 저장을 거는 UI가 M4의 커맨드 레지스트리라 지금은 앱에서 부를 길이 없다.)
 
 ### M4. 커맨드 팔레트, 설정, 테마
+
+**성공 조건**
+
+- ✅ 팔레트의 세 모드와 최근 목록이 탭에서 동작한다 — 확인: vitest, 탭 녹화.
+- ✅ 테마를 바꾸면 메뉴·사이드바·팔레트·레이어가 한꺼번에 바뀐다 — 확인: 탭과 폴드8(`MutationObserver`).
+- ✅ 저장한 파일의 서버 `git diff`에 의도한 변경만 보이고 인코딩·줄바꿈이 그대로다 — 확인: 탭(UTF-8·CRLF·EUC-KR), 폴드8(사용자).
+- ✅ `settings.toml`의 값이 저장하는 순간 적용되고 잘못된 값은 배너로 알린다 — 확인: `SettingsTomlTest`, 탭(`poll_seconds`, `kept_buffers`).
+- ✅ https 링크가 Claude 앱에서 탭 한 번에 열린다 — 확인: 폴드8(사용자).
+
 - [x] 커맨드 버튼 A/B/C 상태 기계 + vitest(취소하면 A, 실행 후 모드 유지)
   - 상태 기계는 `palette.ts`에 DOM 없이 두고(vitest가 보는 것이 그것이다) 그리는 것은 `chrome/palette.ts`다. C에서 무엇이 뜨는지는 `items(mode)` 하나로 밖에서 들어온다 — 그 자리에 다음 항목의 퍼지 점수가, 그다음 항목의 레지스트리가 붙는다.
   - **실행할 것이 있어야 "실행 후 A로"를 볼 수 있으므로** 상단 메뉴가 이미 하는 셋(`Toggle Layer`, `Reset Zoom`, `Toggle Sidebar`)을 이 항목에서 등록한다. 고르는 방법은 아직 부분 문자열이다 — 퍼지 점수가 다음 항목이라 그것 하나만 바뀐다.
@@ -324,6 +369,14 @@
   - **아직 못 본 것:** 다크에서 앱을 켤 때 페이지가 답을 받기 전 잠깐 라이트(`:root`)로 그려지는지. 로딩 표시의 `prefers-reduced-motion` 쪽.
 
 ### M5. 프로젝트 모드 + git
+
+**성공 조건**
+
+- ✅ git 레포 안 파일을 열면 묻는 창이 뜨고, 프로젝트를 만든 뒤 거터와 diff가 서버의 `git diff -U0`와 같다 — 확인: 탭.
+- ✅ internal-sftp·nologin 계정과 git 없는 서버에서 git 없이 열리고 이유가 배너로 뜬다 — 확인: Docker 계정 셋, 탭.
+- ✅ 명령 인자가 모두 따옴표로 감싸이고 exec가 `RemoteExec` 밖에 없다 — 확인: `ShellQuoteTest`, `RemoteExecTest`, 코드 검색.
+- ✅ 파일 모드가 프로젝트 전체를 찾는다(git이 없으면 SFTP walk) — 확인: `ProjectTreeTest`, 탭.
+
 - [x] `GitScopeFinder` + `GitScopeFinderTest`(MINA: 홈 경계에서 멈춤, worktree의 `.git` 파일, 홈 밖 경로는 찾지 않음)
 - [x] `ShellQuote` + `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표가 든 경로)
   - 테스트는 실제 `/bin/sh`로 돌리므로 `rm -rf ~` 대신 같은 모양의 `touch`로 표시 파일이 생기지 않는지 본다. 따옴표를 큰따옴표로 바꾸면 실패하는 것도 확인했다.
@@ -418,6 +471,12 @@
   Gradle에서는 `systemProperty`로 넘긴다(`-D`는 테스트 JVM에 전달되지 않는다).
 - 결과: initialize 98ms, 진단까지 346ms(로컬 루프백). `positionEncoding`은 응답에 없고(= `utf-16`).
 
+**성공 조건**
+
+- ✅ 실제 서버의 파이썬 프로젝트에서 정의 이동, 진단, 심볼 검색이 된다 — 확인: 폴드8, 원격 Ubuntu 서버, 실제 pyright.
+- ✅ 앱을 백그라운드에 오래 두면 원격 언어 서버가 끝나고, 망이 바뀌어 남은 고아는 다음 시작 때 꺼진다 — 확인: 폴드8에서 `ps`, `LspManagerTest`.
+- ✅ 데몬 판정에 쓸 실측(망 전환 뒤 진단까지 3.37초, 재인덱싱 몫 26%)이 spec에 있다 — 확인: 15회 측정, 판정은 exec 유지.
+
 - [x] `LspProcess` Content-Length 프레이밍 + `LspFramingTest`(분할과 결합, 멀티바이트 길이) + MINA exec 위 스텁 서버로 initialize 왕복(`LspProcessTest`)
   - 왕복 테스트를 원래 다섯째 항목에서 여기로 당겼다(2026-10-05 사용자 동의). 프레이밍은 실제 채널 위에서 봐야 하고, `LspManager` 테스트도 같은 하네스를 쓴다.
   - **stderr를 계속 비운다.** stderr는 stdout과 채널 창을 나눠 써서, 첫 응답 전에 sshj의 창(2MB)보다 많이 쓰는 서버는 멈춘다. 비우는 것을 빼면 `LspProcessTest`의 8MB 테스트가 시간 초과로 실패하는 것을 봤다. 마지막 4KB만 남긴다(`stderrTail`, 서버가 왜 안 떴는지 알릴 때 쓴다).
@@ -506,6 +565,11 @@
     잠깐 보였는데(와이파이를 끈 4초 뒤) 왜 떴는지는 보지 못했다 — 임시 로그가 없는 빌드였다. 복귀 뒤에는 그것도 없었다.
 
 ### M7. 마무리
+
+**성공 조건**
+
+- ✅ `Reset Data…`가 고른 항목만 지우고, 저장하지 않은 파일이 닫히면 한 번 더 묻고, 취소하면 아무것도 바뀌지 않는다 — 확인: `ResetDataTest`, 탭(DevTools·`uiautomator`), 폴드8(사용자).
+
 - [x] 팔레트에 데이터 초기화 명령 `Reset Data…`(2026-10-01 사용자 요청)
   - 2026-10-07 사용자 결정: 명령 하나, 체크리스트 창 하나. 항목은 서버 프로필, 호스트키, 프로젝트, 열린 파일, 최근 파일, 설정(초기 설정으로), 테마(기본만 남김), 팔레트 최근 기록. 처음엔 모두 꺼짐. 프로필을 켜면 프로젝트가 따라 켜진다. 프로필을 지우면 열린 원격 파일도 닫고, 닫힐 파일 중 저장하지 않은 것이 있으면 한 번 더 묻는다. 원래 제안(`Reset Projects`/`Reset Store` 둘)은 이것으로 바꿨다. 설계는 spec "데이터 초기화".
   - Kotlin: `ui/ResetData.kt`(`ResetItem`, 함께 지울 것, 닫을 파일), `Dialogs.askReset`(`await`에 `shown`), `MainActivity.resetData`·`kindOf`, `SkiffCodeStore.reset`, `SettingsFile.reset`, `Themes.deleteAllImported`, `ProjectSessions.closeAll`, 문자열 ko/en. 페이지: `commands.ts`, `palette.ts`의 `forgetRecent`, `main.ts`(`isFileDirty`로 고친 문서 id를 보냄, `paletteRecentsCleared`).
@@ -521,6 +585,13 @@
 읽을 spec: [`lsp.md`](skiffcode.spec/lsp.md)("터치"와 "툴팁의 차례와 스크롤").
 
 원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "fix: 01". 2026-10-12 사용자 결정: M8보다 먼저 하고, 차례는 시그니처 → 버튼 → 진단 → docstring.
+
+**성공 조건**
+
+- ✅ 긴 hover가 화면에서 잘리지 않고 툴팁 안에서 끝까지 스크롤된다. 끌어도 문서와 상단 메뉴가 움직이지 않는다 — 확인: 탭(위쪽·아래쪽 줄), 폴드8 커버 화면.
+- ✅ 차례가 시그니처 → `정의로 이동` → 진단 → docstring이고, 시그니처가 없으면 버튼이 맨 위다 — 확인: vitest `splitHover` 7개, 탭.
+- ✅ 버튼을 누르면 정의로 간다 — 확인: 탭(9번 줄이 맨 위).
+- ✅ vitest·JVM·린트 통과 — 확인: vitest 155, JVM 280, 경고 11.
 
 - [x] hover 툴팁: 스크롤, 버튼 위치
   - 원인(코드로 확인, 기기에서 맞았다): `lspTheme`의 `'.cm-tooltip.cm-tooltip-hover, .cm-tooltip .skiff-hover'`가 우리 툴팁에 걸리지 않는다. `.skiff-hover`는 `.cm-tooltip`과 같은 요소이고 `cm-tooltip-hover`는 `hoverTooltips`의 것이다. 그래서 `maxHeight`도 `overflow`도 없고, 공간이 모자라면 CodeMirror가 인라인 `height`로 줄인 상자 밖으로 내용이 넘친다.

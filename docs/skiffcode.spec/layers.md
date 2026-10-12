@@ -27,3 +27,14 @@
   - 비교 대상은 ④에서 고르고 **파일마다, 열려 있는 동안만** 기억한다(2026-10-03 사용자 결정). 닫았다 다시 열면 HEAD다. `localStorage`에는 두지 않는다.
   - **"직전 커밋"은 현재 버퍼와 비교한다**(2026-10-03 사용자 결정). 직전 커밋은 `git log -n 2 -- <rel>`의 두 번째, 즉 이 파일을 마지막으로 바꾼 커밋의 앞이다. 저장된 상태면 그 마지막 커밋의 변경이 그대로 보이고, 수정 중이면 지금 친 것까지 함께 보인다. 엄밀히 "직전 커밋 ↔ HEAD"로 하려면 문서가 버퍼가 아니어야 해서 뷰가 하나 더 필요하다 — 레이어가 뷰 하나라는 설계를 지키려고 이쪽을 골랐다.
   - 투명도는 `settings.toml`의 `[editor] diff_alpha`다([설정과 테마](settings-theme.md)).
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ viewer·editor·diff가 한 `EditorView`의 확장 묶음으로 바뀌고, 바꿔도 보던 줄과 undo가 이어진다 — 확인: 2MB 파일로 탭에서 레이어를 바꿔 JS 힙이 그대로(23.1MB), 탭에서 보던 줄 유지(M3).
+- ✅ 2MB 파일에서 스크롤 86–91fps, 핀치 한 단계 3ms+8ms, 줄 단위 diff 약 240ms — 확인: 탭 측정(M0).
+- ✅ 이름으로 문법을 고르고 `.jsonl`도 JSON으로 강조된다 — 확인: vitest `language.test.ts`.
+- ✅ diff 레이어와 거터가 서버의 `git diff`와 같다. 비교할 것이 없으면 ③이 diff를 건너뛴다 — 확인: vitest `diff.test.ts`, 탭에서 `git diff -U0`와 비교(M5).
+- ✅ 색 문자열 앞에 그 색의 네모가 `.toml`·`.css`·`.json`에서만 붙는다 — 확인: vitest `swatches.test.ts`(M4).

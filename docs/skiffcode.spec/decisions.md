@@ -32,3 +32,15 @@
 **가정** (틀렸으면 여기부터 고칠 것):
 - diff와 git 거터의 기본 비교 대상은 **HEAD와 현재 버퍼**다. "이 파일을 건드린 직전 커밋과 HEAD"는 더보기(④) 메뉴에서 바꾸는 두 번째 비교 대상이다.
 - LSP 서버는 원격에 **자동 설치하지 않는다.** PATH에서 찾고, 경로는 설정에서 덮어쓸 수 있다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ `:app`(Skiff)과 Skiff Code의 단일 파일 모드에는 exec가 없고, exec는 `:code`의 `RemoteExec` 한 곳에서 사용자가 만든 프로젝트에만 열린다 — 확인: 코드 검색(`exec` 호출 위치), `RemoteExecTest`, internal-sftp·nologin 계정에서 git 없이 열림(M5, 탭).
+- ✅ 서버에 아무것도 설치하지 않는다: git과 언어 서버는 서버에 이미 있는 것을 `command -v`로 찾아 쓰고, 없으면 그 기능 없이 연다 — 확인: `CheckGitTest`, `LspManagerTest`, 실기기(M5, M6).
+- ✅ UI 전체가 WebView 하나이고 테마 한 벌이 메뉴·사이드바·팔레트·레이어에 한꺼번에 먹는다 — 확인: M4 확인(탭·폴드8에서 `MutationObserver`로 같은 마이크로태스크에 바뀜).
+- ✅ Skiff의 프로필과 호스트키를 서명 권한 provider로 가져오고 비밀번호는 넘어오지 않는다 — 확인: Skiff에서 원격 파일을 탭해 대화상자 없이 열림(M2, 탭).
+- ✅ 로컬 파일이 `skiffcode:///`와 `content://` 두 길로 열린다 — 확인: M2 확인(탭, 삼성 "내 파일").
+- ✅ 데몬 대신 exec로 가는 판정을 실측으로 내렸다 — 확인: [범위 밖](out-of-scope.md)의 표(M6, 폴드8).

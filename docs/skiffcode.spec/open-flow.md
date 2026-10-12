@@ -14,3 +14,12 @@
 4. 프로젝트를 활성화할 때 `RemoteExec.supported()`로 exec가 되는지 본 뒤 `command -v git`을 확인한다. exec가 안 되면(internal-sftp, nologin) git/LSP 없이, git이 없으면 git 없이 열고 이유를 배너로 알린다. 확인이 실패하면(연결, 시간 초과) 일단 git 없이 열고 다음 활성화 때 다시 확인한다.
    - 확인은 프로젝트마다 프로세스에서 한 번이고(`ProjectSessions`), 배너도 그때 한 번이다. 프로젝트의 파일을 열 때마다 같은 말을 하지 않는다.
    - 프로젝트는 `SkiffCodeData.projects`에 프로필 id와 canonical 루트로 저장한다(`ProjectStore`). 2단계는 파일의 폴더를 `canonicalize`해서 루트와 비교하고, 루트가 겹치면 가장 깊은 것을 고른다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ git 레포 안의 원격 파일을 열면 "단일 파일로 열기 / 프로젝트 만들기"를 묻고, 홈 밖과 `.git`이 없는 곳에서는 묻지 않는다 — 확인: `GitScopeFinderTest`(MINA: 홈 경계, worktree의 `.git` 파일, 홈 밖), 탭(M5).
+- ✅ 저장된 프로젝트 아래 파일은 묻지 않고 그 프로젝트로 열린다. 루트가 겹치면 가장 깊은 것이다 — 확인: `ProjectStoreTest`, 탭(M5).
+- ✅ exec가 안 되는 계정(internal-sftp, nologin)과 git이 없는 서버에서도 프로젝트가 git·LSP 없이 열리고 이유가 배너로 한 번 뜬다 — 확인: `RemoteExecTest`, `CheckGitTest`, Docker 계정 셋으로 탭에서(M5).

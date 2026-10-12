@@ -16,3 +16,13 @@
   - `:core`, `:app`, Skiff Code의 단일 파일 모드에는 지금처럼 **exec가 없다.**
   - exec는 `:code`의 `session/RemoteExec` 한 곳에만 있고, 사용자가 만든 프로젝트에서만 열린다.
 - **ProfileProvider:** 서명 권한으로 보호하고 비밀번호는 절대 내보내지 않는다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ 브리지의 origin이 하나뿐이고, `addJavascriptInterface`가 없고, 로더가 `/assets/web/` 밖을 403으로 막는다 — 확인: `WebBridgeTest`, 코드 검색, 커밋 전 점검(`.claude/skills/commit`).
+- ✅ 마크다운의 raw HTML과 언어 서버가 보낸 HTML이 걸러진다 — 확인: vitest `sanitize.test.ts`.
+- ✅ 경로가 바깥 입력인 명령은 인자마다 `ShellQuote`로 감싼다 — 확인: `ShellQuoteTest`(`'; rm -rf ~'`, 줄바꿈, `$()`, 백틱, 작은따옴표).
+- ✅ `ProfileProvider`는 서명 권한이고 비밀번호를 내보내지 않는다 — 확인: 매니페스트와 코드 읽기, 커밋 전 점검.

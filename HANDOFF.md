@@ -44,4 +44,6 @@
    망 전환 뒤 진단이 돌아오는 시간(M6 측정은 보통 크기 파일이었다)이다.
 3. 2026-10-12에 spec을 목차 + 주제별 파일 16개(`docs/skiffcode.spec/`)로 나누고, 끝난 M0~M7을
    `skiffcode.plan.done.md`로 옮겼다(사용자 결정). 코드 주석도 새 파일을 가리킨다. 내용은 바꾸지 않았다.
-4. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.
+4. 2026-10-12부터 spec의 주제 파일과 plan의 마일스톤마다 **성공 조건**을 둔다(`AGENTS.md`). 끝난 것에는 확인 기록에서
+   거꾸로 적어 넣었고, M8의 성공 조건은 사용자와 정했다. M8은 모두 ✅가 될 때까지 닫지 않는다.
+5. 블로그를 Hugo로 다시 배포하는 일이 생기면, 그 뒤 `https://bynaki.github.io/.well-known/assetlinks.json`이 200인지 본다.

@@ -57,3 +57,13 @@
   - **문서 쪽은 그대로 한국어다.** 문서를 탭하면 한국어, 팔레트를 열면 English로 바뀌는 것을 같은 세션에서 확인했다.
   - 다른 키보드가 무시하면 남은 길은 Kotlin의 `EditorInfo.hintLocales`(API 24+)다. WebView를 서브클래싱해 `onCreateInputConnection`의 `outAttrs`에 넣되, 그 자리가 페이지 전체에 하나뿐이라 **팔레트가 포커스를 잡고 놓을 때 브리지로 알려** 켜고 끄고 `imm.restartInput(webView)`로 다시 읽게 해야 한다.
   - **키보드 언어는 화면으로 못 읽는다**(삼성 키보드의 자판 영역은 `screencap`에 흰색으로 나온다). `adb shell dumpsys activity service com.samsung.android.honeyboard | grep currentLang`이 읽어 준다. 탭은 외장 키보드 때문에 소프트 키보드가 뜨지 않으므로 `settings put secure show_ime_with_hard_keyboard 1`로 띄우고 **끝나면 0으로 되돌린다.**
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ A→B→C 상태, 스와이프로 `>`·🔍·`@` 모드 전환, 퍼지 검색, 마지막 다섯 개 미리 보기가 된다 — 확인: vitest `palette.test.ts`·`fuzzy.test.ts`·`recents.test.ts`·`commands.test.ts`, 탭 녹화(M4).
+- ✅ 파일 모드가 단일 파일에서는 열린 파일과 같은 폴더, 프로젝트에서는 `git ls-files`(git이 없으면 SFTP walk)를 찾고, 고른 파일이 묻지 않고 열린다 — 확인: vitest `files.test.ts`, `FolderTest`, `ProjectTreeTest`, 탭(M4, M5).
+- ✅ 심볼 모드가 LSP가 있으면 이 파일 개요와 프로젝트 심볼을, 없으면 lezer 개요를 보여 준다 — 확인: vitest `symbols.test.ts`, 폴드8의 실제 서버(M6).
+- ✅ 팔레트가 열리면 소프트 키보드가 영문으로 뜨고 문서 쪽은 한국어 그대로다 — 확인: 탭의 삼성 키보드에서 `currentLang`(M4).

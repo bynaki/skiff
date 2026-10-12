@@ -31,3 +31,14 @@
   - ktoml은 kotlinx-serialization-core 1.9.0으로 빌드됐는데, M2에서 `:code`에 serialization-json
     1.11.0이 들어오면 core가 1.11.0으로 올라간다. 그 조합으로도 테스트가 통과한다.
   - `kotlinx-datetime`이 함께 들어온다. 설정에 날짜가 없어도 APK에 들어간다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ `settings.toml`의 키가 왕복되고, 없는 키는 기본값, 범위 밖은 그 키만, 타입 오류·깨진 TOML·모르는 키는 전부 기본값이며 배너로 알린다 — 확인: `SettingsTomlTest`, `SettingsFileTest`.
+- ✅ `Open Settings`로 열 때 빠진 키가 주석 처리된 기본값으로 채워진다 — 확인: `SettingsTomlTest`(빠진 키 채우기, 두 번 해도 같음, 주석으로 둔 키 유지), `SettingsFileTest`(M5).
+- ✅ 저장하면 바로 적용된다(`poll_seconds`, `kept_buffers`, `font_size`, `wrap`, `diff_alpha`) — 확인: 탭(M4, M5).
+- ✅ 테마를 바꾸면 메뉴·사이드바·팔레트·레이어가 한꺼번에 바뀌고, 잘못된 색은 번들 값으로 폴백한다 — 확인: `ThemeTomlTest`, `ThemesTest`, vitest `theme.test.ts`, 탭과 폴드8(M4).
+- ✅ 설정·테마 import/export, `Copy`·`Edit`·`Delete Theme`, 기본 테마 보호가 된다 — 확인: `ThemesTest`, 탭과 폴드8(내보낸 파일의 md5가 같음, M4).

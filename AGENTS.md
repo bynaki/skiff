@@ -578,6 +578,19 @@ Skiff Code's design is one file per topic under `docs/skiffcode.spec/`, and
 checklist item names on its `읽을 spec:` line**, not the whole design; a decision goes into the file
 for its topic, and a new topic gets a new file and a row in the contents (user's decision,
 2026-10-12). Code comments point at the file, `docs/skiffcode.spec/<topic>.md`.
+**Every feature in the spec has its success criteria (성공 조건), and so does its milestone in the
+plan** (user's decision, 2026-10-12). They say what has to be true for the feature to count as
+done, and how that is shown: the tests always (JVM, vitest, lint), the device when the behaviour is
+on a screen or a gesture (the tablet, the Fold8, its cover display), the browser when it is a page
+or a link that goes through one. Anything else the check needs — a server, an account, a setting
+changed on a device, a person's hands — is asked of the user, never assumed. **A criterion that is
+vague is asked about before it is written down**, not guessed at. In a spec file they go in a
+`## 성공 조건` section at the end; in the plan, under the milestone's heading, before its items.
+They are written as `- ⬜` (not yet) and `- ✅` (met, with where and when), never as `- [ ]`, so
+the checklist's "first unchecked item" rule does not pick them up. **Work on a milestone goes on
+until every criterion is ✅**: a criterion that cannot be met is reported to the user with what
+was tried, and the milestone stays open until they decide — passing tests alone do not close it.
+
 `docs/skiffcode.plan.md` is a checklist split into session-sized items — **a new session picks up at
 the first unchecked `- [ ]`**, ticks it in the same commit as the work, and follows the hand-off
 rules written there. A milestone that is done moves to `docs/skiffcode.plan.done.md`, which is
@@ -588,7 +601,8 @@ history and is not read at the start of a session. The original brief is
 
 **Report and notify after every piece of work.** Each time a checklist item or other requested task
 is finished (or blocked), report the result to the user in Korean — what was done, what was
-verified and how (lint and tests included), what is left — ask whether to commit it, and send a
+verified and how (lint and tests included), which success criteria are met and which are not, what
+is left — ask whether to commit it, and send a
 push notification with a one-line summary. The user often steps away while work runs, so the
 notification is not optional.
 

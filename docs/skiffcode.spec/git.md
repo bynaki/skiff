@@ -31,3 +31,13 @@
   - **기준을 다시 묻는 때**(2026-10-02 사용자 결정): 파일이 화면에 올 때(열기, 전환), 화면의 파일이 바뀐 것을 감시가 잡았을 때(checkout·pull은 파일과 HEAD를 같이 바꾼다), 앱이 앞으로 돌아올 때(`gitChanged`). 폴링마다 묻지는 않는다 — 그러면 `cat-file` 채널이 유휴로 닫히지 않는다. 그래서 앱을 보는 중에 서버에서 커밋만 하면 다음 전환이나 복귀까지 거터가 낡아 있다.
   - **지운 프로젝트의 열린 파일은 거터를 잃는다**(2026-10-02 사용자 결정). 프로젝트를 지우면 세션과 `GitService`가 같이 닫히고(`ProjectSession.close`), 그 파일 때문에 다시 접속하지 않는다.
   - `@codemirror/merge`의 `diff`는 양쪽 다 비어 있는 변경을 가끔 내놓는다. 거터는 그런 청크를 건너뛴다. 아니면 지운 줄로 그려진다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ exec가 되는 계정인지를 `supported()`가 가린다(internal-sftp는 `NoExec`, git 없는 bash 계정은 `Missing`) — 확인: `RemoteExecTest`, `CheckGitTest`, Docker 계정 셋으로 탭에서(M5).
+- ✅ `GitService`가 실제 `git`으로 HEAD 내용·이력·`ls-files`를 읽고, `cat-file --batch` 채널 하나를 다시 쓴다 — 확인: `GitServiceTest`(MINA + 실제 git).
+- ✅ git 거터가 세 레이어에서 서버의 `git diff -U0`와 같다 — 확인: vitest `gitGutter.test.ts`, 탭(M5).
+- ✅ 기준을 다시 묻는 때(화면에 올 때, 감시가 바뀐 것을 잡았을 때, 앱으로 돌아올 때)에 거터가 새로 그려진다 — 확인: 탭(M5).

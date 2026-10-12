@@ -23,3 +23,13 @@
     - 호스트는 블로그(`bynaki.github.io`)다. `paran.blue`는 2026-05에 남이 다시 등록한 도메인이라 쓸 수 없다. 안드로이드의 확인은 넘김을 따라가지 않으므로 넘김 없는 주소여야 한다.
     - 소유 증명은 `/.well-known/assetlinks.json`에 서명 지문을 싣는다. 지금은 디버그 키 하나이고, 릴리스 키가 생기면 함께 싣는다. Pages가 Jekyll로 빌드하므로 `.nojekyll`이 있어야 점으로 시작하는 폴더가 올라간다. 블로그를 다시 빌드해도 지워지지 않게 원본(`bynaki/paran.blue`)의 `static/`에도 같은 파일을 둔다.
     - 앱이 없거나 확인되지 않은 기기에서 브라우저로 열리면 `/skiffcode/open`(`open.html`) 한 장이 `#` 뒤를 보여주고 `intent://` 링크로 한 번 더 누르게 한다. 그 페이지는 `#` 뒤를 어디로도 보내지 않는다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ 원격·로컬 링크와 `alias`·`line`·`col`·`layer` 쿼리가 파싱되고, `user:password@`가 든 링크는 거부된다 — 확인: `SkiffCodeUriTest`, `SkiffCodeLinkTest`, `OpenRequestTest`.
+- ✅ Skiff가 아닌 앱이 보낸 링크는 서버와 경로를 보이고 묻는다. Skiff가 보낸 것은 묻지 않는다 — 확인: adb 링크(묻는 창)와 Skiff에서 탭(묻지 않음), 탭(M2·M3). 이번 세션들의 adb 링크도 매번 이 창을 거쳤다.
+- ✅ 알 수 없는 서버는 확인창·비밀번호·프로필 저장을 묻고, 호스트키는 TOFU 창을 거친다 — 확인: 탭(M2).
+- ✅ `https://bynaki.github.io/skiffcode/open#…` 링크가 앱으로 열리고, 앱이 없으면 안내 페이지가 `#` 뒤를 어디로도 보내지 않는다 — 확인: `OpenRequestTest`, 폴드8의 Claude 앱에서 탭 한 번에 열림, 블로그의 세 파일이 200이고 Digital Asset Links API가 읽음(M4).

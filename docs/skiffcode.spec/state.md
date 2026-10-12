@@ -9,3 +9,12 @@
 - **읽기와 쓰기는 전부 감싼다.** `domStorageEnabled`가 꺼진 빌드에서는 `localStorage`가 null이고, vitest에는 아예 없다. 없으면 없는 대로 돌아가야 한다.
 - **돌아온 값은 믿기 전에 확인한다.** 적은 것은 페이지지만 그 사이 무엇이 들어 있을지는 모른다.
 - **서버나 사람을 알아볼 수 있는 것은 넣지 않는다.** 프로필, 비밀번호, 호스트키는 Kotlin 쪽 store와 Keystore에 남는다.
+
+## 성공 조건
+
+이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
+[`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
+
+- ✅ 팔레트 최근 목록과 확대 배율이 앱을 다시 켜도 남는다 — 확인: 탭(M4).
+- ✅ `localStorage`가 없거나 이상한 값이 들어 있어도 앱이 돌아간다 — 확인: vitest(`recents.test.ts`, `zoom.test.ts`는 저장소 없는 node에서 돈다).
+- ✅ 서버나 사람을 알아볼 수 있는 값을 넣지 않는다 — 확인: 코드 검색(`storage.ts`를 거치는 키는 `palette.recent`, `zoom.size`뿐).
