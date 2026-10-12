@@ -1,9 +1,11 @@
 package com.naki.skiff.code.ui
 
+import android.view.KeyEvent
 import android.window.BackEvent
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -27,6 +29,26 @@ class BackGestureTest {
     @Test
     fun `a back that does not say where it came from goes back`() {
         assertEquals(JumpDirection.BACK, jumpDirection(null))
+    }
+
+    @Test
+    fun `Ctrl+O goes back and Ctrl+I forward, with either Ctrl`() {
+        for (ctrl in listOf(KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON, KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_RIGHT_ON)) {
+            assertEquals(JumpDirection.BACK, jumpKey(KeyEvent.KEYCODE_O, ctrl))
+            assertEquals(JumpDirection.FORWARD, jumpKey(KeyEvent.KEYCODE_I, ctrl))
+        }
+    }
+
+    @Test
+    fun `a jump key needs Ctrl alone, and only O and I are jumps`() {
+        assertNull(jumpKey(KeyEvent.KEYCODE_O, 0))
+        assertNull(jumpKey(KeyEvent.KEYCODE_I, KeyEvent.META_SHIFT_ON))
+        for (other in listOf(KeyEvent.META_ALT_ON, KeyEvent.META_SHIFT_ON, KeyEvent.META_META_ON)) {
+            assertNull(jumpKey(KeyEvent.KEYCODE_O, KeyEvent.META_CTRL_ON or other))
+        }
+        assertNull(jumpKey(KeyEvent.KEYCODE_P, KeyEvent.META_CTRL_ON))
+        // Caps Lock and Num Lock are states, not modifiers held down.
+        assertEquals(JumpDirection.BACK, jumpKey(KeyEvent.KEYCODE_O, KeyEvent.META_CTRL_ON or KeyEvent.META_CAPS_LOCK_ON or KeyEvent.META_NUM_LOCK_ON))
     }
 
     @Test

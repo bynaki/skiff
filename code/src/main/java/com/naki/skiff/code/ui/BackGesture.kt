@@ -1,5 +1,6 @@
 package com.naki.skiff.code.ui
 
+import android.view.KeyEvent
 import android.window.BackEvent
 import org.json.JSONObject
 
@@ -17,6 +18,21 @@ enum class JumpDirection(val wire: String) {
  */
 fun jumpDirection(swipeEdge: Int?): JumpDirection =
     if (swipeEdge == BackEvent.EDGE_LEFT) JumpDirection.FORWARD else JumpDirection.BACK
+
+/**
+ * Ctrl+O goes back and Ctrl+I forward, as in vim; anything else, or either with Alt, Shift or Meta
+ * held as well, is not a jump. Read off [keyCode] and [metaState] rather than `KeyEvent`'s own
+ * helpers, which the unit test JVM's stub would throw from.
+ */
+fun jumpKey(keyCode: Int, metaState: Int): JumpDirection? {
+    if (metaState and KeyEvent.META_CTRL_ON == 0) return null
+    if (metaState and (KeyEvent.META_ALT_ON or KeyEvent.META_SHIFT_ON or KeyEvent.META_META_ON) != 0) return null
+    return when (keyCode) {
+        KeyEvent.KEYCODE_O -> JumpDirection.BACK
+        KeyEvent.KEYCODE_I -> JumpDirection.FORWARD
+        else -> null
+    }
+}
 
 /** What the page last said a back gesture would have to do there. */
 data class NavigationState(

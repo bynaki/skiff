@@ -642,17 +642,13 @@ setLspHooks({
   labels: () => labels,
   goTo: (line, col) => moveTo(line, col),
 })
-// Ctrl+O and Ctrl+I as vim has them, wherever the focus is. Caught on the way down, ahead of
-// CodeMirror, whose default keymap has Mod-i for selectParentSyntax; and the rendered markdown has no
-// keymap to put them in. By the key's place, not its letter, so a Korean layout still has them.
-window.addEventListener('keydown', (event) => {
-  if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return
-  const go = event.code === 'KeyO' ? goBack : event.code === 'KeyI' ? goForward : null
-  if (!go) return
-  event.preventDefault()
-  event.stopPropagation()
-  go()
-}, true)
+// Ctrl+O and Ctrl+I as vim has them, from a hardware keyboard. Kotlin takes them before any view
+// does (`MainActivity.dispatchKeyEvent`): in the viewer nothing on the page has the focus, so a key
+// never reaches a listener here, and in the editor that keeps them ahead of CodeMirror's Mod-i.
+onNotify<{ direction?: Direction }>('jump', (params) => {
+  if (params?.direction === 'back') goBack()
+  else if (params?.direction === 'forward') goForward()
+})
 setFontSize(currentFontSize())
 rpc<Labels>('labels').then((answer) => {
   labels = answer

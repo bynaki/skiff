@@ -59,10 +59,13 @@
   두 번 보낸다(300ms 안, 24px 안이어야 한다). 링크 끊김은 Wi-Fi를 꺼서는 잘 안 나고, 이 맥에서 그 기기의
   `sshd-session`을 죽여 만든다. **LTE가 있는 폴드8에서는 USB adb로 `svc wifi disable`이 망 전환을 만든다** — 앱이
   LTE로 다시 붙고, 서버에는 와이파이 쪽 옛 세션이 끊긴 줄 모른 채 남는다. 끝나면 `svc wifi enable`.
+- **키는 DevTools가 아니라 `adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_O`로 보낸다**(2026-10-12). CDP
+  `Input.dispatchKeyEvent`는 페이지에 직접 들어가서, 하드웨어 키가 페이지까지 오지 않는 경우(viewer에는 포커스가 없다)를
+  가린다. `keycombination`은 키보드의 키가 지나는 시스템 입력 경로를 탄다.
 - **viewer 레이어는 포커스를 받지 않아 F12 같은 키가 닿지 않는다.** 그때 명령은 팔레트를 DOM으로 돌린다:
   `#palette button.mode`를 `.click()`해 열고, 입력에 이름을 넣어 `input` 이벤트를 보낸 뒤, `.results li` 중
-  이름이 같은 것을 `.click()`. 커서는 `view.dispatch({selection})`로 옮긴다. `Ctrl+O`/`Ctrl+I`는 페이지가 창에서
-  받으므로 포커스와 상관없이 `Input.dispatchKeyEvent`(`modifiers: 2`, `code: 'KeyO'`)로 닿는다.
+  이름이 같은 것을 `.click()`. 커서는 `view.dispatch({selection})`로 옮긴다. `Ctrl+O`/`Ctrl+I`는
+  Kotlin이 받는다(위 항목).
 - **페이지가 다시 그려지기 전에 끼어드는 경합은 `requestAnimationFrame`을 늦춰 만든다.** DevTools에서
   `window.requestAnimationFrame`을 `setTimeout(…, 300)`을 거치게 바꾸고 1.5초 뒤 되돌리면, CodeMirror의 첫 측정보다
   Kotlin의 답(HEAD 사본 등)이 먼저 온다(2026-10-12, M8에서 diff 레이어로 돌아갈 때의 스크롤 경합).

@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.InputDevice
+import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.window.BackEvent
@@ -1269,6 +1270,20 @@ class MainActivity : Activity() {
         } else {
             OnBackInvokedCallback { navigate(JumpDirection.BACK) }
         }
+
+    /**
+     * Ctrl+O and Ctrl+I from a hardware keyboard, taken here before any view sees them. The page
+     * cannot: in the viewer and the rendered markdown nothing in the WebView has the focus, so a key
+     * stops at the activity and a listener on the page never hears it (measured on the tablet, with
+     * the key injected through the system's input path as a keyboard's are). Taken first, they also
+     * come ahead of CodeMirror's Mod-i (selectParentSyntax) in the editor. A key held down repeats the
+     * jump, as it would in vim.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val direction = jumpKey(event.keyCode, event.metaState) ?: return super.dispatchKeyEvent(event)
+        if (event.action == KeyEvent.ACTION_DOWN) bridge.notify("jump", JSONObject().put("direction", direction.wire))
+        return true
+    }
 
     /** The page closes whatever is out over the document first, and otherwise goes [direction]. */
     private fun navigate(direction: JumpDirection) {

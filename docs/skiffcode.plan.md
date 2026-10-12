@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M7)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M8, F1)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -19,45 +19,7 @@
 
 ## 할 일
 
-### M8. 전 화면, 앞 화면 (점프 목록)
-
-읽을 spec: [`jumps.md`](skiffcode.spec/jumps.md). 겹쳐 나온 것을 닫는 쪽은 [`top-menu.md`](skiffcode.spec/top-menu.md)(사이드바, 열린 파일 메뉴, 더보기)와 [`palette.md`](skiffcode.spec/palette.md), 정의로 이동은 [`lsp.md`](skiffcode.spec/lsp.md)의 그 항목만.
-
-원래 요구사항은 [`my.next.spec.md`](my.next.spec.md). 2026-10-11 사용자 결정: 닫힌 파일의 칸은 건너뛰고, 레이어는 적지 않고, 가장자리 제스처가 없는 내비게이션 모드는 기기를 본 뒤 정한다. 2026-10-12에 두 기기를 봤다 — 둘 다 제스처(`navigation_mode` 2, 양옆에서 밀기)라 페이지가 가장자리를 직접 받는 일은 하지 않는다.
-
-**성공 조건** (2026-10-12 사용자 결정: 3버튼은 탭에서만 확인, 미는 동안 따로 그리는 것 없음, 제스처는 adb 스와이프로 확인)
-
-- ✅ (2026-10-12, `jumps.test.ts` 15개와 `back.test.ts` 5개) vitest: 점프 목록의 규칙(끝에서 뒤로 가면 지금 자리가 적힘, 뒤로 간 채 새로 적으면 앞 칸이 잘림, 같은 파일·같은 줄 합치기, 100칸 상한, 닫힌 파일의 칸이 빠지고 앞뒤가 이어짐, 비었을 때 null)과 "겹친 것부터 닫기"가 통과한다.
-- ✅ (2026-10-12, `BackGestureTest` 7개, 린트 경고 11 그대로) JVM: 가장자리 셋(`EDGE_RIGHT`·`EDGE_NONE` → 전 화면, `EDGE_LEFT` → 앞 화면)과 콜백이 켜질 조건이 통과한다. `:code` 린트에 새 경고가 없다.
-- ⬜ (DevTools 키로는 모두 됨, 2026-10-12 — 실제 외장 키보드로는 아직) 탭의 외장 키보드 `Ctrl+O`/`Ctrl+I`와 팔레트 `Go Back`/`Go Forward`로: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 그 칸을 건너뜀 — viewer·editor·diff·렌더된 마크다운 각각에서. 돌아간 줄이 화면 맨 위이고 커서도 그 줄이다.
-- ✅ (탭·폴드8 펼친 화면·커버 화면, 2026-10-12, adb 스와이프) 탭과 폴드8(펼친 화면, 커버 화면)에서 adb 스와이프로: 오른쪽 가장자리에서 밀면 전 화면, 왼쪽 가장자리에서 밀면 앞 화면, 파일 사이도. 시스템이 adb 스와이프를 뒤로 가기로 받지 않으면 사용자에게 손으로 확인해 달라고 한다.
-- ✅ (탭, 2026-10-12, adb 스와이프) 사이드바·팔레트·열린 파일 메뉴·더보기가 나와 있으면 어느 쪽에서 밀든 그것만 닫힌다. 점프 목록이 비어 있으면 시스템의 뒤로 가기(홈)가 그대로다. editor에서 소프트 키보드가 떠 있으면 키보드가 먼저 닫힌다.
-- ✅ (탭, 2026-10-12) 탭을 잠시 3버튼 내비게이션으로 바꿔 뒤로 버튼이 전 화면인지 보고, 제스처로 되돌린다.
-
-- [x] `web/src/jumps.ts`와 vitest
-  - 순수 모듈(DOM 없음): `record(at)`, `back(now)`, `forward()`, `forget(fileId)`, `canBack`/`canForward`.
-  - 테스트: 끝에서 뒤로 가면 지금 자리가 적혀 앞으로 돌아옴, 뒤로 간 채 새로 적으면 앞 칸이 잘림, 같은 파일·같은 줄 합치기, 100칸 상한, 닫힌 파일의 칸이 빠지고 그 앞뒤가 이어짐, 비었을 때 `back`/`forward`가 null.
-- [x] 페이지에 연결: 적기, 움직이기, 키, 팔레트
-  - `main.ts`의 `reconcile`에서 화면의 파일이 바뀔 때 떠나는 자리(`pane.close()`의 `line`)를 적는다. 같은 파일의 `goToLine`(링크의 줄, 같은 파일의 정의, 심볼 모드) 앞에서도 적는다. 점프 목록으로 움직인 것은 적지 않는다.
-  - Kotlin `activate`가 `goToLine`을 받아 `documentsChanged`에 실어 돌려주게 한다.
-  - `reconcile`이 목록에서 사라진 파일을 `forget`한다.
-  - `Ctrl+O`/`Ctrl+I` 키(`Mod-i`의 `selectParentSyntax`보다 높은 우선순위), 팔레트 `Go Back`/`Go Forward`(`commands.ts`).
-  - 여기까지면 키보드와 팔레트로 쓸 수 있다. 탭의 외장 키보드로 확인: 같은 파일 안 정의로 갔다 돌아오기, 다른 파일 정의로 갔다 돌아오고 다시 앞으로, 열린 파일 메뉴로 바꾼 것 되돌리기, 중간 파일을 닫은 뒤 건너뛰기, viewer·editor·diff·마크다운 각각에서.
-  - 확인(2026-10-12, 탭, 이 맥의 임시 git 프로젝트와 pyright): 키는 DevTools `Input.dispatchKeyEvent`(Ctrl)로 보냈다 — 탭에 외장 키보드가 잡히지 않았다(`nokeys`). viewer에서 같은 파일 정의(1→200) 왕복, 다른 파일 정의(main 1 ↔ util 120) 뒤로·앞으로, 열린 파일 메뉴로 바꾼 것(notes.md 85 ↔ main.py) 되돌리기, 렌더된 마크다운 안에서 링크의 `?line=` 되돌리기, editor에서 같은 파일·다른 파일과 팔레트 `Go Back`/`Go Forward`, `Ctrl+I`가 선택을 넓히지 않음(선택 비어 있음), diff에서 같은 파일·다른 파일, util.py를 닫은 뒤 notes → main으로 건너뜀. 돌아간 줄이 맨 위였고 커서도 그 줄이었다(렌더된 마크다운에는 커서가 없다). 링크의 줄이 문서 끝 가까이면 스크롤이 끝에서 멈추고, 그 멈춘 줄이 적힌다.
-  - 확인 중 고친 것: diff 레이어 파일로 돌아갈 때 HEAD 사본이 첫 측정보다 먼저 오면 `compareChanged`가 아직 0인 스크롤을 읽어 1줄로 돌아갔다(커서는 199). `pane.ts`의 `topLine()`이 요청한 스크롤이 그려질 때까지 그 줄을 답한다. `requestAnimationFrame`을 300ms 늦춰 고치기 전 빌드에서 재현했고, 고친 빌드에서는 두 번 다 199였다.
-- [x] Kotlin: 뒤로 가기 제스처
-  - 페이지가 `navigationState {back, forward, overlay}`를 알리고(점프 목록이 바뀔 때, 사이드바·팔레트·메뉴가 열리고 닫힐 때), `MainActivity`가 하나라도 참이면 `onBackInvokedDispatcher`에 콜백을 등록하고 셋 다 거짓이면 내린다.
-  - API 34+는 `OnBackAnimationCallback`: `onBackStarted`에서 `swipeEdge`를 들고 있다가 `onBackInvoked`에서 `EDGE_RIGHT`·`EDGE_NONE` → 전 화면, `EDGE_LEFT` → 앞 화면을 페이지에 알린다. `onBackCancelled`면 아무것도 안 한다. 33은 `OnBackInvokedCallback`, 30~32는 `onBackPressed`로 전 화면만.
-  - 페이지: 겹쳐 나온 것(사이드바, 팔레트, 열린 파일 메뉴, 더보기)이 있으면 그것부터 닫고, 없으면 방향대로 움직인다. 갈 곳이 없으면 아무것도 안 한다.
-  - 테스트: 방향 판별을 `MainActivity` 밖의 작은 함수로 빼서 JVM 테스트(가장자리 셋 × 콜백이 켜질 조건). 페이지 쪽 "겹친 것부터 닫기"는 vitest.
-  - 한 것: `ui/BackGesture.kt`(`jumpDirection`, `NavigationState`), 페이지의 `back.ts`(겹친 것부터 닫기, 바뀔 때만 알리기). 네 겹침 요소에 `isOpen()`을 두고, 열리고 닫히는 것은 `MutationObserver`로 본다(각자 바깥 탭으로도 닫히므로). 매니페스트에 `enableOnBackInvokedCallback`(Android 13~15에서도 콜백이 불리게). `EDGE_NONE`은 API 36 상수라 가장자리 없음은 null로 둔다.
-  - 확인(2026-10-12, 탭, `navigation_mode` 2, adb `input swipe`): 시스템이 adb 스와이프를 뒤로 가기로 받았다. 오른쪽 가장자리 → 전 화면(readme.md → hello.py), 왼쪽 → 앞 화면(readme.md 100). 사이드바·팔레트·열린 파일 메뉴·더보기를 하나씩 열고 양쪽에서 밀면 그것만 닫히고 파일은 그대로. 앞 화면만 남았을 때 오른쪽에서 밀면 그대로. 파일을 다 닫으면 홈으로 갔다. editor에서 소프트 키보드가 떠 있으면 첫 밀기에 키보드만 닫히고 다음 밀기에 전 화면.
-- [ ] 확인: 탭과 폴드8
-  - 위 성공 조건을 하나씩 확인해 ✅로 바꾼다. 하나라도 ⬜이면 이 항목은 닫지 않는다.
-  - 두 기기의 내비게이션 모드는 2026-10-12에 봤다(둘 다 `navigation_mode` 2, `navigation_bar_gesture_detail_type` 1). 확인 전에 바뀌지 않았는지 다시 본다.
-  - 3버튼으로 바꾸는 것은 탭에서만, 확인이 끝나면 곧바로 제스처로 되돌린다(`settings get`으로 되돌린 값을 본다).
-  - 탭 3버튼(2026-10-12): `cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`으로 바꿨다(`navigation_mode` 0). 뒤로 버튼(오른쪽 아래)이 전 화면(readme.md 100 → hello.py), 앞 화면만 남았을 때 한 번 더 누르면 그대로, 팔레트 `Go Forward`로 readme.md 100. 되돌린 값을 처음 읽어 둔 것과 맞춰 봤다(`navigation_mode` 2, 제스처 오버레이, `navigation_bar_gesture_while_hidden` 1). 오버레이를 바꿀 때마다 액티비티가 다시 만들어져, 열린 파일이 없으면 마지막 링크가 다시 확인 창을 띄웠다 — `AGENTS.md`가 말하는, 처리하지 않는 설정 변경의 기존 동작이다.
-  - 폴드8(2026-10-12, Wi-Fi 무선 디버깅, `navigation_mode` 2): 로컬 파일 `near2mb.ts`(5000줄)와 `hello.md` 사이에서 펼친 화면·커버 화면(`device_state state 0`) 모두 오른쪽 가장자리 → 전 화면, 왼쪽 → 앞 화면, 두 번씩. 커버 화면에서 사이드바를 연 채 오른쪽에서 밀면 사이드바만 닫혔다. 끝나고 `state reset`, 화면 꺼짐 300000, Claude 앱을 앞으로 되돌렸다.
+마일스톤이 비어 있다. 다음 일은 [`my.next.spec.md`](my.next.spec.md)의 남은 요구사항(참조로 이동, 변경이력 Explorer 등)을 사용자와 정해 새 마일스톤으로 적는 것이다.
 
 ## 아직 확인하지 않은 것
 
