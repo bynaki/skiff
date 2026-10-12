@@ -38,6 +38,15 @@ const NO_MATCHES = 'No matches'
  */
 const SWIPE_STEP = 24
 
+export interface PaletteView {
+  refresh(): void
+  forgetRecent(): void
+  /** Whether it is open, which the back gesture closes first (`back.ts`). */
+  isOpen(): boolean
+  /** As a tap beside it does: back to the button, nothing run. */
+  hide(): void
+}
+
 /**
  * [items] is asked every time the query changes, for the mode the palette is in, and `fuzzy.ts`
  * decides which of what comes back comes first. [opened] is told when it opens, for whatever else is
@@ -45,7 +54,7 @@ const SWIPE_STEP = 24
  * What comes back is how to say that [items] has more to give than it gave the last time it was
  * asked.
  */
-export function createPaletteView(items: (mode: PaletteMode, query: string) => PaletteItem[], opened: () => void): { refresh(): void; forgetRecent(): void } {
+export function createPaletteView(items: (mode: PaletteMode, query: string) => PaletteItem[], opened: () => void): PaletteView {
   const machine: Palette = createPalette({ items })
 
   // Covers the screen while the palette is open so that a tap anywhere else cancels it, which is
@@ -200,6 +209,8 @@ export function createPaletteView(items: (mode: PaletteMode, query: string) => P
   })
   render()
   return {
+    isOpen: () => machine.stage !== 'button',
+    hide: cancel,
     refresh() {
       machine.refresh()
       render()

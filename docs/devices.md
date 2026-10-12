@@ -85,6 +85,15 @@
   있다. 앱은 `InputDevice`에 묻는다). 떼지 않고 화면 키보드를 보려면
   `settings put secure show_ime_with_hard_keyboard 1`로 띄우고 **끝나면 0으로 되돌린다**(되돌려 두었다).
   키보드가 어느 언어인지는 화면으로 못 읽는다 — `AGENTS.md`의 `currentLang` 항목을 본다.
+- **3버튼으로 잠시 바꾸기**(2026-10-12): `settings put global navigation_bar_gesture_while_hidden 0`만으로는 안 바뀌고,
+  `cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`이 바꾼다(`navigation_mode` 0).
+  되돌리기는 같은 명령에 `…navbar.gestural`. 바꾸기 전에 `navigation_mode`, `navigation_bar_gesture_while_hidden`,
+  `navigation_bar_gesture_detail_type`, `navigation_bar_gesture_hint`와 `cmd overlay list | grep navbar`를 읽어 두고 맞춰 본다.
+  뒤로 버튼은 `tap 2146 1392`이고, 내비게이션 바가 생기면 확인 대화상자의 버튼이 위로 올라간다(열기 `1328 1244`). 바꿀 때마다
+  액티비티가 다시 만들어진다.
+- **adb `input swipe`가 시스템의 뒤로 가기 제스처로 받아진다**(2026-10-12, 제스처 내비게이션). 오른쪽 가장자리
+  `input swipe 2302 700 1700 700 300`, 왼쪽 `input swipe 2 700 600 700 300`. 페이지는 그 첫 터치를 `pointerdown` →
+  `pointercancel`로 받는다. 앱이 콜백을 걸었는지는 `dumpsys activity activities | grep topResumedActivity`로 본다(안 걸었으면 홈).
 - 확인용 파일이 `/sdcard/Download/skiffcode-test/`에 있다(`hello.py` 32KB, `readme.md` 17KB,
   `Makefile` 20B, `old.txt` 30B, 2MB 바로 아래인 `big.ts`(56677줄), 상한 초과용 3MB `huge.txt`,
   인코딩용 `enc`, `bad.txt`, `image.txt`). **여기에 임시 파일을 만들었으면 끝나고 지운다.**

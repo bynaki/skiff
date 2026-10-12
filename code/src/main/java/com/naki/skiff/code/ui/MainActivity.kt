@@ -1,5 +1,6 @@
 package com.naki.skiff.code.ui
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
@@ -16,6 +17,10 @@ import android.util.Log
 import android.view.InputDevice
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.window.BackEvent
+import android.window.OnBackAnimationCallback
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -116,6 +121,11 @@ class MainActivity : Activity() {
 
     /** Every file that is open at once, and which of them the page is showing. */
     private lateinit var docs: OpenDocuments
+
+    /** What a back gesture would have to do on the page, as it last said (docs/skiffcode.spec/jumps.md). */
+    private var navigation = NavigationState()
+    /** Registered while [navigation] has a use for back, so that otherwise it goes home as it always has. */
+    private var backCallback: OnBackInvokedCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -358,6 +368,10 @@ class MainActivity : Activity() {
         // A message from the page's LSP client for one of a project's language servers. See
         // [toLanguageServer] for what happens when the project has none to give.
         bridge.onNotify("lspSend") { params -> toLanguageServers.trySend(params) }
+        bridge.onNotify("navigationState") { params ->
+            navigation = NavigationState.of(params)
+            followNavigation()
+        }
         scope.launch { for (params in toLanguageServers) toLanguageServer(params) }
         // Where a definition the language server found is. It names the file by URI, which may be
         // outside the project — a library's, the standard library's — and is opened all the same: the
@@ -1209,6 +1223,65 @@ class MainActivity : Activity() {
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(keyboards)
         hostKeyDialog?.dismiss()
         scope.cancel()
+    }
+
+    /**
+     * Takes back gestures from the system while the page has a use for them, and gives them back when
+     * it has none. Before API 33 there is no dispatcher, and [onBackPressed] asks [navigation] itself.
+     */
+    private fun followNavigation() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val registered = backCallback
+        if (navigation.takesBack == (registered != null)) return
+        if (registered != null) {
+            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(registered)
+            backCallback = null
+        } else {
+            val callback = backCallback()
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+            backCallback = callback
+        }
+    }
+
+    /**
+     * From API 34 the gesture says which edge it started at, and that is the way it goes. The page is
+     * told only once the finger lets go: it draws nothing while the gesture is in progress, leaving the
+     * system's own edge to show it (2026-10-12 사용자 결정), and a gesture taken back is nothing at all.
+     */
+    private fun backCallback(): OnBackInvokedCallback =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            object : OnBackAnimationCallback {
+                private var edge: Int? = null
+
+                override fun onBackStarted(backEvent: BackEvent) {
+                    edge = backEvent.swipeEdge
+                }
+
+                override fun onBackCancelled() {
+                    edge = null
+                }
+
+                override fun onBackInvoked() {
+                    navigate(jumpDirection(edge))
+                    edge = null
+                }
+            }
+        } else {
+            OnBackInvokedCallback { navigate(JumpDirection.BACK) }
+        }
+
+    /** The page closes whatever is out over the document first, and otherwise goes [direction]. */
+    private fun navigate(direction: JumpDirection) {
+        bridge.notify("navigate", JSONObject().put("direction", direction.wire))
+    }
+
+    // Lint would have AndroidX's OnBackPressedDispatcher, which needs a ComponentActivity; this is a
+    // plain Activity, and from API 33 the callback above is what back reaches (the manifest opts in).
+    @SuppressLint("GestureBackNavigation")
+    @Deprecated("Back on API 30–32, where there is no OnBackInvokedDispatcher.")
+    override fun onBackPressed() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && navigation.takesBack) navigate(JumpDirection.BACK)
+        else @Suppress("DEPRECATION") super.onBackPressed()
     }
 
     /** Links out of the page. Only schemes another app should handle; `intent:` and the like are dropped. */

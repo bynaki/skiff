@@ -15,6 +15,8 @@ export interface MoreMenu {
   /** Opens it with [compare] marked as chosen, and nothing to choose unless [enabled]; or closes it. */
   toggle(compare: CompareTo, enabled: boolean): void
   hide(): void
+  /** Whether it is out, which the back gesture closes first (`back.ts`). */
+  isOpen(): boolean
 }
 
 /** [opened] hears it open and close, for ④ to say so. */
@@ -65,5 +67,6 @@ export function createMoreMenu(choose: (compare: CompareTo) => void, opened: (op
       opened(true)
     },
     hide,
+    isOpen: () => !menu.hidden,
   }
 }

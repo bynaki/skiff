@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 17 drops, rather than refuses, connections to private-range addresses without it. -->
@@ -40,11 +41,16 @@
           activity, which would drop the reader back into the viewer at the top.
           The recreation itself is survivable either way, since onCreate carries the open document
           over (onRetainNonConfigurationInstance); this only spares the WebView and the reparse.
+          enableOnBackInvokedCallback: back goes to the callback the page's jump list registers
+          (docs/skiffcode.spec/jumps.md) on Android 13 to 15 too. From 16 an app targeting 36 or
+          later has it whatever this says; before it, without this, back went to onBackPressed.
         -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:enableOnBackInvokedCallback="true"
+            tools:targetApi="33"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -33,6 +33,8 @@ export interface Sidebar {
   label(labels: SidebarLabels): void
   toggle(): void
   hide(): void
+  /** Whether it is out, which the back gesture closes first (`back.ts`). */
+  isOpen(): boolean
   /**
    * What it shows may have moved — a project was made or removed, or another file came to the
    * screen: the drawer, if it is out, asks again and follows the file there.
@@ -194,6 +196,7 @@ export function createSidebar(source: SidebarSource): Sidebar {
   handle.addEventListener('click', hide)
 
   return {
+    isOpen,
     label(next) {
       labels = next
       handle.title = next.sidebar

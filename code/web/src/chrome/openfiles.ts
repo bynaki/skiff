@@ -27,6 +27,8 @@ export interface OpenFiles {
   label(labels: OpenFilesLabels): void
   toggle(): void
   hide(): void
+  /** Whether it is out, which the back gesture closes first (`back.ts`). */
+  isOpen(): boolean
   /**
    * Opens the menu with that file's row asking whether to close it, which is where the palette's
    * Close File sends a buffer that has been typed in: the question belongs with the file it is
@@ -226,6 +228,7 @@ export function createOpenFiles(actions: {
   })
 
   return {
+    isOpen,
     label(next) {
       labels = next
       render()

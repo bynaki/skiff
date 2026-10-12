@@ -7,6 +7,7 @@
 // buffer, the layer they were on and the line they were showing. That is also what makes switching
 // safe while a file is being typed in.
 import { notify, onNotify, rpc } from './bridge'
+import { type Direction, type Overlay, backGesture, createNavigationReporter } from './back'
 import { type BannerLabels, createBanner } from './chrome/banner'
 import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type OpenFilesLabels, createOpenFiles } from './chrome/openfiles'
@@ -368,6 +369,25 @@ const paletteView = createPaletteView(
   },
 )
 
+/** What floats over the document. A back gesture closes these before it moves. */
+const overlays: Overlay[] = [sidebar, paletteView, openFiles, moreMenu]
+
+/**
+ * Tells Kotlin whether a back gesture has anything to do here, which is when it takes the gesture
+ * from the system. Asked after anything that moves the jump list, and whenever one of [overlays]
+ * comes out or goes away — which each of them does on its own, from a tap on its scrim as much as from
+ * here, so that is watched on the elements themselves.
+ */
+const reportNavigation = createNavigationReporter(
+  () => ({ back: jumps.canBack, forward: jumps.canForward, overlay: overlays.some((overlay) => overlay.isOpen()) }),
+  (state) => notify('navigationState', state),
+)
+const overlayWatch = new MutationObserver(reportNavigation)
+for (const id of ['sidebar', 'palette', 'open-files', 'more']) {
+  const element = document.getElementById(id)
+  if (element) overlayWatch.observe(element, { attributes: true, attributeFilter: ['class', 'hidden'] })
+}
+
 function isFileDirty(id: number): boolean {
   return id === activeId ? pane?.dirty ?? false : dirtyInBackground(id)
 }
@@ -433,6 +453,7 @@ async function reconcile(goToLine?: number | null, col?: number | null, layer?: 
   }
   // A palette left open across a link would still offer what was beside the file before.
   paletteView.refresh()
+  reportNavigation()
 }
 
 /**
@@ -448,6 +469,7 @@ function moveTo(line: number, col?: number): void {
   const at = here()
   if (at && pane) jumps.record(at)
   pane?.goToLine(line, col)
+  reportNavigation()
 }
 
 /**
@@ -465,10 +487,12 @@ function jumpTo(to: Jump | null): void {
 function goBack(): void {
   const at = here()
   if (at) jumpTo(jumps.back(at))
+  reportNavigation()
 }
 
 function goForward(): void {
   jumpTo(jumps.forward())
+  reportNavigation()
 }
 
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
@@ -642,6 +666,13 @@ onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? l
 onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | null }>('documentsChanged', (params) => {
   refresh(params?.goToLine, params?.col, params?.layer)
   sidebar.changed()
+})
+// The system's back gesture, which Kotlin hands over only while [reportNavigation] said there was a
+// use for it here, with the way its edge points.
+onNotify<{ direction?: Direction }>('navigate', (params) => {
+  const direction = params?.direction
+  if (direction !== 'back' && direction !== 'forward') return
+  backGesture(direction, overlays, (way) => (way === 'back' ? goBack() : goForward()))
 })
 onNotify<Settings>('settingsChanged', (settings) => applySettings(settings, false))
 onNotify('projectsChanged', () => sidebar.changed())
