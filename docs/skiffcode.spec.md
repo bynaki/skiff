@@ -30,6 +30,7 @@
 | [`state.md`](skiffcode.spec/state.md) | 상태 저장 | 쓰면서 쌓이는 것은 `localStorage`, 그 세 규칙 |
 | [`reset-data.md`](skiffcode.spec/reset-data.md) | 데이터 초기화 | 팔레트의 `Reset Data…` 체크리스트 |
 | [`jumps.md`](skiffcode.spec/jumps.md) | 전 화면, 앞 화면 (점프 목록) | 점프 목록, 시스템 뒤로 가기 제스처의 가장자리, 적는 때 |
+| [`markdown-links.md`](skiffcode.spec/markdown-links.md) | — | 렌더된 마크다운의 링크: 상대 경로는 묻지 않고 열기, `#제목`, https `.md`는 읽기 전용 웹 문서, GitHub blob → raw |
 | [`settings-theme.md`](skiffcode.spec/settings-theme.md) | 설정과 테마 | `settings.toml`의 키와 잘못된 값, 테마 고르기·가져오기·복사·편집·지우기 |
 | [`git.md`](skiffcode.spec/git.md) | git과 LSP(앞쪽) | `RemoteExec`, `GitService`, git 거터와 기준을 다시 묻는 때 |
 | [`lsp.md`](skiffcode.spec/lsp.md) | git과 LSP(뒤쪽) | `LspProcess`, `LspManager`, 다시 띄우기, 페이지 쪽 LSP, 두 번 탭 hover, 정의로 이동 |
