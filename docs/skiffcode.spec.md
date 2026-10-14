@@ -22,7 +22,7 @@
 | [`decisions.md`](skiffcode.spec/decisions.md) | 정한 것, 가정 | 같은 레포 멀티모듈, 데몬 없이 SSH exec(근거 셋), WebView 하나, 프로필 공유, 로컬 파일의 두 경로 |
 | [`modules.md`](skiffcode.spec/modules.md) | 모듈 | `:core`·`:app`·`:code`가 나눠 맡는 것, Kotlin과 Web의 역할, 양방향 알림 브리지 |
 | [`uri.md`](skiffcode.spec/uri.md) | URI | `skiffcode://`와 https 링크의 모양, 비밀번호 든 링크 거부, Skiff가 아닌 앱이 보낸 링크는 묻기 |
-| [`open-flow.md`](skiffcode.spec/open-flow.md) | 파일을 여는 흐름 | 로컬·프로젝트·단일 파일을 가르는 순서, SFTP만으로 `.git` 찾기, 프로젝트 만들기와 exec·git 확인 |
+| [`open-flow.md`](skiffcode.spec/open-flow.md) | 파일을 여는 흐름 | 로컬·프로젝트·단일 파일을 가르는 순서, SFTP만으로 `.git` 찾기, 프로젝트 만들기와 exec·git 확인, 같은 서버의 다른 주소(호스트 키) |
 | [`document-io.md`](skiffcode.spec/document-io.md) | 문서 읽기, 저장, 감시 | `TextLoader`, `DocumentSaver`, `FileWatcher`(감시), 열린 파일과 최근 파일 |
 | [`layers.md`](skiffcode.spec/layers.md) | 레이어 | viewer·editor·diff가 한 뷰의 확장 묶음인 것, 각 레이어의 동작, diff 비교 대상 |
 | [`top-menu.md`](skiffcode.spec/top-menu.md) | 화면 메뉴(상단 메뉴, 기다리는 동안) | ①~④ 메뉴, 사이드바와 프로젝트 트리, 파일 이름과 저장 점, 열린 파일 메뉴, 로딩 라인 |
