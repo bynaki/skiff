@@ -579,11 +579,11 @@ class MainActivity : Activity() {
         } else {
             null
         }
-        // An open file's key carries the host key it was opened with, as [OpenFlow] fills it in.
-        val hostKey = container.store.knownHost(profile.host, profile.port)?.fingerprint
+        // An open file's key carries the server it was opened on, as [OpenFlow] fills it in.
+        val server = container.store.servers().serverOf(profile).key
         val paths = (tracked ?: walk?.paths.orEmpty()).filter { path ->
             val absolute = ProjectTree.resolve(project.root, path) ?: return@filter false
-            docs.byKey(keyOf(OpenRequest.Remote(profile, absolute, OpenAt(), hostKey))) == null
+            docs.byKey(keyOf(OpenRequest.Remote(profile, absolute, OpenAt(), server))) == null
         }
         return JSONObject().put("names", JSONArray(paths.sorted())).apply {
             if (walk?.truncated == true) put("truncated", resources.getQuantityString(R.plurals.search_truncated, search.maxFiles, search.maxFiles))

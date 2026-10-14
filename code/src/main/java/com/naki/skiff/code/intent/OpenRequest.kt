@@ -23,14 +23,15 @@ sealed interface OpenRequest {
     data class Content(val uri: String, val writable: Boolean) : OpenRequest
 
     /**
-     * A link that named a server we have a profile for. [hostKey] is the SHA256 fingerprint of the
-     * machine that answered, filled in once the file has been opened; a link never carries one.
+     * A link that named a server we have a profile for. [server] names the machine that answered
+     * ([com.naki.skiff.code.data.Server.key]: its host key and the profiles the user said reach it),
+     * filled in once the file has been opened; a link never carries one.
      */
     data class Remote(
         val profile: ServerProfile,
         val path: String,
         val at: OpenAt,
-        val hostKey: String? = null,
+        val server: String? = null,
     ) : OpenRequest
 
     /**

@@ -154,13 +154,14 @@ class OpenDocuments {
  *
  * The server is its host key, not its profile: a domain and a tailnet address for one machine
  * resolve to two profiles, and the same path on both is one file (2026-09-30 사용자 결정). Nor is
- * the user name part of it. Two machines cloned from one image share a key and would be taken for
- * one; without a key the profile is all there is to go on.
+ * the user name part of it. Two machines cloned from one image share a key, so profiles with one
+ * key are one server only once the user has said so ([com.naki.skiff.code.data.ServerGroups]);
+ * without a key the profile is all there is to go on.
  */
 fun keyOf(request: OpenRequest): String = when (request) {
     is OpenRequest.LocalPath -> "local:${request.path}"
     is OpenRequest.Content -> "content:${request.uri}"
-    is OpenRequest.Remote -> "remote:${request.hostKey ?: request.profile.id}:${request.path}"
+    is OpenRequest.Remote -> "remote:${request.server ?: "profile:${request.profile.id}"}:${request.path}"
     // Neither reaches an opened file: UnknownServer becomes Remote once the user has agreed, and
     // Invalid never gets as far as reading one.
     is OpenRequest.UnknownServer -> "server:${request.user}@${request.host}:${request.port}:${request.path}"

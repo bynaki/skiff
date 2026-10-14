@@ -29,6 +29,8 @@ data class SkiffCodeData(
     val recentFiles: List<RecentFile> = emptyList(),
     /** Read and written by [com.naki.skiff.code.project.ProjectStore]. */
     val projects: List<Project> = emptyList(),
+    /** Whether two saved profiles with one host key are one machine; see [ServerGroups]. */
+    val sameMachine: List<SameMachineAnswer> = emptyList(),
 )
 
 /** Opens Skiff Code's store. Call it once per process, from whatever holds the process's singletons. */
@@ -60,7 +62,20 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
 
     suspend fun deleteProfile(id: String) {
         dataStore.updateData { data ->
-            data.copy(profiles = data.profiles.filterNot { it.id == id })
+            data.copy(
+                profiles = data.profiles.filterNot { it.id == id },
+                sameMachine = data.sameMachine.filterNot { it.mentions(id) },
+            )
+        }
+    }
+
+    /** Which saved profiles are one machine, as the store has it now. */
+    suspend fun servers(): ServerGroups = dataStore.data.first().let { ServerGroups(it.profiles, it.knownHosts, it.sameMachine) }
+
+    /** Keeps the user's answer about profiles [a] and [b], in place of any earlier one about them. */
+    suspend fun answerSameMachine(a: String, b: String, same: Boolean) {
+        dataStore.updateData { data ->
+            data.copy(sameMachine = data.sameMachine.filterNot { it.isAbout(a, b) } + SameMachineAnswer(a, b, same))
         }
     }
 
@@ -69,7 +84,8 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
      * server saved from the unknown-server dialog is named after Skiff's alias — and takes Skiff's
      * address and start path, keeping its own id and password. The password is dropped when the
      * host, port or user changed, so it is never sent to another machine. Unmatched ones are added
-     * without a password. Nothing is deleted.
+     * without a password. Nothing is deleted, except the same-machine answers of a profile that now
+     * points at another host or port: they were about the address it had.
      *
      * A host key is added only where there is none for that host and port. One we already have is
      * kept even if Skiff's differs: which is right is for [com.naki.skiff.fs.sftp.HostKeyGate] to
@@ -78,6 +94,7 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
     suspend fun importFromSkiff(profiles: List<ServerProfile>, knownHosts: List<KnownHost>) {
         dataStore.updateData { data ->
             val merged = data.profiles.toMutableList()
+            val moved = HashSet<String>()
             for (shared in profiles) {
                 val i = merged.indexOfFirst { it.id == shared.id }.takeIf { it >= 0 }
                     ?: merged.indexOfFirst { it.name == shared.name }
@@ -86,8 +103,9 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
                     continue
                 }
                 val own = merged[i]
-                val sameMachine = own.host.equals(shared.host, ignoreCase = true) &&
-                    own.port == shared.port && own.username == shared.username
+                val sameAddress = own.host.equals(shared.host, ignoreCase = true) && own.port == shared.port
+                if (!sameAddress) moved += own.id
+                val sameMachine = sameAddress && own.username == shared.username
                 merged[i] = own.copy(
                     name = shared.name,
                     host = shared.host,
@@ -100,7 +118,11 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
             val newHosts = knownHosts.filter { shared ->
                 data.knownHosts.none { it.host == shared.host && it.port == shared.port }
             }
-            data.copy(profiles = merged, knownHosts = data.knownHosts + newHosts)
+            data.copy(
+                profiles = merged,
+                knownHosts = data.knownHosts + newHosts,
+                sameMachine = data.sameMachine.filterNot { answer -> moved.any(answer::mentions) },
+            )
         }
     }
 
@@ -141,12 +163,14 @@ class SkiffCodeStore(private val dataStore: DataStore<SkiffCodeData>) : KnownHos
     /**
      * Empties each list asked for, in one write, as the palette's Reset Data does. The projects are
      * [com.naki.skiff.code.project.ProjectStore]'s, but they sit in this blob, and a profile going
-     * without its projects in the same write would leave projects pointing at nothing.
+     * without its projects in the same write would leave projects pointing at nothing. The
+     * same-machine answers go with the profiles they are about.
      */
     suspend fun reset(profiles: Boolean, knownHosts: Boolean, projects: Boolean, recentFiles: Boolean) {
         dataStore.updateData { data ->
             data.copy(
                 profiles = if (profiles) emptyList() else data.profiles,
+                sameMachine = if (profiles) emptyList() else data.sameMachine,
                 knownHosts = if (knownHosts) emptyList() else data.knownHosts,
                 projects = if (projects) emptyList() else data.projects,
                 recentFiles = if (recentFiles) emptyList() else data.recentFiles,

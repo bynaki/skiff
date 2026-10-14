@@ -245,4 +245,74 @@ class SkiffCodeStoreTest {
             assertEquals(emptyList<RecentFile>(), store.recentFiles.first())
         }
     }
+
+    private val other = home.copy(id = "p2", name = "home-tailnet", host = "192.0.2.11")
+
+    @Test
+    fun `a store written before same-machine answers reads with none`() = runTest {
+        file.writeText("""{"profiles":[],"knownHosts":[],"recentFiles":[],"projects":[]}""")
+        withData { data -> assertEquals(emptyList<SameMachineAnswer>(), data.data.first().sameMachine) }
+    }
+
+    @Test
+    fun `an answer survives the store being opened again, and a new one about the same two replaces it`() = runTest {
+        withStore { store ->
+            store.upsertProfile(home)
+            store.upsertProfile(other)
+            store.rememberHost(KnownHost("192.0.2.10", 22, "ssh-ed25519", "SHA256:AAAA"))
+            store.rememberHost(KnownHost("192.0.2.11", 22, "ssh-ed25519", "SHA256:AAAA"))
+            store.answerSameMachine("p2", "p1", same = false)
+        }
+        withData { data ->
+            val store = SkiffCodeStore(data)
+            assertEquals(listOf(SameMachineAnswer("p2", "p1", false)), data.data.first().sameMachine)
+            assertEquals(setOf("p1"), store.servers().serverOf(home).profileIds)
+            store.answerSameMachine("p1", "p2", same = true)
+            assertEquals(listOf(SameMachineAnswer("p1", "p2", true)), data.data.first().sameMachine)
+            assertEquals(setOf("p1", "p2"), store.servers().serverOf(other).profileIds)
+        }
+    }
+
+    @Test
+    fun `deleting a profile takes its answers with it`() = runTest {
+        withData { data ->
+            val store = SkiffCodeStore(data)
+            store.upsertProfile(home)
+            store.upsertProfile(other)
+            store.answerSameMachine("p1", "p2", same = true)
+            store.answerSameMachine("p1", "p3", same = false)
+            store.deleteProfile("p2")
+            assertEquals(listOf(SameMachineAnswer("p1", "p3", false)), data.data.first().sameMachine)
+        }
+    }
+
+    @Test
+    fun `resetting the profiles takes every answer with them, and nothing else does`() = runTest {
+        withData { data ->
+            val store = SkiffCodeStore(data)
+            store.upsertProfile(home)
+            store.answerSameMachine("p1", "p2", same = true)
+            store.reset(profiles = false, knownHosts = true, projects = true, recentFiles = true)
+            assertEquals(1, data.data.first().sameMachine.size)
+            store.reset(profiles = true, knownHosts = false, projects = true, recentFiles = false)
+            assertEquals(emptyList<SameMachineAnswer>(), data.data.first().sameMachine)
+        }
+    }
+
+    @Test
+    fun `an import that moves a profile to another address drops its answers, and one that does not keeps them`() = runTest {
+        withData { data ->
+            val store = SkiffCodeStore(data)
+            store.upsertProfile(home)
+            store.upsertProfile(other)
+            store.answerSameMachine("p1", "p2", same = true)
+
+            // The same address, its case aside, with a new start path and user: still about this address.
+            store.importFromSkiff(listOf(shared.copy(host = "192.0.2.10", username = "bob")), emptyList())
+            assertEquals(1, data.data.first().sameMachine.size)
+
+            store.importFromSkiff(listOf(shared.copy(port = 2222)), emptyList())
+            assertEquals(emptyList<SameMachineAnswer>(), data.data.first().sameMachine)
+        }
+    }
 }

@@ -43,10 +43,10 @@ class FolderTest {
     }
 
     @Test
-    fun `a file beside keeps the host key, so it is the same file as when a link opens it`() {
-        val folder = Folder.of(fs, OpenRequest.Remote(server, "/srv/app/main.py", OpenAt(), hostKey = "SHA256:same-key"))!!
+    fun `a file beside keeps the server, so it is the same file as when a link opens it`() {
+        val folder = Folder.of(fs, OpenRequest.Remote(server, "/srv/app/main.py", OpenAt(), server = "key:SHA256:same-key:one"))!!
 
-        assertEquals("SHA256:same-key", (folder.request("util.py") as OpenRequest.Remote).hostKey)
+        assertEquals("key:SHA256:same-key:one", (folder.request("util.py") as OpenRequest.Remote).server)
     }
 
     @Test

@@ -61,11 +61,11 @@ class ProjectStoreTest {
             val demo = store.add("p1", "/home/alice/demo")
             store.add("p2", "/home/alice/other")
 
-            assertEquals(demo, store.containing("p1", "/home/alice/demo"))
-            assertEquals(demo, store.containing("p1", "/home/alice/demo/src/deep"))
-            assertNull(store.containing("p2", "/home/alice/demo/src"))
-            assertNull(store.containing("p1", "/home/alice/demo2"))
-            assertNull(store.containing("p1", "/home/alice"))
+            assertEquals(demo, store.containing(setOf("p1"), "/home/alice/demo"))
+            assertEquals(demo, store.containing(setOf("p1"), "/home/alice/demo/src/deep"))
+            assertNull(store.containing(setOf("p2"), "/home/alice/demo/src"))
+            assertNull(store.containing(setOf("p1"), "/home/alice/demo2"))
+            assertNull(store.containing(setOf("p1"), "/home/alice"))
         }
     }
 
@@ -78,7 +78,7 @@ class ProjectStoreTest {
             store.remove(removed.id)
 
             assertNull(store.byId(removed.id))
-            assertNull(store.containing("p1", "/home/alice/demo/src"))
+            assertNull(store.containing(setOf("p1"), "/home/alice/demo/src"))
         }
         withStore { assertEquals(listOf(kept), it.projects.first()) }
     }
@@ -89,8 +89,37 @@ class ProjectStoreTest {
             store.add("p1", "/home/alice")
             val inner = store.add("p1", "/home/alice/demo")
 
-            assertEquals(inner, store.containing("p1", "/home/alice/demo/src"))
-            assertEquals("/home/alice", store.containing("p1", "/home/alice/notes")?.root)
+            assertEquals(inner, store.containing(setOf("p1"), "/home/alice/demo/src"))
+            assertEquals("/home/alice", store.containing(setOf("p1"), "/home/alice/notes")?.root)
+        }
+    }
+
+    @Test
+    fun `a repository made a project through one address is found through another of its server`() = runTest {
+        withStore { store ->
+            val demo = store.add("domain", "/home/alice/demo")
+            store.add("container", "/home/alice/other")
+
+            assertEquals(demo, store.containing(setOf("domain", "tailnet"), "/home/alice/demo/src"))
+            assertEquals(demo, store.containing(setOf("tailnet", "domain"), "/home/alice/demo"))
+            // A profile of another server, or one not said to be the same machine, finds nothing.
+            assertNull(store.containing(setOf("tailnet"), "/home/alice/demo/src"))
+            assertNull(store.containing(setOf("container"), "/home/alice/demo/src"))
+        }
+    }
+
+    @Test
+    fun `of the server's profiles, nested roots match the deepest and one root the first made`() = runTest {
+        withStore { store ->
+            store.add("domain", "/home/alice")
+            val inner = store.add("tailnet", "/home/alice/demo")
+            // Made apart before the two were said to be one machine.
+            val again = store.add("domain", "/home/alice/demo")
+
+            val server = setOf("domain", "tailnet")
+            assertEquals(inner, store.containing(server, "/home/alice/demo/src"))
+            assertEquals(again, store.containing(setOf("domain"), "/home/alice/demo/src"))
+            assertEquals("/home/alice", store.containing(server, "/home/alice/notes")?.root)
         }
     }
 }

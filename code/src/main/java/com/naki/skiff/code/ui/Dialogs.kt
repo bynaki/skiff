@@ -90,6 +90,18 @@ suspend fun Activity.askCreateProject(root: String): Boolean =
         setNegativeButton(R.string.action_open_file_only) { _, _ -> finish(false) }
     }
 
+/**
+ * Whether [mine] and [theirs], two saved profiles that showed the same host key, are one machine.
+ * Null is backed out of, which the open flow takes as two machines this time only.
+ */
+suspend fun Activity.askSameMachine(mine: String, theirs: String): Boolean? =
+    await(null) { finish ->
+        setTitle(R.string.same_machine_title)
+        setMessage(getString(R.string.same_machine_body, mine, theirs))
+        setPositiveButton(R.string.action_same_machine) { _, _ -> finish(true) }
+        setNegativeButton(R.string.action_other_machine) { _, _ -> finish(false) }
+    }
+
 /** One line of text, started at [value]. Null is "cancel". */
 suspend fun Activity.askText(title: String, message: String, value: String, action: String): String? {
     val form = Form(this)

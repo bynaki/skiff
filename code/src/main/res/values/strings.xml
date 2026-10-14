@@ -49,6 +49,10 @@
     <string name="project_ask_body">This file is in a git repository:\n\n%1$s\n\nAs a project, the repository opens with git and language servers.</string>
     <string name="action_create_project">Create project</string>
     <string name="action_open_file_only">Open file only</string>
+    <string name="same_machine_title">Same server?</string>
+    <string name="same_machine_body">These two have the same host key:\n\n%1$s\n\n%2$s\n\nIf they are one machine, files and projects opened through either are kept as one. Containers or virtual machines made from one image can share a key; choose Another server for those.</string>
+    <string name="action_same_machine">Same server</string>
+    <string name="action_other_machine">Another server</string>
     <string name="project_no_exec">This account cannot run commands on the server, so %1$s opens without git and language servers.</string>
     <string name="project_no_git">git is not installed on the server, so %1$s opens without git.</string>
     <string name="project_unchecked">Could not check whether the server runs git (%2$s), so %1$s opens without git for now.</string>

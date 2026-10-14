@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.util.Log
 import com.naki.skiff.code.R
 import com.naki.skiff.code.SkiffCodeContainer
+import com.naki.skiff.code.data.Server
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.doc.SaveTarget
 import com.naki.skiff.code.doc.Stamp
@@ -234,12 +235,12 @@ class OpenFlow(
                 node == null -> fail(R.string.error_open, describe(FsError.NotFound(request.path)))
                 node.navigable -> fail(R.string.error_open, activity.getString(R.string.error_is_directory, request.path))
                 else -> {
-                    val activated = activateProject(fs, profile, request.path)
-                    val result = loader.load(fs, request.path)
                     // The `stat` above got past the host key gate, which keeps every key it lets
-                    // through, so this is the key of the machine that answered.
-                    val hostKey = container.store.knownHost(profile.host, profile.port)?.fingerprint
-                    val opened = request.copy(profile = profile, hostKey = hostKey)
+                    // through, so the key on record is the one of the machine that answered.
+                    val server = serverOf(profile)
+                    val activated = activateProject(fs, profile, server, request.path)
+                    val result = loader.load(fs, request.path)
+                    val opened = request.copy(profile = profile, server = server.key)
                     Opened(
                         link, node.name, opened, result, request.at,
                         // The same filesystem the file was read through: `stat` goes over the browse
@@ -262,13 +263,15 @@ class OpenFlow(
      * Nothing here stops the file opening. A project that cannot be found or checked leaves it opening
      * as a single file, or as a project without git, which is how it would have opened anyway.
      */
-    private suspend fun activateProject(fs: FileSystem, profile: ServerProfile, path: String): Activated? {
+    private suspend fun activateProject(fs: FileSystem, profile: ServerProfile, server: Server, path: String): Activated? {
         // A profile held only in memory is gone when the app restarts, and the project with it.
         if (container.store.profiles.first().none { it.id == profile.id }) return null
         val file = try {
             // Canonical, as the roots are: a link's path may go through a symlink the root does not.
             val dir = fs.canonicalize(FsPath.parent(path))
-            val project = container.projects.containing(profile.id, dir)
+            // Any of the server's profiles: a repository opened by another of its addresses is the
+            // project it already is (docs/skiffcode.spec/open-flow.md, "같은 서버의 다른 주소").
+            val project = container.projects.containing(server.profileIds, dir)
                 ?: GitScopeFinder.find(fs, path)
                     ?.takeIf { activity.askCreateProject(it) }
                     ?.let { container.projects.add(profile.id, it) }
@@ -285,7 +288,10 @@ class OpenFlow(
             return null
         }
         val project = file.project
-        val session = container.projectSessions.get(project, profile)
+        // Through the profile that made the project, whichever address opened the file: another one
+        // would replace the session, and the language servers with it (2026-10-13 사용자 결정).
+        val owner = container.store.profiles.first().firstOrNull { it.id == project.profileId } ?: profile
+        val session = container.projectSessions.get(project, owner)
         // Told once per process: every file opened in the project would otherwise say it again.
         if (session.git != null) return Activated(file, null)
         val git = try {
@@ -304,6 +310,26 @@ class OpenFlow(
         }
         return Activated(file, notice)
     }
+
+    /**
+     * The server [profile] reaches, once the user has said, for each group of saved profiles that
+     * showed the same host key and has no answer about it yet, whether it is the same machine
+     * (`docs/skiffcode.spec/open-flow.md`, "같은 서버의 다른 주소"). Asked again after each answer, since
+     * joining one group can settle the next. A question backed out of leaves that group apart this
+     * time, and is asked again on the next open.
+     */
+    private suspend fun serverOf(profile: ServerProfile): Server {
+        val store = container.store
+        val skipped = HashSet<String>()
+        while (true) {
+            val other = store.servers().toAsk(profile).firstOrNull { it.id !in skipped } ?: break
+            val same = activity.askSameMachine(addressOf(profile), addressOf(other))
+            if (same == null) skipped += other.id else store.answerSameMachine(profile.id, other.id, same)
+        }
+        return store.servers().serverOf(profile)
+    }
+
+    private fun addressOf(profile: ServerProfile) = "${profile.name}\n${profile.username}@${profile.host}:${profile.port}"
 
     /** Asks for a password and stores it, in the saved profile too when there is one. Null is "cancel". */
     private suspend fun withNewPassword(profile: ServerProfile, retry: Boolean): ServerProfile? {

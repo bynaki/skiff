@@ -645,3 +645,48 @@
   - 3버튼으로 바꾸는 것은 탭에서만, 확인이 끝나면 곧바로 제스처로 되돌린다(`settings get`으로 되돌린 값을 본다).
   - 탭 3버튼(2026-10-12): `cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`으로 바꿨다(`navigation_mode` 0). 뒤로 버튼(오른쪽 아래)이 전 화면(readme.md 100 → hello.py), 앞 화면만 남았을 때 한 번 더 누르면 그대로, 팔레트 `Go Forward`로 readme.md 100. 되돌린 값을 처음 읽어 둔 것과 맞춰 봤다(`navigation_mode` 2, 제스처 오버레이, `navigation_bar_gesture_while_hidden` 1). 오버레이를 바꿀 때마다 액티비티가 다시 만들어져, 열린 파일이 없으면 마지막 링크가 다시 확인 창을 띄웠다 — `AGENTS.md`가 말하는, 처리하지 않는 설정 변경의 기존 동작이다.
   - 폴드8(2026-10-12, Wi-Fi 무선 디버깅, `navigation_mode` 2): 로컬 파일 `near2mb.ts`(5000줄)와 `hello.md` 사이에서 펼친 화면·커버 화면(`device_state state 0`) 모두 오른쪽 가장자리 → 전 화면, 왼쪽 → 앞 화면, 두 번씩. 커버 화면에서 사이드바를 연 채 오른쪽에서 밀면 사이드바만 닫혔다. 끝나고 `state reset`, 화면 꺼짐 300000, Claude 앱을 앞으로 되돌렸다.
+
+### F2. 같은 서버의 프로젝트는 하나 (fix: 02)
+
+읽을 spec: [`open-flow.md`](skiffcode.spec/open-flow.md)("같은 서버의 다른 주소"). 열린 파일이 같은 파일을 가리는 것은 [`document-io.md`](skiffcode.spec/document-io.md)의 그 항목만, 지우는 것은 [`reset-data.md`](skiffcode.spec/reset-data.md)의 "서버 프로필" 줄만.
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "fix: 02". 사용자 결정: 프로젝트의 git·LSP는 만든 프로필로만 접속하고, 이미 있는 중복은 손으로 지운다(2026-10-13). 호스트 키가 같은 다른 기계(같은 이미지의 Docker 컨테이너)를 가를 길을 더한다(2026-10-14).
+
+원인(코드로 확인): `ProjectStore.containing`이 `profileId`가 같은 프로젝트만 찾는다. 한 서버를 세 주소로 열면 프로필이 셋이라 같은 레포가 주소마다 "프로젝트 만들기"를 다시 묻고, 만들면 사이드바에 하나씩 는다. 열린 파일은 M4에서 이미 호스트 키로 가리므로(`keyOf`) 파일은 하나로 열리고 있었다 — 대신 키가 같은 다른 기계의 파일도 하나로 합쳐졌다.
+
+**성공 조건**
+
+- ✅ (2026-10-14, `SameServerTest` 12개, `SkiffCodeStoreTest` +5, `ProjectStoreTest` +2, `OpenDocumentsTest`·`FolderTest`, 린트 경고 11 그대로) JVM: 서버 무리 — 지문이 같고 "같은 서버"로 이어진 프로필이 한 무리, 지문이 없거나 저장하지 않은 프로필은 혼자, 대표는 store 목록에서 먼저인 것, 물을 것은 답이 없는 무리마다 하나, "다른 서버"로 답한 무리는 다시 묻지 않음. store — 답을 남기고, Reset Data의 프로필과 함께 지우고, `importFromSkiff`가 주소를 바꾼 프로필의 답을 뺀다. `containing` — 무리의 어느 프로필의 프로젝트든 찾고, 가장 깊은 루트, 같은 루트면 먼저 만든 것. `keyOf` — 같은 무리의 두 주소는 한 파일, 다른 무리는 같은 지문·같은 경로라도 두 파일. `:code` 린트에 새 경고가 없다.
+- ✅ (탭, 2026-10-14, LAN 주소와 테일스케일 이름의 두 프로필) 탭에서 이 맥을 두 주소로(테일스케일 주소와 LAN 주소, 호스트 키가 같다): 두 번째 주소로 처음 열 때 한 번 묻고, `같은 서버`라 답하면 같은 레포의 다른 파일이 "프로젝트 만들기" 없이 그 프로젝트로 열린다. 사이드바의 프로젝트가 하나이고 그 파일 자리로 펼쳐지며 git 거터가 보인다. 같은 파일은 열린 파일 하나로 간다. 다시 열면 묻지 않는다.
+- ✅ (탭, 2026-10-14) 탭: 두 번째 주소로 열어도 LSP 프로세스 id가 그대로다(이 맥의 `pgrep`). 정의로 이동이 된다.
+- ✅ (탭, 2026-10-14) 탭: 같은 이미지(키를 빌드 때 만든)의 Docker 컨테이너 둘에 같은 경로의 레포를 두고 연다. 두 번째에서 묻고, `다른 서버`라 답하면 프로젝트와 열린 파일이 따로다. 다시 열면 묻지 않는다. 뒤로 가기로 닫으면 따로 열리고 다음에 다시 묻는다.
+- ✅ (탭, 2026-10-14) 탭: `Reset Data…`에서 서버 프로필을 지우면 답도 지워진다(프로필을 다시 만들면 다시 묻는다).
+- ✅ (폴드8, 2026-10-14, 사용자가 손으로) 폴드8에서 사용자가: 이미 있던 중복을 사이드바에서 지운 뒤 실제 서버를 세 주소로 열어, 묻는 창에 `같은 서버`라 답하고 프로젝트가 하나다. 파일은 열기만 하고 저장하지 않는다.
+
+- [x] 같은 서버 무리: 순수 함수와 store
+  - 순수 함수(새 파일, 예: `data/SameServer.kt`): 프로필 목록(순서 그대로), 프로필의 지문(`host:port`로 `knownHosts`, `SkiffCodeStore.knownHost`처럼 그대로 비교), 답 목록을 받아 — 프로필 하나의 무리(대표 id, 이름 = 지문과 대표 id, 구성원 id)와, 그 프로필이 물어야 할 무리들(각 무리의 대표)을 낸다. "같은 서버" 답은 무리를 잇고, "다른 서버" 답은 그 무리 전체와 갈린 것으로 본다.
+  - store: `SkiffCodeData`에 답 목록(프로필 id 둘과 같은지)을 더한다. 기본값이 빈 목록이라 옛 JSON도 읽힌다. 답 쓰기, `reset`의 프로필 항목에서 함께 지우기, `importFromSkiff`가 `host`·`port`를 바꾼 프로필의 답 빼기.
+  - 테스트: 순수 함수(두 주소 같음, 세 주소에서 무리로 한 번, 다른 서버 둘, 지문 없음, 저장 안 한 프로필, 대표가 안 바뀜), `SkiffCodeStoreTest`(옛 JSON, reset, import).
+  - 한 것(2026-10-14): `data/SameServer.kt`의 `SameMachineAnswer`, `Server`(이름 `key:<지문>:<대표 id>`, 혼자면 `profile:<id>`), `ServerGroups`(`serverOf`, `toAsk`). 무리는 "같은 서버" 답으로만 잇고, 지금 지문이 다른 프로필 사이의 옛 "같은 서버" 답은 잇지 않는다. store: `SkiffCodeData.sameMachine`, `servers()`, `answerSameMachine`(같은 짝의 옛 답을 바꾼다), `deleteProfile`도 그 프로필의 답을 뺀다(지워진 프로필의 답이 남지 않게, spec에도 적었다). `importFromSkiff`는 `host`(대소문자 무시)나 `port`가 바뀐 프로필의 답을 뺀다.
+  - 테스트: `SameServerTest` 12개, `SkiffCodeStoreTest` +5(20개). JVM `:code` 306, `:core` 38, `:app` 32, vitest 176, `:code` 린트 경고 11(기준과 같다).
+- [x] 묻기와 열린 파일
+  - `OpenFlow.openRemote`: `stat`이 지난 뒤, 파일을 읽기 전에 물을 무리마다 네이티브 창(`Dialogs.kt`, 문구는 한국어·영어). 답을 store에 남긴다. 뒤로 가기는 이번만 `다른 서버`.
+  - `OpenRequest.Remote.hostKey`를 서버 이름(무리의 이름, 저장 안 한 프로필은 프로필 id)으로 바꾸고 `keyOf`가 그것을 쓴다. `MainActivity`가 팔레트 파일 모드에서 키를 만드는 곳(`knownHost(...)`로 지문을 읽는 곳)도 같은 함수를 거친다.
+  - 테스트: `OpenDocumentsTest`의 `keyOf`(같은 무리·다른 무리·저장 안 한 프로필).
+  - 한 것(2026-10-14): `OpenFlow.serverOf`가 `stat` 뒤에 물을 무리를 하나씩 묻고(답할 때마다 다시 계산 — 한 무리에 들면 다음 무리가 정해질 수 있다), 뒤로 가기로 닫은 무리는 이번 열기에서만 건너뛴다. 창은 `Dialogs.askSameMachine`, 두 프로필을 이름과 `user@host:port`로 보인다. `OpenRequest.Remote.hostKey` → `server`, `keyOf`는 `remote:<server 또는 profile:<id>>:<경로>`. 팔레트 파일 모드도 `servers().serverOf`를 거친다. 기기 확인은 마지막 항목에서 한다.
+  - 테스트: `OpenDocumentsTest`(같다고 답한 두 주소는 한 파일, 같은 키라도 아직 안 물었거나 다르다고 답한 둘은 두 파일, 이름 없으면 프로필), `FolderTest`(옆 파일이 서버 이름을 이어받음). JVM `:code` 307, `:code` 린트 경고 11.
+- [x] 같은 서버의 프로젝트를 찾기
+  - `ProjectStore.containing(profileIds: Set<String>, dir)`: 무리의 구성원 중 어느 프로필의 프로젝트든 후보. 가장 깊은 루트, 같은 깊이면 목록에서 먼저인 것(`maxByOrNull`는 처음 것을 낸다 — 테스트로 못 박는다).
+  - `OpenFlow.activateProject`: 찾은 것이 없을 때만 `GitScopeFinder`와 "프로젝트 만들기"로 간다. `add`는 그대로 연 프로필로 만든다.
+  - `ProjectSessions.get`에는 연 프로필이 아니라 **프로젝트의 프로필**을 넘긴다(`MainActivity.profileOf`와 같은 찾기). 프로젝트의 프로필이 없으면(지금은 Reset Data가 둘을 함께 지우므로 없을 일이 없다) 연 프로필로 간다.
+  - 테스트: `ProjectStoreTest`에 위 경우들.
+  - 한 것(2026-10-14): `containing(profileIds, dir)`, `OpenFlow.serverOf`가 `Server`를 내고 `activateProject`가 그 `profileIds`로 찾는다. 세션은 프로젝트의 프로필로(없으면 연 프로필).
+  - 테스트: `ProjectStoreTest` +2(다른 주소로 찾기, 무리 안에서 가장 깊은 것·같은 루트면 먼저 만든 것). JVM `:code` 309, `:core` 38, `:app` 32, vitest 176, 린트 경고 11.
+- [x] 확인: 탭과 폴드8
+  - 이 맥에 임시 git 레포와 pyright(M6, M8과 같은 방법). 탭에 이 맥의 프로필을 두 주소로 둔다. 확인이 끝나면 만든 프로필·프로젝트·답을 지우고 레포도 지운다.
+  - 키가 같은 다른 기계는 M5처럼 이 맥의 Docker로: `apt-get install openssh-server`를 빌드 때 하는 이미지 하나로 컨테이너 둘(다른 포트). 두 컨테이너의 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`가 같은지 먼저 본다. 확인 뒤 지우고, Dockerfile은 레포에 넣지 않는다.
+  - 폴드8은 사용자에게 손으로 해 달라고 한다: 사이드바에서 중복을 길게 눌러 지우기, 세 주소의 링크로 열고 묻는 창에 답하기.
+  - 탭(2026-10-14, USB, 이 맥의 임시 레포 `skiff-f2-check`와 pyright): 탭에 이미 있던 이 맥의 두 프로필(LAN 주소, 테일스케일 이름 — 지문이 같다)로. LAN 주소로 `main.py`를 열자 "같은 서버인가요?"가 떴고, 뒤로 가기로 닫으니 답이 저장되지 않고(`sameMachine` 없음) "프로젝트로 열까요?"로 넘어가 프로젝트를 만들었다(git 거터, pyright 하나). 테일스케일 이름으로 `pkg/util.py`를 열자 다시 물었고 `같은 서버` → "프로젝트 만들기" 없이 그 프로젝트로 열림, 프로젝트 레코드 하나, 사이드바에 하나이고 `pkg/util.py`로 펼쳐짐, pyright pid 그대로. 테일스케일 이름으로 `main.py`를 다시 열면 묻지 않고 LAN 주소로 열려 있던 그 파일로 갔다(열린 파일 둘). `main.py`의 `helper`에서 `Go to Definition` → `util.py` 1줄, pid 그대로.
+  - Docker(같은 날): `debian:13`에 `apt-get install openssh-server git`을 빌드 때 한 이미지로 컨테이너 둘(2231, 2232), 두 지문이 같음을 `ssh-keygen -lf`로 봤다. 같은 경로 `/home/tester/app`의 `main.py`를 컨테이너마다 다른 내용으로. 2231을 열어 프로젝트를 만들고, 2232에서 호스트키 창 뒤에 "같은 서버인가요?" → `다른 서버` → "프로젝트로 열까요?"가 따로 떠 프로젝트가 둘, 열린 파일도 둘(내용 one/two). 2231을 다시 열면 묻지 않고 그 파일로 갔다. `Reset Data…`의 서버 프로필 → `sameMachine` 비고 프로젝트도 비었다. 두 컨테이너를 다시 열자 다시 물었다.
+  - 폴드8(2026-10-14): 무선 디버깅이 닿지 않아 APK를 보내 사용자가 손으로 설치하고 실제 서버로 확인했다고 알려 왔다.
+  - 끝나고: 탭의 store를 확인 전 백업으로 되돌림(`cmp`로 같음), 화면 꺼짐 600000, 컨테이너·이미지·임시 레포 지움. 팔레트 최근 기록은 `localStorage`라 확인 중 쓴 것이 남았다.

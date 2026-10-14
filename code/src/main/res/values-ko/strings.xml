@@ -49,6 +49,10 @@
     <string name="project_ask_body">이 파일은 git 레포 안에 있습니다.\n\n%1$s\n\n프로젝트로 열면 레포를 git과 언어 서버와 함께 엽니다.</string>
     <string name="action_create_project">프로젝트 만들기</string>
     <string name="action_open_file_only">파일만 열기</string>
+    <string name="same_machine_title">같은 서버인가요?</string>
+    <string name="same_machine_body">두 주소의 호스트 키가 같습니다.\n\n%1$s\n\n%2$s\n\n같은 기계면 어느 주소로 열어도 파일과 프로젝트를 하나로 봅니다. 한 이미지로 만든 컨테이너나 가상 머신은 키가 같을 수 있으니, 그때는 다른 서버를 고르세요.</string>
+    <string name="action_same_machine">같은 서버</string>
+    <string name="action_other_machine">다른 서버</string>
     <string name="project_no_exec">이 계정은 서버에서 명령을 실행할 수 없어서 %1$s을(를) git과 언어 서버 없이 엽니다.</string>
     <string name="project_no_git">서버에 git이 없어서 %1$s을(를) git 없이 엽니다.</string>
     <string name="project_unchecked">서버가 git을 실행하는지 확인하지 못해서(%2$s) %1$s을(를) 일단 git 없이 엽니다.</string>

@@ -50,9 +50,15 @@ class ProjectStore(private val dataStore: DataStore<SkiffCodeData>) {
 
     suspend fun byId(id: String): Project? = projects.first().firstOrNull { it.id == id }
 
-    /** The project [dir] is in, the deepest one when roots nest. [dir] must be canonical. */
-    suspend fun containing(profileId: String, dir: String): Project? =
+    /**
+     * The project [dir] is in, made through any of [profileIds] — the profiles of one server
+     * ([com.naki.skiff.code.data.Server]), so a repository opened by another of its addresses is the
+     * project it already is. The deepest one when roots nest, and of two with one root, the one made
+     * first. [dir] must be canonical.
+     */
+    suspend fun containing(profileIds: Set<String>, dir: String): Project? =
         projects.first()
-            .filter { it.profileId == profileId && FsPath.isAncestorOrSame(it.root, dir) }
+            .filter { it.profileId in profileIds && FsPath.isAncestorOrSame(it.root, dir) }
+            // The first of the longest, as `maxByOrNull` keeps the first it met.
             .maxByOrNull { it.root.length }
 }

@@ -1,10 +1,13 @@
 package com.naki.skiff.code.ui
 
+import com.naki.skiff.code.data.SameMachineAnswer
+import com.naki.skiff.code.data.ServerGroups
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.WatchedFile
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.data.store.KnownHost
 import com.naki.skiff.data.store.ServerProfile
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -61,12 +64,14 @@ class OpenDocumentsTest {
     }
 
     @Test
-    fun `one server reached by two addresses is one file, because its host key is the same`() {
+    fun `one server reached by two addresses is one file, once they are said to be one machine`() {
         // A domain and a tailnet address resolve to two profiles, but the machine answering is one.
         val byName = ServerProfile(id = "name", name = "name", host = "host.example", username = "someone")
         val byAddress = ServerProfile(id = "address", name = "someone@192.0.2.10", host = "192.0.2.10", username = "other")
-        val first = OpenRequest.Remote(byName, "/srv/app.py", OpenAt(), hostKey = "SHA256:same-key")
-        val second = OpenRequest.Remote(byAddress, "/srv/app.py", OpenAt(line = 7), hostKey = "SHA256:same-key")
+        val keys = listOf(KnownHost("host.example", 22, "ssh-ed25519", "SHA256:same-key"), KnownHost("192.0.2.10", 22, "ssh-ed25519", "SHA256:same-key"))
+        val servers = ServerGroups(listOf(byName, byAddress), keys, listOf(SameMachineAnswer("address", "name", same = true)))
+        val first = OpenRequest.Remote(byName, "/srv/app.py", OpenAt(), servers.serverOf(byName).key)
+        val second = OpenRequest.Remote(byAddress, "/srv/app.py", OpenAt(line = 7), servers.serverOf(byAddress).key)
 
         assertEquals(keyOf(first), keyOf(second))
 
@@ -76,20 +81,35 @@ class OpenDocumentsTest {
     }
 
     @Test
-    fun `two host keys are two machines, whatever the profile`() {
+    fun `one host key on machines said to be apart, or not yet asked about, is two files`() {
+        // Two containers from one image, which made its key when it was built.
+        val one = ServerProfile(id = "one", name = "one", host = "192.0.2.20", port = 2201, username = "root")
+        val two = ServerProfile(id = "two", name = "two", host = "192.0.2.20", port = 2202, username = "root")
+        val keys = listOf(KnownHost("192.0.2.20", 2201, "ssh-ed25519", "SHA256:baked"), KnownHost("192.0.2.20", 2202, "ssh-ed25519", "SHA256:baked"))
+        for (answers in listOf(emptyList(), listOf(SameMachineAnswer("two", "one", same = false)))) {
+            val servers = ServerGroups(listOf(one, two), keys, answers)
+            assertFalse(
+                keyOf(OpenRequest.Remote(one, "/root/app/main.py", OpenAt(), servers.serverOf(one).key)) ==
+                    keyOf(OpenRequest.Remote(two, "/root/app/main.py", OpenAt(), servers.serverOf(two).key)),
+            )
+        }
+    }
+
+    @Test
+    fun `two servers are two files, whatever the profile`() {
         val server = ServerProfile(id = "one", name = "one", host = "192.0.2.10", username = "someone")
 
         assertFalse(
-            keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), hostKey = "SHA256:one-key")) ==
-                keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), hostKey = "SHA256:other-key")),
+            keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), server = "key:SHA256:one-key:one")) ==
+                keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt(), server = "key:SHA256:other-key:one")),
         )
     }
 
     @Test
-    fun `without a host key the profile says which server it is`() {
+    fun `without a server named the profile says which server it is`() {
         val server = ServerProfile(id = "one", name = "one", host = "192.0.2.10", username = "someone")
 
-        assertEquals("remote:one:/srv/app.py", keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt())))
+        assertEquals("remote:profile:one:/srv/app.py", keyOf(OpenRequest.Remote(server, "/srv/app.py", OpenAt())))
     }
 
     @Test

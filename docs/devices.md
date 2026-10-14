@@ -64,7 +64,8 @@
   가린다. `keycombination`은 키보드의 키가 지나는 시스템 입력 경로를 탄다.
 - **viewer 레이어는 포커스를 받지 않아 F12 같은 키가 닿지 않는다.** 그때 명령은 팔레트를 DOM으로 돌린다:
   `#palette button.mode`를 `.click()`해 열고, 입력에 이름을 넣어 `input` 이벤트를 보낸 뒤, `.results li` 중
-  이름이 같은 것을 `.click()`. 커서는 `view.dispatch({selection})`로 옮긴다. `Ctrl+O`/`Ctrl+I`는
+  이름이 같은 것을 `.click()`(명령 모드에서는 `>` 없이 이름만). 커서는 `view.dispatch({selection})`로 옮긴다 — `view`는
+  `document.querySelector('.cm-content').cmTile.view`다(지금의 CodeMirror에는 `cmView`가 없다, 2026-10-14). `Ctrl+O`/`Ctrl+I`는
   Kotlin이 받는다(위 항목).
 - **페이지가 다시 그려지기 전에 끼어드는 경합은 `requestAnimationFrame`을 늦춰 만든다.** DevTools에서
   `window.requestAnimationFrame`을 `setTimeout(…, 300)`을 거치게 바꾸고 1.5초 뒤 되돌리면, CodeMirror의 첫 측정보다
