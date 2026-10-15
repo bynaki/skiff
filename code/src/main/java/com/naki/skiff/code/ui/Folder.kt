@@ -16,7 +16,8 @@ import com.naki.skiff.link.SkiffCodeLink
  */
 class Folder private constructor(private val fs: FileSystem, private val request: OpenRequest) {
 
-    private val file: String = when (request) {
+    /** The open file's own path. */
+    val file: String = when (request) {
         is OpenRequest.LocalPath -> request.path
         is OpenRequest.Remote -> request.path
         else -> throw IllegalArgumentException("${request.javaClass.simpleName} is not a file in a directory")
@@ -39,6 +40,17 @@ class Folder private constructor(private val fs: FileSystem, private val request
             is OpenRequest.Remote -> request.copy(path = path, at = OpenAt())
             else -> null
         }
+    }
+
+    /**
+     * The file at [path] on the same server, through the same profile, or the device for a local
+     * file. Unlike [request] it may be anywhere: it is for a markdown link the user tapped, which
+     * opens wherever it points (docs/skiffcode.spec/markdown-links.md), and the path has been
+     * resolved against this file by [com.naki.skiff.code.intent.MarkdownLink], not sent by the page.
+     */
+    fun requestAt(path: String, at: OpenAt): OpenRequest = when (request) {
+        is OpenRequest.Remote -> request.copy(path = path, at = at)
+        else -> OpenRequest.LocalPath(path, at)
     }
 
     /**

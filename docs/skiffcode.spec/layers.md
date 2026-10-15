@@ -9,7 +9,7 @@
   - 읽기 전용 CM6에 하이라이팅, 줄 번호, git 거터를 보여준다.
   - **문법은 이름으로 고른다** — `LanguageDescription.matchFilename`이 `Makefile` 같은 이름과 확장자를 함께 안다. 내용은 보지 않는다.
     - **`.jsonl`은 language-data가 모른다**(JSON 항목이 `json`과 `map`만 claim한다). 한 줄에 하나씩 든 JSON이라 같은 문법이 맞고, 이름의 끝 `l`을 떼어 JSON 항목이 답하게 한다(2026-09-23 사용자 요청). 문서 전체로는 값이 여러 개라 파서가 오류를 내지만 **줄바꿈마다 복구해서 모든 줄이 그대로 강조된다**(파서를 직접 돌려 확인: 3줄 중 3줄이 Object, 최상위 오류 노드 2개). 뷰어에 JSON 린터가 없어 그 오류가 화면으로 새지도 않는다.
-  - 마크다운은 `markdown-it`(`html: false`)으로 렌더링하고 테마를 적용한다.
+  - 마크다운은 `markdown-it`(`html: false`)으로 렌더링하고 테마를 적용한다. 링크를 탭하면 여는 것은 [마크다운 문서 링크](markdown-links.md).
   - 스크롤과 확대/축소를 가장 먼저 잘 만든다. 핀치 줌은 CSS 변수 `--code-font-size`를 바꾸고, 손가락 사이의 줄이 제자리에 있게 한다.
   - 줌 중심 줄 고정은 CM6의 `EditorView.scrollIntoView(pos, {y: 'start', yMargin})` 효과로 한다. CM6가 줄 높이를 다시 잰 뒤 적용하기 때문이다. `requestMeasure`에서 `scrollTop`을 직접 쓰면 CM6의 스크롤 앵커와 싸워서 수만 px씩 어긋난다(M0에서 확인).
 - **editor:**

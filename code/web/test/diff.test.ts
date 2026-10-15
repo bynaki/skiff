@@ -20,6 +20,11 @@ describe('③', () => {
     expect(nextLayer('diff', true)).toBe('viewer')
   })
 
+  test('leaves a read-only document in the viewer', () => {
+    expect(nextLayer('viewer', true, true)).toBe('viewer')
+    expect(nextLayer('viewer', false, true)).toBe('viewer')
+  })
+
   test('passes the diff layer over while there is nothing to compare with', () => {
     expect(nextLayer('viewer', false)).toBe('editor')
     expect(nextLayer('editor', false)).toBe('viewer')

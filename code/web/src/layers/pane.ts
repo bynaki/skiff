@@ -50,6 +50,10 @@ export interface TextDocument {
   col?: number
   /** From a link's `?layer=`. */
   layer?: LayerName
+  /** A heading a markdown link named after `#`, decoded, which the line is found from. */
+  anchor?: string
+  /** A markdown file read from the web: the viewer only, with nowhere to save an edit to. */
+  readOnly?: boolean
   /** The project's language server for this file, when it has one. */
   lsp?: LspTarget
 }
@@ -126,8 +130,12 @@ const BUNDLES: Record<LayerName, Extension> = {
   diff: reading,
 }
 
-/** Where ③ goes from [layer]: the viewer, the editor, then the diff layer when there is something to compare with. */
-export function nextLayer(layer: LayerName, comparable: boolean): LayerName {
+/**
+ * Where ③ goes from [layer]: the viewer, the editor, then the diff layer when there is something to
+ * compare with. A [readOnly] document stays in the viewer (docs/skiffcode.spec/markdown-links.md).
+ */
+export function nextLayer(layer: LayerName, comparable: boolean, readOnly = false): LayerName {
+  if (readOnly) return 'viewer'
   if (layer === 'viewer') return 'editor'
   return layer === 'editor' && comparable ? 'diff' : 'viewer'
 }
@@ -145,6 +153,8 @@ export interface PaneMemory {
   compare: CompareTo
   /** The file's language server, which Kotlin named only when the file was first read. */
   lsp?: LspTarget
+  /** Whether the file stays in the viewer; see [TextDocument.readOnly]. */
+  readOnly?: boolean
 }
 
 export interface Pane {
@@ -175,6 +185,12 @@ export interface Pane {
   goToLine(line: number, col?: number): void
   /** The source line at the top of the screen, whichever surface is showing: where a jump leaves from. */
   topLine(): number
+  /**
+   * The source line of the heading a markdown link's `#fragment` names, or the first line when no
+   * heading has that name — the link was followed, to a heading that is gone. Null for a file that
+   * is not markdown, which has no headings to go to.
+   */
+  headingLine(fragment: string): number | null
   /** Whether the file has a language server that may be asked about it, and a code view to ask from. */
   readonly lsp: boolean
   /** Asks the language server where what is at the cursor is defined, and goes there. */
@@ -423,6 +439,8 @@ export function openPane(
   }
 
   function setLayer(next: LayerName): void {
+    // Show Editor, a link's `?layer=`: nothing takes a read-only document out of the viewer.
+    if (doc.readOnly && next !== 'viewer') return
     wantDiff = next === 'diff' && original() === undefined
     if (next === layer) return
     if (next === 'diff' && typeof original() !== 'string') return
@@ -469,6 +487,10 @@ export function openPane(
     scrollViewToLine(view, line)
   }
 
+  function headingLine(fragment: string): number | null {
+    return markdown ? (markdown.headingLine(fragment) ?? 1) : null
+  }
+
   function goToLine(line: number, col?: number): void {
     // The rendered markdown has no cursor; the editor's is put there when the view is.
     if (view) placeCursor(view, line, col)
@@ -483,7 +505,7 @@ export function openPane(
 
   // A file coming back shows the layer and the line it left; one being opened shows the layer and
   // the line a link asked for, with the cursor there.
-  const startLine = memory?.line ?? doc.line
+  const startLine = memory?.line ?? doc.line ?? (doc.anchor !== undefined ? headingLine(doc.anchor) : null)
   if (markdown && layer === 'viewer') {
     if (startLine) markdown.scrollToLine(startLine)
   } else {
@@ -528,11 +550,12 @@ export function openPane(
     // The same annotation a change from outside carries, and for the same reason: the buffer and
     // the file agree again, so nothing here has been typed since.
     saved: () => view?.dispatch({ annotations: External.of(true) }),
-    toggle: () => setLayer(nextLayer(layer, typeof original() === 'string')),
+    toggle: () => setLayer(nextLayer(layer, typeof original() === 'string', doc.readOnly)),
     show: setLayer,
     undo: () => void (view && undo(view)),
     redo: () => void (view && redo(view)),
     goToLine,
+    headingLine,
     topLine,
     get lsp() {
       return !!doc.lsp && lspAvailable(doc.lsp) && codeView() !== null
@@ -575,7 +598,7 @@ export function openPane(
       window.removeEventListener('resize', keepCaretVisible)
       uninstallPinchZoom()
       // Read while both surfaces are still on screen, since this is where the file comes back to.
-      const memory: PaneMemory = { state: view?.state ?? null, source, layer, line: topLine(), compare, lsp: doc.lsp }
+      const memory: PaneMemory = { state: view?.state ?? null, source, layer, line: topLine(), compare, lsp: doc.lsp, readOnly: doc.readOnly }
       if (memory.state) memory.source = memory.state.doc.toString()
       view?.destroy()
       markdown?.remove()

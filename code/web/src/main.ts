@@ -23,13 +23,14 @@ import { type DocSymbol, createProjectSearch, outlineOf, projectItems, symbols }
 import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
+import { setLinkHooks } from './markdown'
 import { type Settings, showSettings } from './settings'
 import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
   | { state: 'empty'; message: string }
-  | { state: 'text'; name: string; text: string; line?: number; col?: number; layer?: LayerName; lsp?: LspTarget }
+  | { state: 'text'; name: string; text: string; line?: number; col?: number; layer?: LayerName; anchor?: string; readOnly?: boolean; lsp?: LspTarget }
   | { state: 'refused'; name: string; title: string; message: string }
 
 /** What the file did while it was open, from Kotlin's `FileWatcher`, and which file it was. */
@@ -401,9 +402,15 @@ function dirtyInBackground(id: number): boolean {
  * Brings the page to what Kotlin says is open. Everything that changes the list goes through here,
  * whoever started it, so there is one way the page arrives at a state. [goToLine] and [layer] come
  * with a link that named a file which was already open, since that file keeps the buffer it has
- * rather than being read again.
+ * rather than being read again. [anchor] is a markdown link's `#heading` in such a file, which only
+ * this side can find the line of.
  */
-async function reconcile(goToLine?: number | null, col?: number | null, layer?: LayerName | null): Promise<void> {
+async function reconcile(
+  goToLine?: number | null,
+  col?: number | null,
+  layer?: LayerName | null,
+  anchor?: string | null,
+): Promise<void> {
   const { active, files } = await rpc<Documents>('documents')
   // What was open before and is not now has been closed, and a jump does not go back to it
   // (2026-10-11 사용자 결정).
@@ -447,9 +454,10 @@ async function reconcile(goToLine?: number | null, col?: number | null, layer?: 
   if (layer) showLayer(layer)
   // A line in the file already on the screen is a move within it, which is written down as one; a
   // file arriving has had the spot it left written above.
-  if (goToLine) {
-    if (switching) pane?.goToLine(goToLine, col ?? undefined)
-    else moveTo(goToLine, col ?? undefined)
+  const line = goToLine ?? (anchor != null ? pane?.headingLine(anchor) : null)
+  if (line) {
+    if (switching) pane?.goToLine(line, col ?? undefined)
+    else moveTo(line, col ?? undefined)
   }
   // A palette left open across a link would still offer what was beside the file before.
   paletteView.refresh()
@@ -495,6 +503,17 @@ function goForward(): void {
   reportNavigation()
 }
 
+// A link tapped in rendered markdown (docs/skiffcode.spec/markdown-links.md). A heading of the same
+// file is a move within it; anything else is Kotlin's to resolve against the file the link is in,
+// and a file it opens arrives through [reconcile], which writes the spot it leaves.
+setLinkHooks({
+  open: (href) => {
+    if (activeId === null) return
+    void rpc('openLink', { id: activeId, href }).catch((error) => console.log(`openLink: ${error}`))
+  },
+  heading: (line) => moveTo(line),
+})
+
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
 async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   const id = activeId
@@ -502,7 +521,7 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   // A file that has been on the screen is rebuilt from its own buffer, which may be ahead of the
   // text Kotlin holds. Anything else — the first look at a file, a refusal, nothing open — is asked.
   const doc: DocumentState = memory && file
-    ? { state: 'text', name: file.name, text: memory.source, lsp: memory.lsp }
+    ? { state: 'text', name: file.name, text: memory.source, lsp: memory.lsp, readOnly: memory.readOnly }
     : await rpc<DocumentState>('document', id === null ? {} : { id })
   banner.hide()
   // What it would choose for is the file leaving.
@@ -584,8 +603,8 @@ function notice(title: string | null, message: string): HTMLElement {
 // One at a time, in the order they were asked for: two of these overlapping would each close a pane
 // the other is still counting on.
 let queue: Promise<void> = Promise.resolve()
-const refresh = (goToLine?: number | null, col?: number | null, layer?: LayerName | null) => {
-  queue = queue.then(() => reconcile(goToLine, col, layer)).catch((error) => console.log(`documents: ${error}`))
+const refresh = (goToLine?: number | null, col?: number | null, layer?: LayerName | null, anchor?: string | null) => {
+  queue = queue.then(() => reconcile(goToLine, col, layer, anchor)).catch((error) => console.log(`documents: ${error}`))
 }
 
 /**
@@ -659,8 +678,8 @@ rpc<Labels>('labels').then((answer) => {
   moreMenu.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
-onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | null }>('documentsChanged', (params) => {
-  refresh(params?.goToLine, params?.col, params?.layer)
+onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | null; anchor?: string | null }>('documentsChanged', (params) => {
+  refresh(params?.goToLine, params?.col, params?.layer, params?.anchor)
   sidebar.changed()
 })
 // The system's back gesture, which Kotlin hands over only while [reportNavigation] said there was a

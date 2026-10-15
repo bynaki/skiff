@@ -42,6 +42,8 @@
     <string name="error_unreachable">Cannot reach %1$s.</string>
     <string name="error_host_key">The server\'s host key was not trusted.</string>
     <string name="error_network_lost">The connection was lost.</string>
+    <string name="error_web_status">%1$s answered %2$d.</string>
+    <string name="error_web_page">%1$s is a web page, not a markdown file.</string>
     <string name="error_local_network">Local network access was not allowed.</string>
     <string name="error_no_user">A user name is needed to connect.</string>
 

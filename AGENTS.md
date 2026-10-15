@@ -272,8 +272,15 @@ there opens without the question too, and the page names it by a project id and 
 that project's root. The palette's file mode in a project is the same widening: it sends a path
 relative to the root of the project the open file is in, through the same check.
 `ProjectTree.resolve` refuses empty segments (so a leading `/`), `.`, `..` and
-NUL rather than resolving them, which keeps it inside a root the user made a project of. Widening what
-the page may send any further — an absolute path, a directory outside a project — puts this back in
+NUL rather than resolving them, which keeps it inside a root the user made a project of.
+
+**A link tapped in rendered markdown is the widest so far** (user's decision, 2026-10-15): it opens
+any path on the same server, `..` and all, without the question. What still holds is that the page
+sends only an open file's id and the `href` as the document wrote it, and Kotlin resolves it against
+that file (`intent/MarkdownLink`, `Folder.requestAt`) — so the profile is that file's, and no link
+can choose another server or account. A `..` above `/` is refused rather than clamped. The rendered
+document cannot press a link itself: `html: false` and the CSP leave it no script. Widening what the
+page may send any further — a path not tied to an open file, another profile — puts this back in
 scope.
 
 **Identify the sender with `ComponentCaller`, never `getReferrer()`.** The caller fills in

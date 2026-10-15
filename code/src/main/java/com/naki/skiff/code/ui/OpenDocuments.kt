@@ -47,6 +47,8 @@ class OpenDocuments {
         val folder: Folder?,
         /** The project it opened in and where in it, which the sidebar unfolds to; null for a single file. */
         val project: ProjectFile? = null,
+        /** The address of a markdown file read from the web, which its own links are taken from; null for a file. */
+        val web: String? = null,
     ) {
 
         /**
@@ -107,8 +109,9 @@ class OpenDocuments {
         base: Stamp?,
         folder: Folder?,
         project: ProjectFile? = null,
+        web: String? = null,
     ): Entry {
-        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base, folder, project)
+        val entry = Entry(nextId++, key, name, where, state, watched, watcher, save, base, folder, project, web)
         entries.add(entry)
         active = entry
         return entry
@@ -162,6 +165,7 @@ fun keyOf(request: OpenRequest): String = when (request) {
     is OpenRequest.LocalPath -> "local:${request.path}"
     is OpenRequest.Content -> "content:${request.uri}"
     is OpenRequest.Remote -> "remote:${request.server ?: "profile:${request.profile.id}"}:${request.path}"
+    is OpenRequest.Web -> "web:${request.url}"
     // Neither reaches an opened file: UnknownServer becomes Remote once the user has agreed, and
     // Invalid never gets as far as reading one.
     is OpenRequest.UnknownServer -> "server:${request.user}@${request.host}:${request.port}:${request.path}"
@@ -175,5 +179,6 @@ fun whereOf(request: OpenRequest): String = when (request) {
     is OpenRequest.Remote ->
         "${request.profile.username}@${request.profile.host}:${request.profile.port}${request.path}"
     is OpenRequest.UnknownServer -> "${request.user}@${request.host}:${request.port}${request.path}"
+    is OpenRequest.Web -> request.url.substringAfter("://").substringBefore('?').substringBefore('#')
     is OpenRequest.Invalid -> request.reason
 }

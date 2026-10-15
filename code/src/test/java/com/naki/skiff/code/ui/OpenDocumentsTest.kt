@@ -53,6 +53,14 @@ class OpenDocumentsTest {
     }
 
     @Test
+    fun `a web document is one file per address, whatever heading the link named`() {
+        val url = "https://raw.githubusercontent.com/o/r/main/README.md"
+        assertEquals(keyOf(OpenRequest.Web(url, OpenAt())), keyOf(OpenRequest.Web(url, OpenAt(anchor = "usage"))))
+        assertFalse(keyOf(OpenRequest.Web(url, OpenAt())) == keyOf(OpenRequest.Web("$url?v=2", OpenAt())))
+        assertEquals("raw.githubusercontent.com/o/r/main/README.md", whereOf(OpenRequest.Web("$url?v=2#usage", OpenAt())))
+    }
+
+    @Test
     fun `the same path on two servers is two files`() {
         val one = ServerProfile(id = "one", name = "one", host = "192.0.2.10", username = "someone")
         val two = ServerProfile(id = "two", name = "two", host = "192.0.2.11", username = "someone")

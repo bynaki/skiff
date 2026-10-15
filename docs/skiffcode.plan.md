@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M8, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M9, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -19,43 +19,7 @@
 
 ## 할 일
 
-### M9. 마크다운 문서 링크 열기
-
-읽을 spec: [`markdown-links.md`](skiffcode.spec/markdown-links.md). 점프를 적는 곳은 [`jumps.md`](skiffcode.spec/jumps.md)의 "적는 때"만, 바꿀 보안 문장은 [`security.md`](skiffcode.spec/security.md)의 브리지 링크 두 줄만.
-
-원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "markdown 문서 링크 열기". 사용자 결정(2026-10-15): 상대 링크는 어디를 가리키든 묻지 않는다, 텍스트면 확장자와 상관없이 앱에서 연다, https `.md`는 읽기 전용이고 GitHub blob 주소는 raw로 바꾼다, 그 밖의 https는 지금처럼 기본 앱으로 바로.
-
-지금(코드로 확인): `markdown.ts`의 클릭 처리가 페이지 origin으로 풀리는 링크(상대 경로와 `#조각`)를 `preventDefault`만 하고 버린다. 나머지는 WebView가 이동하려다 `shouldOverrideUrlLoading` → `openExternally`로 간다.
-
-**성공 조건**
-
-- ⬜ JVM: 링크 해석 — 상대·하위·`../`·`/`(프로젝트는 루트, 단일 파일은 절대 경로)·퍼센트 인코딩·쿼리 버림·조각 유지·루트 위 `..`와 NUL 거부, `content://` 기준은 무시, https `.md`(대소문자, 쿼리·조각 무시), GitHub blob → raw, https·http·mailto는 기본 앱, 그 밖의 스킴은 무시, 웹 문서 기준의 상대 링크. 웹 문서 받기 — 로컬 HTTP 서버로 `text/html` 거부, 상한 초과는 크기 안내, 404·시간 초과는 문구. `keyOf` — 같은 주소는 한 파일. `:code` 린트에 새 경고가 없다.
-- ⬜ vitest: 제목 앵커가 GitHub 규칙과 같다(한글, 문장부호, 공백, 중복 `-1`). 앵커에서 원본 줄 찾기, 못 찾으면 맨 위.
-- ⬜ 탭, 이 맥의 프로젝트 레포에서: 같은 폴더·하위 폴더·`../`·`/` 링크의 `.md`가 묻지 않고 viewer로 열린다. `.py` 링크는 코드 viewer, 이미지 링크는 바이너리 안내, 폴더 링크는 폴더 오류, 없는 파일은 오류 문구. `#제목`은 같은 문서의 그 제목으로, `a.md#제목`은 열고 그 제목으로 간다(한글 제목 포함). 오른쪽 가장자리에서 밀면 링크를 누르기 전 자리로 돌아온다.
-- ⬜ 탭: 단일 파일(프로젝트가 아닌 폴더)과 로컬 파일(`skiffcode:///storage/…`)에서도 상대 링크가 열린다. `content://`로 연 문서의 상대 링크는 아무것도 하지 않고 `#제목`은 된다.
-- ⬜ 탭: 공개 레포의 README(raw 주소, GitHub blob 주소 둘 다)가 앱에서 읽기 전용으로 열리고 ③이 레이어를 바꾸지 않는다. 그 안의 상대 `.md` 링크도 앱에서 열린다. 같은 주소를 두 번 열어도 열린 파일은 하나다. 다른 https 링크는 기본 브라우저로, `mailto:`는 메일 앱으로 간다.
-- ⬜ 폴드8 커버 화면: 상대 링크 하나와 https `.md` 하나를 탭해 연다.
-
-- [ ] 링크 해석: 순수 함수와 테스트
-  - 새 파일(예: `intent/MarkdownLink.kt`): 기준 문서(`OpenRequest`의 종류와 경로, 프로젝트 루트 또는 null, 웹 문서면 주소)와 `href` 원문을 받아 — 파일 열기(경로, 조각), 웹 문서(주소, 조각), 기본 앱(Uri), 무시 중 하나를 낸다. 경로 정규화는 `FsPath`를 쓰되 `..`를 직접 접는다(`ProjectTree.resolve`는 `..`를 거부하므로 쓰지 않는다).
-  - GitHub 변환은 `github.com/<o>/<r>/blob/<나머지>` 하나만. 그 밖의 GitHub 주소(`/tree/`, 저장소 첫 화면)는 `.md`가 아니므로 기본 앱으로 간다.
-  - 테스트: 성공 조건 JVM의 해석 목록을 그대로.
-- [ ] 상대 링크와 제목
-  - 페이지: `markdown.ts`의 클릭이 `preventDefault`를 늘 하고, `#`만이면 페이지 안에서 제목으로(점프 적기 → `goToLine`), 아니면 `openLink {id, href}`를 보낸다. `href`는 `link.href`(풀린 것)가 아니라 `getAttribute('href')`.
-  - 제목 앵커: 렌더할 때 맨 위 제목 블록에 앵커를 계산해 두는 함수, 앵커 → 원본 줄. vitest.
-  - Kotlin: `bridge.method("openLink")` — 문서 id로 기준을 찾고 해석 함수를 거쳐, 파일이면 그 문서와 같은 종류·같은 프로필의 `OpenRequest`로 `openFlow().open(…, pathChosen = true)`, 기본 앱이면 `openExternally`. `OpenAt`에 조각을 더하고, 문서 상태로 페이지에 넘겨 페이지가 줄을 찾는다.
-  - 프로젝트 안의 파일은 지금 여는 흐름이 그 프로젝트를 찾아 붙인다(따로 할 것 없음 — 확인만).
-  - 문서: `security.md`의 브리지 링크 줄과 "원격 파일 내용" 줄, `AGENTS.md`의 "Links that arrive from outside" 끝 문단(넓힌 것이 하나 늘었다), `layers.md`의 마크다운 줄에 이 주제로 가는 링크.
-- [ ] https 마크다운(웹 문서)
-  - `OpenRequest.Web(url)`: `confirmPath`에 한 줄(바깥 링크로 만들 수 없어 묻지 않는다), `keyOf`는 주소, `linkOf`는 없음(최근 파일에 남기지 않는다).
-  - 받기(새 파일, 예: `doc/WebLoader.kt`): `HttpURLConnection`, https만, 시간 제한, `text/html` 거부, 상한과 인코딩은 `TextLoader`의 규칙. 테스트는 JDK의 `com.sun.net.httpserver.HttpServer`로(https가 아니므로 받기 함수가 스킴 검사를 밖에서 받게 둔다).
-  - 읽기 전용: 문서 상태에 `readOnly`를 더하고 페이지의 ③이 editor·diff를 건너뛴다(diff를 건너뛰는 지금 규칙 옆에). 저장·감시·git·LSP는 붙이지 않는다.
-  - 열린 파일 메뉴와 팔레트에 호스트와 경로로 보인다.
-- [ ] 확인: 탭과 폴드8
-  - 이 맥에 임시 git 레포: 여러 폴더의 `.md`, 각 종류의 링크(같은 폴더, 하위, `../`, `/`, `#제목`, `a.md#한글 제목`, `.py`, 이미지, 폴더, 없는 파일, https raw, GitHub blob, 일반 https, `mailto:`)를 담은 `index.md`. 탭에서 프로젝트로, 프로젝트를 지우고 단일 파일로 연다. 끝나면 레포·프로젝트를 지운다.
-  - 로컬 파일은 같은 `.md` 몇 개를 기기의 `Documents/`에 `adb push`하고, 끝나면 지운다. `content://`는 파일 앱에서 공유로 연다.
-  - 웹 문서는 공개 레포(예: markdown-it)의 README로. 기기의 인터넷 연결이 필요하다.
-  - 폴드8 커버 화면에서 링크 하나와 https `.md` 하나를 탭해 본다(작은 화면에서 링크가 눌리는지).
+마일스톤이 비어 있다. 다음 일은 [`my.next.spec.md`](my.next.spec.md)의 남은 요구사항(참조로 이동, 변경이력 Explorer 등)을 사용자와 정해 새 마일스톤으로 적는 것이다.
 
 ## 아직 확인하지 않은 것
 

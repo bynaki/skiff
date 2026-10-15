@@ -7,6 +7,8 @@ data class OpenAt(
     val line: Int? = null,
     val col: Int? = null,
     val layer: SkiffCodeUri.Layer? = null,
+    /** A heading a markdown link named after `#`, decoded; the page finds its line. Never in a link from outside. */
+    val anchor: String? = null,
 )
 
 /**
@@ -46,6 +48,12 @@ sealed interface OpenRequest {
         val path: String,
         val at: OpenAt,
     ) : OpenRequest
+
+    /**
+     * A markdown file on the web, read-only (docs/skiffcode.spec/markdown-links.md). Only a link
+     * tapped in the viewer makes one: [of] never does, so nothing from outside reaches the network.
+     */
+    data class Web(val url: String, val at: OpenAt) : OpenRequest
 
     /** Not something we open. [reason] is shown to the user as is. */
     data class Invalid(val reason: String) : OpenRequest

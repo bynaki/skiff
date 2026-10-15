@@ -3,6 +3,7 @@
 // own link check keeps `javascript:` and friends out of href. The CSP and the asset loader stop
 // anything that still tries to load.
 import MarkdownIt from 'markdown-it'
+import { type Heading, anchorLine, decodeFragment } from './anchors'
 import { TOPBAR_SPACE } from './chrome/topbar'
 import { type Hold, holdBlock } from './zoom'
 
@@ -15,6 +16,20 @@ md.core.ruler.push('source_line', (state) => {
   }
 })
 
+/** What a tapped link does, which only `main.ts` knows how to: which file is open, and the jump list. */
+export interface LinkHooks {
+  /** Any link but a bare `#fragment`, as the document wrote it, for Kotlin to resolve against the file. */
+  open(href: string): void
+  /** A heading of this document, by its source line. */
+  heading(line: number): void
+}
+
+let hooks: LinkHooks | null = null
+
+export function setLinkHooks(next: LinkHooks): void {
+  hooks = next
+}
+
 export function renderMarkdown(source: string): HTMLElement {
   const body = document.createElement('article')
   body.className = 'markdown'
@@ -22,12 +37,33 @@ export function renderMarkdown(source: string): HTMLElement {
   body.addEventListener('click', (event) => {
     const link = (event.target as Element).closest('a')
     if (!link) return
-    // Relative links and #fragments resolve to the page's own origin. There is nothing there to
-    // go to, and handing that URL to a browser would open a dead page, so they do nothing.
-    // Everything else is left to the WebView, whose client passes it to another app.
-    if (new URL(link.href, location.href).origin === location.origin) event.preventDefault()
+    // Nothing goes to the WebView, which would only hand it to another app: a link is resolved
+    // against the file it is in (docs/skiffcode.spec/markdown-links.md), which the page does not
+    // know the path of. The `href` as written, not `link.href`, which is resolved against the page.
+    event.preventDefault()
+    const href = link.getAttribute('href')
+    if (!href) return
+    if (href.startsWith('#')) {
+      // Not found is the top, rather than nothing: the link was followed, to a heading that is gone.
+      const fragment = decodeFragment(href.slice(1))
+      hooks?.heading((fragment === null ? null : headingLine(body, fragment)) ?? 1)
+    } else {
+      hooks?.open(href)
+    }
   })
   return body
+}
+
+/** The source line of the heading [fragment] names in [body], or null for none. */
+function headingLine(body: HTMLElement, fragment: string): number | null {
+  const headings: Heading[] = []
+  for (const element of body.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')) {
+    // A heading in a list or a quote has no line of its own; the block it is in has.
+    let block: HTMLElement = element
+    while (block.parentElement && block.parentElement !== body) block = block.parentElement
+    headings.push({ text: element.textContent ?? '', line: Number(block.dataset.line) || 1 })
+  }
+  return anchorLine(headings, fragment)
 }
 
 /** The last block starting at or before [line], for scrolling a link's `?line=` into view. */
@@ -52,6 +88,8 @@ export interface MarkdownSurface {
   update(source: string): void
   /** The source line of the block at the top of the screen. */
   topLine(): number
+  /** The source line of the heading a link's `#fragment` names, decoded, or null for none. */
+  headingLine(fragment: string): number | null
   scrollToLine(line: number): void
   /** What a pinch holds on to, as the code layers' `holdLine` is for CodeMirror. */
   hold: Hold
@@ -88,6 +126,7 @@ export function showMarkdown(parent: HTMLElement, source: string): MarkdownSurfa
       }
       return line
     },
+    headingLine: (fragment) => headingLine(body, fragment),
     scrollToLine(line) {
       // The scroller is positioned (see index.html), so offsetTop is measured from it.
       const block = blockAtLine(body, line)

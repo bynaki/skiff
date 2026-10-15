@@ -1,6 +1,6 @@
 package com.naki.skiff.code.lsp
 
-import java.io.ByteArrayOutputStream
+import com.naki.skiff.code.intent.percentDecode
 
 /**
  * `file://` URIs for paths on the server, the way language servers name documents
@@ -24,22 +24,7 @@ object LspUri {
      */
     fun path(uri: String): String? {
         if (!uri.startsWith("file:///")) return null
-        val encoded = uri.removePrefix("file://").substringBefore('#').substringBefore('?')
-        val bytes = ByteArrayOutputStream()
-        var i = 0
-        while (i < encoded.length) {
-            val c = encoded[i]
-            if (c == '%') {
-                if (i + 2 >= encoded.length) return null
-                bytes.write(encoded.substring(i + 1, i + 3).toIntOrNull(16) ?: return null)
-                i += 3
-            } else {
-                bytes.write(c.toString().encodeToByteArray())
-                i++
-            }
-        }
-        val path = bytes.toByteArray().decodeToString()
-        return path.takeIf { '\u0000' !in it }
+        return percentDecode(uri.removePrefix("file://").substringBefore('#').substringBefore('?'))
     }
 
     private val UNRESERVED = ('A'..'Z').toSet() + ('a'..'z') + ('0'..'9') + setOf('-', '.', '_', '~')

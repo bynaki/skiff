@@ -42,6 +42,8 @@ import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.TextFormat
 import com.naki.skiff.code.doc.TextLoader
+import com.naki.skiff.code.intent.LinkTarget
+import com.naki.skiff.code.intent.MarkdownLink
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.code.intent.SkiffCodeUri
@@ -382,6 +384,33 @@ class MainActivity : Activity() {
             val path = LspUri.path(params.getString("uri")) ?: throw IllegalArgumentException("not a file on the server")
             val request = OpenRequest.Remote(profileOf(project), path, OpenAt(params.getInt("line"), params.getInt("col")))
             startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
+            JSONObject()
+        }
+        // A link tapped in rendered markdown (docs/skiffcode.spec/markdown-links.md). The page names the
+        // file the link is in and sends the href as written; it is resolved here, against that file,
+        // so the server and the account are the file's own. A file opens without the path being
+        // confirmed, wherever it is: the user tapped it in this app (2026-10-15 사용자 결정).
+        bridge.method("openLink") { params ->
+            val entry = docs.byId(params.getInt("id")) ?: error("no open file the link is in")
+            val folder = entry.folder
+            val base = when {
+                entry.web != null -> MarkdownLink.Base.Web(entry.web)
+                folder != null -> MarkdownLink.Base.Path(folder.file, entry.project?.project?.root)
+                else -> MarkdownLink.Base.NoFolder
+            }
+            when (val target = MarkdownLink.resolve(base, params.getString("href"))) {
+                // A web document has no folder, so a file target only ever comes with one.
+                is LinkTarget.File -> {
+                    val request = folder!!.requestAt(target.path, OpenAt(anchor = target.fragment))
+                    startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
+                }
+                is LinkTarget.Web -> {
+                    val request = OpenRequest.Web(target.url, OpenAt(anchor = target.fragment))
+                    startOpening { openFlow().open(target.url, request, pathChosen = true) }
+                }
+                is LinkTarget.External -> openExternally(Uri.parse(target.uri))
+                LinkTarget.Ignore -> Log.i(TAG, "link not followed in ${entry.name}")
+            }
             JSONObject()
         }
         bridge.method("labels") {
@@ -898,7 +927,8 @@ class MainActivity : Activity() {
     private fun documentsChanged(at: OpenAt? = null) {
         bridge.notify(
             "documentsChanged",
-            JSONObject().putOpt("goToLine", at?.line).putOpt("col", at?.col).putOpt("layer", layerName(at)),
+            JSONObject().putOpt("goToLine", at?.line).putOpt("col", at?.col).putOpt("layer", layerName(at))
+                .putOpt("anchor", at?.anchor),
         )
         startWatching(recheckAll = false)
     }
@@ -1054,21 +1084,23 @@ class MainActivity : Activity() {
                 opened.notice?.let { notice(it, lasting = true) }
                 return@launch
             }
-            val watcher = if (opened.result is LoadResult.Text) {
+            // A web document is never watched (docs/skiffcode.spec/markdown-links.md).
+            val watcher = if (opened.result is LoadResult.Text && opened.request !is OpenRequest.Web) {
                 FileWatcher(
                     opened.watched, opened.stamp,
                     pollMillis = { container.settings.latest.files.pollMillis },
                     warn = { message, e -> Log.w(TAG, message, e) },
                 )
             } else {
-                // Nothing on screen for a change to be merged into: too large, binary, or in an
-                // encoding we cannot name.
+                // Nothing on screen for a change to be merged into — too large, binary, or in an
+                // encoding we cannot name — or a web document.
                 opened.watched.close()
                 null
             }
             docs.add(
                 key, opened.name, whereOf(opened.request), documentState(opened), opened.watched, watcher,
                 opened.save, (opened.stamp as? Stamped.At)?.stamp, opened.folder, opened.project,
+                web = (opened.request as? OpenRequest.Web)?.url,
             )
             documentsChanged()
             opened.notice?.let { notice(it, lasting = true) }
@@ -1093,6 +1125,9 @@ class MainActivity : Activity() {
         val refusal = when (val result = opened.result) {
             is LoadResult.Text -> return state.put("state", "text").put("text", result.text)
                 .putOpt("line", opened.at.line).putOpt("col", opened.at.col).putOpt("layer", layerName(opened.at))
+                .putOpt("anchor", opened.at.anchor)
+                // Viewer only: ③ does not leave it, since there is nowhere to save an edit to.
+                .apply { if (opened.request is OpenRequest.Web) put("readOnly", true) }
                 .putOpt("lsp", languageServerFor(opened))
             // The limit is in binary megabytes; Formatter counts in thousands and calls 2 MiB "2.1 MB".
             is LoadResult.TooLarge -> getString(R.string.refused_too_large, DecimalFormat("0.#").format(result.limit / 1048576.0) + " MB")

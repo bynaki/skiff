@@ -18,8 +18,12 @@ import com.naki.skiff.code.doc.WatchedContent
 import com.naki.skiff.code.doc.WatchedFile
 import com.naki.skiff.code.doc.WatchedLocalPath
 import com.naki.skiff.code.doc.WatchedPath
+import com.naki.skiff.code.doc.WatchedWeb
+import com.naki.skiff.code.doc.WebError
+import com.naki.skiff.code.doc.WebLoader
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
+import com.naki.skiff.code.intent.percentDecode
 import com.naki.skiff.code.project.GitScopeFinder
 import com.naki.skiff.code.project.GitState
 import com.naki.skiff.code.project.ProjectFile
@@ -38,6 +42,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okio.source
 import java.io.File
+import java.net.URL
 
 /**
  * Takes an [OpenRequest] from intent to the file's text: asks about unknown servers, passwords and
@@ -93,8 +98,11 @@ class OpenFlow(
             is OpenRequest.Content -> openContent(link, request)
             is OpenRequest.UnknownServer -> adopt(request)?.let { openRemote(link, it) }
             is OpenRequest.Remote -> openRemote(link, request)
+            is OpenRequest.Web -> openWeb(link, request)
         }
-        opened?.also { container.store.addRecentFile(link, System.currentTimeMillis() / 1000) }
+        // A web document is not a recent file: the list reopens `skiffcode://` links, and it has none.
+        if (request !is OpenRequest.Web) opened?.also { container.store.addRecentFile(link, System.currentTimeMillis() / 1000) }
+        opened
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -142,6 +150,9 @@ class OpenFlow(
         // UnknownServer asks anyway, with the same path in its dialog. Content is a grant the
         // sending app handed us, not a path we picked. Invalid never reaches a file.
         is OpenRequest.UnknownServer, is OpenRequest.Content, is OpenRequest.Invalid -> true
+        // Made only by a link tapped in the viewer, never by one from outside, and it reads no file of
+        // the user's — only what the address serves to anyone (docs/skiffcode.spec/markdown-links.md).
+        is OpenRequest.Web -> true
     }
 
     private suspend fun confirmPath(where: String, path: String): Boolean = activity.confirm(
@@ -180,6 +191,21 @@ class OpenFlow(
             WatchedLocalPath(fs, request.path, loader), stampOf(result), saveTo(fs, request.path, result),
             Folder.of(fs, request),
         )
+    }
+
+    /**
+     * A markdown file on the web, read-only: no save target, no folder, no project, and never
+     * watched (docs/skiffcode.spec/markdown-links.md). Only https is read — Android refuses plain
+     * http, and [com.naki.skiff.code.intent.MarkdownLink] never makes anything else.
+     */
+    private suspend fun openWeb(link: String, request: OpenRequest.Web): Opened {
+        val url = URL(request.url)
+        require(url.protocol == "https") { "not an https address: ${request.url}" }
+        val web = WebLoader(loader)
+        val result = web.load(url)
+        val file = url.path.substringAfterLast('/')
+        val name = percentDecode(file)?.takeIf { it.isNotEmpty() } ?: url.host
+        return Opened(link, name, request, result, request.at, WatchedWeb(url, web), Stamped.Unknown, null, null)
     }
 
     private suspend fun openContent(link: String, request: OpenRequest.Content): Opened {
@@ -373,6 +399,11 @@ class OpenFlow(
         is FsError.HostKeyRejected -> activity.getString(R.string.error_host_key)
         is FsError.NetworkLost -> activity.getString(R.string.error_network_lost)
         is FsError.LocalNetworkNotGranted -> activity.getString(R.string.error_local_network)
+        is WebError.Status ->
+            if (e.status == 404) activity.getString(R.string.error_not_found, e.url.toString())
+            else activity.getString(R.string.error_web_status, e.url.host, e.status)
+        is WebError.NotMarkdown -> activity.getString(R.string.error_web_page, e.url.toString())
+        is WebError.Unreachable -> activity.getString(R.string.error_unreachable, e.url.host)
         else -> e.message ?: e.javaClass.simpleName
     }
 
