@@ -32,6 +32,16 @@ data class Settings(
         val theme: String = SettingsToml.SYSTEM_THEME,
         /** How strongly the diff layer tints its lines, in percent. */
         @SerialName("diff_alpha") val diffAlpha: Int = 30,
+        /**
+         * Lines kept below the cursor when it nears the bottom, and the room left under the last line
+         * so it can be lifted that far too (docs/skiffcode.spec/margins.md).
+         */
+        val scrolloff: Int = 5,
+        /**
+         * Characters kept right of the cursor when it nears the right edge, and the room left after
+         * the longest line. Only without [wrap], where a line can run off to the right.
+         */
+        val sidescrolloff: Int = 5,
     )
 
     @Serializable
@@ -110,6 +120,8 @@ object SettingsToml {
     val KEPT_BUFFERS = 0..200
     val POLL_SECONDS = 1..60
     val DIFF_ALPHAS = 0..100
+    val SCROLLOFFS = 0..50
+    val SIDESCROLLOFFS = 0..100
     val MAX_FILES = 100..100_000
     val LSP_TIMEOUTS = 1..120
 
@@ -180,6 +192,8 @@ object SettingsToml {
                 wrap = editor.wrap,
                 theme = theme,
                 diffAlpha = inRange("editor.diff_alpha", editor.diffAlpha, DIFF_ALPHAS, defaults.editor.diffAlpha),
+                scrolloff = inRange("editor.scrolloff", editor.scrolloff, SCROLLOFFS, defaults.editor.scrolloff),
+                sidescrolloff = inRange("editor.sidescrolloff", editor.sidescrolloff, SIDESCROLLOFFS, defaults.editor.sidescrolloff),
             ),
             files = Settings.Files(
                 maxSizeMb = inRange("files.max_size_mb", files.maxSizeMb, MAX_SIZES_MB, defaults.files.maxSizeMb),
@@ -276,6 +290,20 @@ object SettingsToml {
         Key("editor", "font_size", "14", listOf("${FONT_SIZES.first} to ${FONT_SIZES.last}. What Reset Zoom returns to; a pinch changes only what you are looking at now.")),
         Key("editor", "tab_size", "4", listOf("${TAB_SIZES.first} to ${TAB_SIZES.last}. How wide a tab character is drawn.")),
         Key("editor", "wrap", "true", listOf("Wrap long lines at the edge of the screen instead of scrolling sideways.")),
+        Key(
+            "editor", "scrolloff", "5",
+            listOf(
+                "${SCROLLOFFS.first} to ${SCROLLOFFS.last}, in lines. How many lines stay below the cursor when it nears the bottom of the",
+                "screen; the end of a file has that much room under it too. Not in rendered markdown.",
+            ),
+        ),
+        Key(
+            "editor", "sidescrolloff", "5",
+            listOf(
+                "${SIDESCROLLOFFS.first} to ${SIDESCROLLOFFS.last}, in characters. How many characters stay right of the cursor when it nears",
+                "the right edge; the longest line has that much room after it too. Only with wrap = false.",
+            ),
+        ),
         Key(
             "editor", "theme", "\"$SYSTEM_THEME\"",
             listOf(

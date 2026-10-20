@@ -123,6 +123,8 @@ class SettingsTomlTest {
             tab_size = 2
             wrap = false
             diff_alpha = 45
+            scrolloff = 0
+            sidescrolloff = 12
 
             [files]
             max_size_mb = 8
@@ -143,7 +145,7 @@ class SettingsTomlTest {
         assertEquals(emptyList<SettingsProblem>(), read.problems)
         assertEquals(
             Settings(
-                Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45),
+                Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45, scrolloff = 0, sidescrolloff = 12),
                 Settings.Files(8, 0, 5),
                 Settings.Search(listOf("vendor", ".tox"), 20000),
                 Settings.Lsp(30, python = Settings.Server(listOf("pylsp", "-v"))),
@@ -170,15 +172,21 @@ class SettingsTomlTest {
 
     @Test
     fun `a value out of range is replaced by its default and reported, and the others are kept`() {
-        val read = SettingsToml.read("[editor]\nfont_size = 99\ntab_size = 2\ndiff_alpha = 101\n\n[files]\npoll_seconds = 0\n")
+        val read = SettingsToml.read(
+            "[editor]\nfont_size = 99\ntab_size = 2\ndiff_alpha = 101\nscrolloff = 51\nsidescrolloff = 101\n\n[files]\npoll_seconds = 0\n",
+        )
         assertEquals(14, read.settings.editor.fontSize)
         assertEquals(2, read.settings.editor.tabSize)
         assertEquals(30, read.settings.editor.diffAlpha)
+        assertEquals(5, read.settings.editor.scrolloff)
+        assertEquals(5, read.settings.editor.sidescrolloff)
         assertEquals(2, read.settings.files.pollSeconds)
         assertEquals(
             listOf(
                 SettingsProblem.Refused("editor.font_size", "99", "14", SettingsToml.FONT_SIZES),
                 SettingsProblem.Refused("editor.diff_alpha", "101", "30", SettingsToml.DIFF_ALPHAS),
+                SettingsProblem.Refused("editor.scrolloff", "51", "5", SettingsToml.SCROLLOFFS),
+                SettingsProblem.Refused("editor.sidescrolloff", "101", "5", SettingsToml.SIDESCROLLOFFS),
                 SettingsProblem.Refused("files.poll_seconds", "0", "2", SettingsToml.POLL_SECONDS),
             ),
             read.problems,
@@ -227,6 +235,9 @@ class SettingsTomlTest {
     fun `a misspelled key is reported rather than skipped`() {
         val read = SettingsToml.read("[editor]\nfont_szie = 20\n")
         assertEquals(SettingsRead(Settings(), listOf(SettingsProblem.UnknownKey("editor.font_szie"))), read)
+        // A key that never shipped, which sidescrolloff took the place of before it did.
+        val gone = SettingsToml.read("[editor]\nright_margin = 72\n")
+        assertEquals(SettingsRead(Settings(), listOf(SettingsProblem.UnknownKey("editor.right_margin"))), gone)
     }
 
     @Test

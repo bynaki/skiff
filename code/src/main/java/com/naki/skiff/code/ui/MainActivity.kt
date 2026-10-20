@@ -636,6 +636,8 @@ class MainActivity : Activity() {
             .put("tabSize", editor.tabSize)
             .put("wrap", editor.wrap)
             .put("diffAlpha", editor.diffAlpha)
+            .put("scrolloff", editor.scrolloff)
+            .put("sidescrolloff", editor.sidescrolloff)
             .put("keptBuffers", files.keptBuffers)
             .put("lspTimeoutMs", lsp.timeoutSeconds * 1000)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))

@@ -732,3 +732,59 @@
   - 폴드8(같은 날, Tailscale adb, 접힌 채 사용자가 잠금을 풀어 줌): 커버 화면(폭 475px)에서 로컬 파일의 상대 링크와 https `.md`를 눌렀다.
   - 끝나고: 탭의 store를 확인 전 백업으로 되돌림(`cmp`로 같음), 임시 레포 둘과 두 기기의 확인용 파일을 지움. 폴드8의 최근 파일에는 지운 확인용 파일이 남았다. `mailto:` 확인에서 연 Gmail 작성 창은 보내지 않고 나왔다.
 
+### M10. 문서 여백과 scrolloff
+
+읽을 spec: [`margins.md`](skiffcode.spec/margins.md). 키를 더하는 곳은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 첫 항목만.
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "feat: 01". 사용자 결정(2026-10-20): scrolloff는 아래만, 문서 끝의 빈 자리는 scrolloff와 같은 줄 수(`bottom_margin`은 두지 않는다), 오른쪽 여백은 px 기본 72(64로 정했다가 버튼이 56px인 것을 기기에서 보고 고쳤다), 세 코드 레이어에 같게 두고 마크다운 viewer는 예외. 오른쪽 여백은 커밋하기 전에 M11의 `sidescrolloff`로 바뀌었다.
+
+지금(코드로 확인): `pane.ts`의 테마가 `.cm-content`에 `paddingTop: var(--topbar-space)`만 둔다. 오른쪽·아래 여백은 없고, `keepCaretVisible`은 `yMargin: TOPBAR_SPACE`로 위아래를 같이 비운다. 설정 compartment(`settings.ts`의 `prefs`)에는 탭 크기와 줄바꿈이 든다.
+
+**성공 조건**
+
+- ✅ (2026-10-20, JVM 330·린트 경고 11 그대로) JVM: `scrolloff`·`right_margin`의 기본값, 범위 밖은 그 키만 기본값, 타입 오류는 전부 기본값, `KEYS`와 `Settings`가 같다 — 확인: `SettingsTomlTest`.
+- ✅ (2026-10-20, vitest 190, `margins.test.ts`) vitest: 여백과 scrolloff의 계산(줄 수·줄 높이 → px, 0이면 없음) — 확인: 새 테스트.
+- ✅ (탭, 2026-10-20, DevTools로 잼: 커서 아래 5.24줄(키보드 떠 있을 때도), 마지막 줄 아래 5.12줄, 40px로 확대해도 5.08줄, 줄바꿈된 글자 끝 1077.6px < 버튼 왼쪽 1080px, 세 레이어에서 맨 위 줄 140 그대로, 마크다운 여백 그대로, 저장하면 0/0으로 바로 바뀜. diff 레이어는 ± 거터 17px만큼 글자 폭이 좁다 — 여백 때문이 아니라 원래 있던 차이다) 탭: editor에서 화면 맨 아래 줄을 편집하면 커서 아래에 5줄이 남는다(소프트 키보드가 떠 있을 때 포함). 문서 끝 아래에 빈 자리가 있어 마지막 줄도 그렇다. 오른쪽 여백으로 줄바꿈된 글자가 커맨드 버튼에 가리지 않는다. viewer·editor·diff를 오가도 줄바꿈과 맨 위 줄이 그대로다. 마크다운 viewer는 지금과 같다. 설정을 저장하면 바로 바뀐다.
+- ✅ (폴드8 커버 화면, 2026-10-20, 글꼴 배율 1.5·`wrap = false`, DevTools로 잼: 처음엔 마지막 줄 아래가 3.3줄이라 `em`을 `lh`로 고친 뒤 5.12줄, 커서 아래 5.17줄(키보드가 떴을 때 6.79줄 — adb 방향키를 보낸 뒤로는 키보드가 다시 뜨지 않아 한 번만 봤다), viewer↔editor 맨 위 줄 3001 그대로, 오른쪽 끝까지 밀면 글자 끝이 버튼 왼쪽보다 안쪽. 고친 뒤 탭에서도 다시 5.12줄) 폴드8 커버 화면: 위의 탭 확인을 한 번 더.
+
+- [x] 설정 키
+  - `Settings.Editor`에 `scrolloff: Int = 5`, `@SerialName("right_margin") rightMargin: Int = 72`. `SettingsToml`에 범위 `SCROLLOFFS = 0..50`, `RIGHT_MARGINS = 0..400`, `read`의 `inRange` 두 줄, `KEYS`의 설명 두 줄(줄 단위·px 단위를 설명에 적는다).
+  - `MainActivity.pageSettings`가 `scrolloff`, `rightMargin`을 싣는다. 페이지의 `Settings` 인터페이스에도.
+  - 테스트: `SettingsTomlTest`에 기본값·범위 밖·`KEYS` 일치.
+- [x] 페이지: 여백과 scrolloff
+  - `settings.ts`의 `Shown`과 `bundle`에 둘을 더한다: `.cm-content`의 `paddingRight`(px)와 `paddingBottom`(`${scrolloff}lh` — `em`은 `textZoom`이 곱해지지 않아 폴드8에서 모자랐다)을 담은 `EditorView.theme`, `EditorView.scrollMargins.of(view => ({ bottom: scrolloff × view.defaultLineHeight }))`. 테마로 두는 까닭은 CSS 변수만 바꾸면 짧은 문서가 다시 재지 않기 때문이다(`AGENTS.md`의 `codeFontSize`).
+  - `pane.ts`의 `keepCaretVisible`이 아래에도 같은 줄 수를 남기는지 본다(`scrollMargins`가 더해지므로 따로 할 일이 없을 것이다).
+  - 계산은 순수 함수로 빼서 vitest(`margins.test.ts`).
+  - 거슬리면 바꿀 것: hover 툴팁이 아래 N줄을 피한다, 끌어 선택하면 아래 N줄 안에서 자동 스크롤이 시작된다(`margins.md`의 "어떻게 거는가"). 그러면 `EditorView.scrollHandler`로 커서 스크롤에만 건다.
+- [x] 확인: 탭과 폴드8 커버 화면
+  - 성공 조건의 탭 항목을 차례로. 핀치로 크게 한 뒤에도 아래 5줄이 남는지, `wrap = false`에서 오른쪽 끝까지 스크롤되는지.
+  - `settings.toml`에서 `scrolloff = 0`, `right_margin = 0`이면 지금과 같은지.
+  - 확인 전 탭의 `settings.toml`을 백업하고 끝나면 되돌린다.
+
+### M11. 가로 scrolloff (`sidescrolloff`)
+
+읽을 spec: [`margins.md`](skiffcode.spec/margins.md)의 오른쪽 항목과 "어떻게 거는가". 키를 바꾸는 곳은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 첫 항목만.
+
+M10의 `right_margin`을 바꾼다. 사용자 결정(2026-10-20): 단위는 글자 수, 편집할 때 scrolloff처럼 가로로 스크롤, 오른쪽만, 기본 5, `wrap = true`이면 여백도 스크롤도 없다, 이름은 vim을 따라 `sidescrolloff`.
+
+지금(코드로 확인): `settings.ts`의 `bundle`이 줄바꿈과 상관없이 `.cm-content`에 `paddingRight: ${rightMargin}px`를 두고, `scrollMargins`에는 `bottom`만 있다. Kotlin은 `[editor] right_margin`(0~400, 기본 72)을 읽어 `rightMargin`으로 넘긴다. M10이 아직 커밋되지 않아 `right_margin`은 어느 버전에도 나간 적이 없다 — 옮겨 줄 사람 파일이 없으니 키를 바꾸기만 한다.
+
+**성공 조건**
+
+- ✅ (2026-10-20, JVM 330·린트 경고 11 그대로) JVM: `sidescrolloff`의 기본값, 범위 밖은 그 키만 기본값, `KEYS`와 `Settings`가 같다, `right_margin`은 모르는 키로 읽힌다(`SettingsTomlTest`). `:code` 린트에 새 경고가 없다.
+- ✅ (2026-10-20, vitest 193) vitest: 글자 수와 글자 폭 → px, `wrap`이 켜지면 여백과 스크롤 여백이 0.
+- ✅ (탭, 2026-10-20, 307·431글자짜리 줄을 버퍼에 잠시 넣고 adb 방향키·`input text`로, DevTools로 잼: 방향키로 오른쪽 끝에 닿으면 5.60글자, 타이핑하면 6.91글자, 줄 끝 5.26글자, 40px로 확대해 줄 끝 5.07·줄 중간 5.22글자, 왼쪽으로 돌아갈 때는 예전처럼 5.6px. 넣은 줄은 지웠고 `settings.toml`은 md5로 되돌렸다) 탭, `wrap = false`: 긴 줄 끝 쪽으로 커서를 옮기거나 타이핑하면 커서 오른쪽에 5글자가 남게 가로로 스크롤된다. 가장 긴 줄 끝에서도 5글자가 남는다. 핀치로 크게 해도 5글자다. 왼쪽으로 돌아갈 때는 지금과 같다.
+- ✅ (탭, 2026-10-20, 임시 git 레포: `padding-right` 0, 줄바꿈된 글자가 1136px까지(화면 1152px), viewer·editor·diff에서 맨 위 줄 140과 긴 줄의 3줄 접힘이 그대로, 아래 105px 그대로) 탭, `wrap = true`: 오른쪽 여백이 없다(글자가 화면 오른쪽 끝까지 간다). viewer·editor·diff를 오가도 줄바꿈과 맨 위 줄이 그대로다. 세로 scrolloff(아래 5줄)는 M10 그대로다.
+- ✅ (폴드8 커버 화면, 2026-10-20, 글꼴 배율 1.5·`wrap = false`, `near2mb.ts`의 가장 긴 줄(75글자), adb 방향키, DevTools로 잼: `padding-right` 63px = 5 × 12.6px, 오른쪽 끝에 닿으면 5.39글자, 줄 끝 5.14글자, 끝까지 밀어도 가장 긴 줄 뒤 5.14글자) 폴드8 커버 화면(글꼴 배율 1.5, 사용자 설정이 `wrap = false`): 커서 오른쪽 5글자, 가장 긴 줄 끝 5글자.
+
+- [x] 설정 키
+  - `Settings.Editor`의 `rightMargin`을 `sidescrolloff: Int = 5`로, `RIGHT_MARGINS`를 `SIDESCROLLOFFS = 0..100`으로, `KEYS`의 설명을 "글자 수, `wrap = true`이면 쓰지 않는다"로. `MainActivity.pageSettings`는 `sidescrolloff`를 싣는다.
+  - 테스트: `SettingsTomlTest`의 `right_margin` 자리를 `sidescrolloff`로, `right_margin = 72`가 `UnknownKey`로 읽히는 줄 하나.
+- [x] 단위 재기(폴드8이 잠겨 있어 탭의 글꼴 배율을 1.5로 올려 쟀다 — `ch`가 따른다, `margins.md`): `.cm-content` 안에 `10ch` 상자를 두고 `view.defaultCharacterWidth × 10`과 견준다. 같으면 `padding-right`는 `Nch`, 다르면(`em`처럼 3분의 2) `EditorView.contentAttributes`에 함수를 주어 `defaultCharacterWidth`로 px를 적는다. 결과를 `margins.md`에 적는다.
+- [x] 페이지
+  - `settings.ts`의 `Shown`에 `sidescrolloff`, `bundle`에서 `wrap`이면 오른쪽은 없음, 아니면 `padding-right`와 `scrollMargins`의 `right: sidescrolloff × view.defaultCharacterWidth`. `bottom`(scrolloff)은 그대로 둔다.
+  - 계산은 순수 함수로 빼서 `margins.test.ts`에.
+  - `pane.ts`의 `keepCaretVisible`(키보드가 뜰 때)은 `y`만 묻는다. 가로도 묻는지 보고, 아니면 그대로 둔다(키보드는 높이만 바꾼다).
+- [x] 확인: 탭과 폴드8 커버 화면
+  - 성공 조건의 기기 항목을 차례로. 탭은 `wrap = false`로 바꿔 보고 되돌린다(확인 전 `settings.toml` 백업, 끝나면 md5로 맞춘다).
+  - 폴드8은 사용자가 실제로 쓰는 기기라 설정을 바꾸지 않는다 — 이미 `wrap = false`다.

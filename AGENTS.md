@@ -421,7 +421,9 @@ These apply to `:code` only:
 - **The WebView multiplies the system font scale into the page.** At the phone's `font_scale` 1.5
   the editor's 14px default computed to 21px, so `MIN_FONT_SIZE`/`MAX_FONT_SIZE` (8–40) are really
   12–60 there. `--code-font-size` still reads 14: the multiplier is `WebSettings.textZoom`, applied
-  below the page, and nothing in the page can see it.
+  below the page, and nothing in the page can see it. **It multiplies font sizes, not lengths written
+  in `em`:** on the Fold8 a `1em` box under 21px text measured 14px, so a padding of five lines in
+  `em` left 3.3. The `lh` unit follows the real line height, which is why the scrolloff room uses it.
 - **Entering the editor layer must not focus the view unless a hardware keyboard is attached.**
   Focus is what raises the soft keyboard, and on a phone it covers half the document before the
   user has asked to type. The first tap on the text focuses it. A tablet with an external keyboard

@@ -3,6 +3,8 @@
 // are its own. The font goes to the whole page as a CSS variable. Tab size and wrapping go to a code
 // view through a compartment, for the reason [codeFontSize] gives in `zoom.ts`: a line that changes
 // height has to be measured again, and a changed configuration is what makes CodeMirror do that.
+// The margins ride the same compartment, so all three code layers have the same ones
+// (docs/skiffcode.spec/margins.md).
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { type Theme, showTheme } from './theme'
@@ -17,6 +19,10 @@ export interface Settings {
   wrap: boolean
   /** How strongly the diff layer tints its lines, in percent. */
   diffAlpha: number
+  /** Lines kept below the cursor, and the room under the last line. */
+  scrolloff: number
+  /** Characters kept right of the cursor, and the room after the longest line; only without `wrap`. */
+  sidescrolloff: number
   /** How many files off the screen keep their buffer; see `memories.ts`. */
   keptBuffers: number
   /** How long a language server has to answer a request; see `lsp.ts`. */
@@ -29,15 +35,67 @@ export interface Settings {
   ownTheme: boolean
 }
 
-type Shown = Pick<Settings, 'tabSize' | 'wrap'>
+type Shown = Pick<Settings, 'tabSize' | 'wrap' | 'scrolloff' | 'sidescrolloff'>
 
 /** Until Kotlin answers: its defaults. */
-let shown: Shown = { tabSize: 4, wrap: true }
+let shown: Shown = { tabSize: 4, wrap: true, scrolloff: 5, sidescrolloff: 5 }
 
 const prefs = new Compartment()
 
+/**
+ * The room under the last line: [scrolloff] lines, in `lh` so a pinch grows it with the text. Not
+ * `em`: the WebView's `textZoom` multiplies the font size but not a length written in `em`, so at
+ * the Fold8's font scale 1.5 an `em` stayed 14px under 21px text and five lines left 3.3 of them.
+ * A changed font size reaches it through `codeFontSize`'s compartment, which is what re-measures.
+ */
+export function bottomPadding(scrolloff: number): string {
+  return `${scrolloff}lh`
+}
+
+/**
+ * What a scroll that brings the cursor into view leaves below it, in px. Read at every scroll, so
+ * it is the line height of the size the view is at now.
+ */
+export function scrollBottom(scrolloff: number, lineHeight: number): number {
+  return scrolloff * lineHeight
+}
+
+/**
+ * The characters a wrapped view leaves right of the cursor and after the longest line: none, since
+ * nothing runs off to the right there, and room would only narrow every line (2026-10-20 user's
+ * decision).
+ */
+export function sideChars(sidescrolloff: number, wrap: boolean): number {
+  return wrap ? 0 : sidescrolloff
+}
+
+/**
+ * The room after the longest line, in `ch`. Unlike `em`, it follows the WebView's `textZoom`:
+ * measured on the tablet at font scale 1.5, `10ch` came to 126.0px over characters 12.6px wide.
+ */
+export function rightPadding(chars: number): string {
+  return `${chars}ch`
+}
+
+/** What a scroll that brings the cursor into view leaves right of it, in px; see [scrollBottom]. */
+export function scrollRight(chars: number, charWidth: number): number {
+  return chars * charWidth
+}
+
 function bundle(settings: Shown): Extension {
-  return [EditorState.tabSize.of(settings.tabSize), settings.wrap ? EditorView.lineWrapping : []]
+  const { scrolloff } = settings
+  const side = sideChars(settings.sidescrolloff, settings.wrap)
+  return [
+    EditorState.tabSize.of(settings.tabSize),
+    settings.wrap ? EditorView.lineWrapping : [],
+    EditorView.theme({ '.cm-content': { paddingRight: rightPadding(side), paddingBottom: bottomPadding(scrolloff) } }),
+    // Below and right only (2026-10-20 user's decision): a scroll that puts a line at the top reads
+    // only `top`, so a jump and a pinch's anchor land where they did.
+    EditorView.scrollMargins.of((view) => ({
+      bottom: scrollBottom(scrolloff, view.defaultLineHeight),
+      right: scrollRight(side, view.defaultCharacterWidth),
+    })),
+  ]
 }
 
 /**
@@ -46,7 +104,7 @@ function bundle(settings: Shown): Extension {
  * [applyEditorSettings].
  */
 export function showSettings(settings: Settings): void {
-  shown = { tabSize: settings.tabSize, wrap: settings.wrap }
+  shown = { tabSize: settings.tabSize, wrap: settings.wrap, scrolloff: settings.scrolloff, sidescrolloff: settings.sidescrolloff }
   const root = document.documentElement
   root.style.setProperty('--code-font', settings.font)
   root.style.setProperty('--tab-size', String(settings.tabSize))
