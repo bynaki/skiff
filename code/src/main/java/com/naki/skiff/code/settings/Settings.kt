@@ -42,6 +42,11 @@ data class Settings(
          * the longest line. Only without [wrap], where a line can run off to the right.
          */
         val sidescrolloff: Int = 5,
+        /**
+         * The thin bar at the right edge: the whole file's git changes and diagnostics, and where the
+         * screen is in it (docs/skiffcode.spec/nav-bar.md). Off until someone asks for it.
+         */
+        @SerialName("nav_bar") val navBar: Boolean = false,
     )
 
     @Serializable
@@ -194,6 +199,7 @@ object SettingsToml {
                 diffAlpha = inRange("editor.diff_alpha", editor.diffAlpha, DIFF_ALPHAS, defaults.editor.diffAlpha),
                 scrolloff = inRange("editor.scrolloff", editor.scrolloff, SCROLLOFFS, defaults.editor.scrolloff),
                 sidescrolloff = inRange("editor.sidescrolloff", editor.sidescrolloff, SIDESCROLLOFFS, defaults.editor.sidescrolloff),
+                navBar = editor.navBar,
             ),
             files = Settings.Files(
                 maxSizeMb = inRange("files.max_size_mb", files.maxSizeMb, MAX_SIZES_MB, defaults.files.maxSizeMb),
@@ -302,6 +308,13 @@ object SettingsToml {
             listOf(
                 "${SIDESCROLLOFFS.first} to ${SIDESCROLLOFFS.last}, in characters. How many characters stay right of the cursor when it nears",
                 "the right edge; the longest line has that much room after it too. Only with wrap = false.",
+            ),
+        ),
+        Key(
+            "editor", "nav_bar", "false",
+            listOf(
+                "A thin bar at the right edge showing the whole file's git changes, errors and warnings, and",
+                "where the screen is in it. It takes no touches. Not in rendered markdown.",
             ),
         ),
         Key(

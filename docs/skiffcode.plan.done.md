@@ -788,3 +788,44 @@ M10의 `right_margin`을 바꾼다. 사용자 결정(2026-10-20): 단위는 글�
 - [x] 확인: 탭과 폴드8 커버 화면
   - 성공 조건의 기기 항목을 차례로. 탭은 `wrap = false`로 바꿔 보고 되돌린다(확인 전 `settings.toml` 백업, 끝나면 md5로 맞춘다).
   - 폴드8은 사용자가 실제로 쓰는 기기라 설정을 바꾸지 않는다 — 이미 `wrap = false`다.
+
+### M12. 오른쪽 네비게이션 바
+
+읽을 spec: [`nav-bar.md`](skiffcode.spec/nav-bar.md). 표시의 출처는 [`git.md`](skiffcode.spec/git.md)의 "git 거터", 오른쪽 여백은 [`margins.md`](skiffcode.spec/margins.md)의 오른쪽 항목, 키를 더하는 곳은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 첫 항목만.
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "오른쪽에 가는 막대 네비게이션 바". 사용자 결정(2026-10-21): git 변경과 LSP 진단을 그린다, 보이는 구간 상자를 둔다, viewer·editor·diff에 두고 마크다운 viewer는 뺀다, `settings.toml`의 기본은 끔. 터치를 받지 않는 것은 요구사항이다. `nav-bar.md`에 "제안"으로 적은 것(오류·경고만, 왼쪽 git·오른쪽 진단, 폭 6px 안팎, 표시가 없어도 상자는 있음)은 기기에서 보고 사용자에게 확인받는다.
+
+지금(코드로 확인): `gitGutter.ts`의 `baselineField`가 기준과 청크를 들고, `gitMarks`가 표시할 줄을 낸다(`gitMarksIn`은 테스트용). 진단은 `@codemirror/lint`의 상태에 있고 `lsp.ts`가 `forEachDiagnostic`으로 읽는다. 설정 compartment(`settings.ts`의 `bundle`)에 탭 크기·줄바꿈·scrolloff·sidescrolloff가 든다. Kotlin은 `settings/Settings.kt`의 `Settings.Editor`와 `SettingsToml.KEYS`, `MainActivity.pageSettings`다.
+
+**성공 조건**
+
+- ✅ (2026-10-21, JVM 331·`:code` 린트 경고 11 그대로) JVM: `nav_bar`의 기본값(끔), 타입이 틀리면 전부 기본값, `KEYS`와 `Settings`가 같다 — 확인: `SettingsTomlTest`. `:code` 린트에 새 경고가 없다.
+- ✅ (2026-10-21, vitest 208 — `navBar.test.ts` 13, `margins.test.ts`에 2) vitest: 표시를 막대의 픽셀 줄로 바꾸는 계산(git 추가·수정·삭제, 진단 오류·경고, info·hint는 없음, 같은 픽셀 줄은 하나로, 빈 문서와 한 줄 문서), 보이는 구간 상자의 위치와 높이 — 확인: 새 테스트 `navBar.test.ts`.
+- ✅ (탭, 2026-10-21, 이 맥의 임시 레포 `skiff-navbar-check`(485줄 `check.py`: 위·가운데의 수정과 추가, 4줄 삭제, 끝의 추가, pyright 오류 2·경고 2)를 프로젝트로, DevTools로 캔버스의 픽셀을 읽어 `lineBlockAt` 비율과 견줌: 151줄 예상 191.8 → 191–193px(왼쪽 추가·오른쪽 경고), 삭제 304.9 → 305–307, 332줄 419.2 → 419–421(오류가 같은 줄의 경고를 이김), 끝 606.4 → 607–612. 100줄에 한 줄을 넣으면 예상 127.5 → 127–129px에 바로 생기고 지우면 사라짐. 상자: scrollTop 5000 → 299.1px, 끝에서 막대 바닥과 맞닿음, 높이 40.4px(= 675/10346 × 619). Zoom In 두 번(14 → 18px)에도 표시 위치 그대로, 상자 31.4px. editor·diff(지운 줄 위젯으로 문서가 168px 길어진 것까지 반영) 둘 다 막대가 있고, 렌더된 마크다운 viewer에서는 숨음. 막대 자리 `input tap 2301 756` → editor 커서가 그 높이의 15줄로. 링크로 300줄에 간 뒤 오른쪽 가장자리 `input swipe` → 뒤로 가기가 그대로 되고 앱이 남음. `wrap = false`: 긴 줄 끝에서 막대 왼쪽까지 5.25글자. `wrap = true`: 줄바꿈된 글자 끝 1136.4px < 막대 왼쪽 1146px) 탭, `nav_bar = true`, git 프로젝트의 파일: 맨 위·가운데·맨 끝의 변경이 막대의 같은 비율 높이에 보이고, 스크롤해 가 보면 git 거터의 표시와 맞는다. LSP 오류·경고가 보인다. 편집하면 막대가 바로 바뀐다. 보이는 구간 상자가 스크롤과 핀치를 따른다. viewer·editor·diff에 있고 마크다운 viewer에는 없다. 막대를 탭하거나 끌면 문서가 받고, 오른쪽 가장자리의 뒤로 가기 제스처는 그대로다. 글자가 막대에 가리지 않는다(`wrap` 양쪽).
+- ✅ (탭, 2026-10-21, 앱 안의 `Open Settings`에서 고쳐 `Save File`: 끔 → 막대 0개·`padding-right` 0px, 켬 → 1개·6px) 탭: `nav_bar = false`(기본)이면 지금과 같고, 저장하면 바로 켜지고 꺼진다.
+- ✅ (탭, 2026-10-21, 1.9MB·19,503줄 `big.ts`에서 50줄마다 바뀐 389줄, 끔/켬을 두 번씩 번갈아: 프레임마다 40px 스크롤 3초 — 끔 80.8·81.0fps, 켬 81.5·83.2fps, p95 간격 모두 22.1ms. 글자 30개를 하나씩 넣고 그리는 프레임까지 — 중앙값 끔 11.4·11.1ms, 켬 11.1·11.0ms. M0의 86–91fps는 손가락 플링으로 잰 것이라 이 값과 방법이 다르다. 변경이 1.6px 간격이라 git 칸은 한 줄기로 그려졌다) 탭, 2MB 파일: 켠 채로 스크롤이 M0(86–91fps)와 비슷하고, 타이핑이 느려지지 않는다 — DevTools로 잰다.
+- ✅ (탭, 2026-10-21, 사용자 요청으로 더함. `big.ts` 가운데에서 `input swipe` 직후 `screencap`: 끔 → x≈1140에 시스템 스크롤바, 켬 → 없고 막대의 상자만. `scrollbar-width: none`과 `::-webkit-scrollbar`는 둘 다 안 먹어(`CSS.supports` false, Chrome 155) 화면 밖으로 밀어 자르는 방법으로 했다. 처음엔 `overflow: hidden`이라 `wrap = false`에서 `.cm-editor`가 24px 밀려(`scrollLeft` 24) 커서 오른쪽이 8.06글자였고, `clip`으로 바꾼 뒤 5.21글자·`scrollLeft` 0. `wrap = true`에서 줄바꿈된 글자 끝 1128px < 막대 1146px, `padding-right` 30px. 끄면 `margin-right` 0·`overflow: visible`로 돌아오고 스크롤바가 다시 보임. `settings.toml`은 md5로 되돌렸다) 탭: `nav_bar = true`이면 스크롤하는 중에도 브라우저의 세로 스크롤바가 보이지 않고, 끄면 다시 보인다. 글자는 여전히 막대에 가리지 않고(`wrap` 양쪽), `wrap = false`의 커서 오른쪽은 막대 앞까지 5글자다.
+- ✅ (폴드8 커버 화면, 2026-10-21, 사용자 허락을 받고 Wi-Fi adb로. 사용자가 이미 `nav_bar = true`로 켜 두어 `settings.toml`은 바꾸지 않았다(앞뒤 md5 같음). 글꼴 21px·`wrap = false`, 485줄 파일을 링크로 "파일만 열기": 스크롤러 오른쪽 499px(화면 475 + 24), `padding-right` 93px(= 5 × 12.6 + 30). 가운데(scrollTop 7461)에서 `input swipe` 직후 `screencap`: 밀어 내기를 페이지에서만 되돌리면(`margin-right` 0·`overflow: visible`) 오른쪽 끝에 시스템 세로 스크롤바, 그대로 두면 없고 막대의 상자만. 120줄(302글자) 끝에 커서 → 막대 앞까지 5.15글자, `.cm-editor`의 `scrollLeft` 0. 화면 오른쪽 위의 회색 손잡이는 삼성 엣지 패널(`CocktailBarService`)이라 파일을 열기 전에도 같은 자리에 있다) 폴드8 커버 화면: 위와 같이 스크롤바가 보이지 않는다.
+- ✅ (폴드8 커버 화면, 2026-10-21, 사용자 허락을 받고 Wi-Fi adb로, 글꼴 배율 1.5·21px·`wrap = false`·사용자 테마 `ocean copy`: 막대 왼쪽 469.4px·폭 6·높이 638px, 커맨드 버튼 오른쪽 459.4px로 10px 떨어짐. 151줄 예상 196.9 → 197–199px, 332줄 431.7 → 431–433, 끝 626.3 → 626–631. 사용자 테마에 `warning`이 없어 base의 `#d29922`로 그려짐. 긴 줄 끝에서 막대 왼쪽까지 5.15글자, `padding-right` 69.0px(= 5 × 12.6 + 6). 상자 scrollTop 7000 → 288.3px, 끝에서 막대 바닥과 맞닿음. `settings.toml`은 md5로, 화면 꺼짐은 300000으로 되돌렸다) 폴드8 커버 화면(글꼴 배율 1.5, `wrap = false`): 막대가 보이고 글자를 가리지 않는다. 사용자 기기라 `nav_bar`를 켜는 것은 사용자에게 묻고, 끝나면 되돌린다.
+
+- [x] 설정 키
+  - `Settings.Editor`에 `@SerialName("nav_bar") navBar: Boolean = false`, `SettingsToml.KEYS`에 설명 한 줄("오른쪽 막대에 문서 전체의 git 변경과 진단, 보이는 구간을 그린다. 마크다운 viewer에는 없다"). `MainActivity.pageSettings`가 `navBar`를 싣고, 페이지의 `Settings` 인터페이스에도 더한다.
+  - 경고 색: 테마에 `[syntax] warning`을 더했다(2026-10-21 사용자 결정). `ThemeToml.KEYS`, 번들 두 벌, `index.html`의 기본 라이트 색.
+  - 테스트: `SettingsTomlTest`에 기본값·타입 오류·`KEYS` 일치.
+- [x] 페이지: 표시 계산(순수 함수)
+  - 새 `navBar.ts`. 입력은 git 표시(`gitMarks`의 `[pos, mark]`), 진단(`forEachDiagnostic`의 `from`과 `severity`), 위치 → 높이 함수, 문서 높이, 막대 높이. 출력은 픽셀 줄마다 하나의 표시(git 칸·진단 칸 따로, 오류 > 경고, 삭제·수정·추가의 차례는 정해서 적는다). 보이는 구간 상자는 `scrollTop`·`clientHeight`·`scrollHeight` → 상자의 위·높이(최소 높이를 둔다).
+  - `gitGutter.ts`에서 기준의 표시를 상태로 꺼내는 함수(`gitMarksIn`과 같은 것)를 막대도 쓰게 한다 — 따로 다시 계산하지 않는다.
+  - vitest `navBar.test.ts`: 성공 조건의 vitest 항목 전부.
+- [x] 페이지: 막대 그리기
+  - `ViewPlugin`이 `view.dom`에 `<canvas>`와 상자 `<div>`를 둔다(`pointer-events: none`, `right: 0`, 위는 `--topbar-space`, 아래는 `--banner-space`). `devicePixelRatio`만큼 캔버스를 키워 흐리지 않게 한다.
+  - 다시 그리는 때: `docChanged`·`geometryChanged`·기준이 바뀜·진단이 바뀜(lint 상태 필드가 바뀐 트랜잭션)·크기 바뀜. 읽기는 `requestMeasure`의 `read`(`lineBlockAt`, `contentHeight`), 그리기는 `write`. 스크롤에는 상자만 `transform`으로 옮긴다.
+  - 색은 `getComputedStyle`로 읽고, `settingsChanged`(테마)에 다시 읽는다.
+  - `settings.ts`의 `bundle`에 `navBar`가 켜지면 플러그인과, `.cm-content`의 `padding-right`·`scrollMargins.right`에 막대 폭을 더하는 것을 넣는다(`wrap`이면 막대 폭만). 계산은 `margins.test.ts`에 더한다.
+  - 마크다운 viewer에서는 CodeMirror가 숨으므로 막대도 같이 숨는지 본다(`view.dom` 안에 있으면 따라 숨는다).
+- [x] 확인: 탭과 폴드8 커버 화면
+  - 확인 전 탭의 `settings.toml`을 백업하고 끝나면 md5로 되돌린다. 임시 git 레포에 맨 위·가운데·맨 끝을 바꾼 파일과, pyright 오류·경고가 나는 Python 파일을 둔다.
+  - 성공 조건의 탭 항목을 차례로: 막대와 거터의 높이 비교는 DevTools로 표시의 `lineBlockAt(pos).top / contentHeight`와 캔버스의 픽셀을 견준다. 탭으로 문서가 받는지는 막대 자리를 adb로 탭해 커서가 옮겨지는지(editor)로 본다.
+  - 2MB 파일(`near2mb.ts`)에서 켜고 끈 채로 스크롤 fps와 키 입력 한 번의 `update` 시간을 잰다. 느리면 진단·git 표시를 픽셀 줄로 묶는 것을 디바운스한다.
+  - 폴드8은 사용자에게 `nav_bar`를 켜도 되는지 묻고, 끝나면 되돌린다.
+  - 탭과 폴드8 모두 끝났다(성공 조건, 스크롤바 숨김 포함). 임시 레포 `~/skiff-navbar-check`와 탭·폴드8 앱의 그 프로젝트는 지웠다(폴드8 것은 사용자가). 스크롤바 확인 때 다시 만든 같은 레포도 지웠고, 폴드8에서 연 파일은 닫았다.
+  - "제안"으로 적은 네 가지(폭 6px, 왼쪽 git·오른쪽 진단, info·hint 뺌, 표시 없어도 상자)는 사용자가 그대로 두기로 했다(2026-10-21). `nav-bar.md`에서 "제안"을 지웠다.

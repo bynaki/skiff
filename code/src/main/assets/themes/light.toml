@@ -42,6 +42,8 @@ property = "#00c"
 comment = "#940"
 meta = "#404740"
 invalid = "#f00"
+# A warning from the language server, where the nav bar marks one.
+warning = "#9a6700"
 
 [diff]
 added = "#2ea043"

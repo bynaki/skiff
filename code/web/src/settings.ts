@@ -4,9 +4,11 @@
 // view through a compartment, for the reason [codeFontSize] gives in `zoom.ts`: a line that changes
 // height has to be measured again, and a changed configuration is what makes CodeMirror do that.
 // The margins ride the same compartment, so all three code layers have the same ones
-// (docs/skiffcode.spec/margins.md).
+// (docs/skiffcode.spec/margins.md), and so does the nav bar, which widens the right one
+// (docs/skiffcode.spec/nav-bar.md).
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
+import { NAV_BAR_ROOM, navBar } from './navBar'
 import { type Theme, showTheme } from './theme'
 
 /** What Kotlin's `settings` answers and `settingsChanged` carries. */
@@ -23,6 +25,8 @@ export interface Settings {
   scrolloff: number
   /** Characters kept right of the cursor, and the room after the longest line; only without `wrap`. */
   sidescrolloff: number
+  /** Whether the code views show the nav bar at their right edge. */
+  navBar: boolean
   /** How many files off the screen keep their buffer; see `memories.ts`. */
   keptBuffers: number
   /** How long a language server has to answer a request; see `lsp.ts`. */
@@ -35,10 +39,10 @@ export interface Settings {
   ownTheme: boolean
 }
 
-type Shown = Pick<Settings, 'tabSize' | 'wrap' | 'scrolloff' | 'sidescrolloff'>
+type Shown = Pick<Settings, 'tabSize' | 'wrap' | 'scrolloff' | 'sidescrolloff' | 'navBar'>
 
 /** Until Kotlin answers: its defaults. */
-let shown: Shown = { tabSize: 4, wrap: true, scrolloff: 5, sidescrolloff: 5 }
+let shown: Shown = { tabSize: 4, wrap: true, scrolloff: 5, sidescrolloff: 5, navBar: false }
 
 const prefs = new Compartment()
 
@@ -72,29 +76,33 @@ export function sideChars(sidescrolloff: number, wrap: boolean): number {
 /**
  * The room after the longest line, in `ch`. Unlike `em`, it follows the WebView's `textZoom`:
  * measured on the tablet at font scale 1.5, `10ch` came to 126.0px over characters 12.6px wide.
+ * [bar] px more while the nav bar is on, so no text goes under it or past the edge the scroller now
+ * reaches beyond — a wrapped view too.
  */
-export function rightPadding(chars: number): string {
-  return `${chars}ch`
+export function rightPadding(chars: number, bar = 0): string {
+  return bar > 0 ? `calc(${chars}ch + ${bar}px)` : `${chars}ch`
 }
 
 /** What a scroll that brings the cursor into view leaves right of it, in px; see [scrollBottom]. */
-export function scrollRight(chars: number, charWidth: number): number {
-  return chars * charWidth
+export function scrollRight(chars: number, charWidth: number, bar = 0): number {
+  return chars * charWidth + bar
 }
 
 function bundle(settings: Shown): Extension {
   const { scrolloff } = settings
   const side = sideChars(settings.sidescrolloff, settings.wrap)
+  const bar = settings.navBar ? NAV_BAR_ROOM : 0
   return [
     EditorState.tabSize.of(settings.tabSize),
     settings.wrap ? EditorView.lineWrapping : [],
-    EditorView.theme({ '.cm-content': { paddingRight: rightPadding(side), paddingBottom: bottomPadding(scrolloff) } }),
+    EditorView.theme({ '.cm-content': { paddingRight: rightPadding(side, bar), paddingBottom: bottomPadding(scrolloff) } }),
     // Below and right only (2026-10-20 user's decision): a scroll that puts a line at the top reads
     // only `top`, so a jump and a pinch's anchor land where they did.
     EditorView.scrollMargins.of((view) => ({
       bottom: scrollBottom(scrolloff, view.defaultLineHeight),
-      right: scrollRight(side, view.defaultCharacterWidth),
+      right: scrollRight(side, view.defaultCharacterWidth, bar),
     })),
+    settings.navBar ? navBar() : [],
   ]
 }
 
@@ -104,7 +112,13 @@ function bundle(settings: Shown): Extension {
  * [applyEditorSettings].
  */
 export function showSettings(settings: Settings): void {
-  shown = { tabSize: settings.tabSize, wrap: settings.wrap, scrolloff: settings.scrolloff, sidescrolloff: settings.sidescrolloff }
+  shown = {
+    tabSize: settings.tabSize,
+    wrap: settings.wrap,
+    scrolloff: settings.scrolloff,
+    sidescrolloff: settings.sidescrolloff,
+    navBar: settings.navBar,
+  }
   const root = document.documentElement
   root.style.setProperty('--code-font', settings.font)
   root.style.setProperty('--tab-size', String(settings.tabSize))

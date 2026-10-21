@@ -124,7 +124,7 @@ export function gitGutter(): Extension {
   ]
 }
 
-/** The marks [state] shows, for the tests: what the gutter draws, without a view to draw it. */
+/** The marks [state] shows: what the gutter draws, for the nav bar and the tests, which have no gutter to read. */
 export function gitMarksIn(state: EditorState): Array<[number, GitMark]> {
   const baseline = state.field(baselineField, false)
   return baseline ? gitMarks(baseline.chunks, baseline.doc, state.doc) : []

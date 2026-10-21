@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M11, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M12, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -19,7 +19,7 @@
 
 ## 할 일
 
-마일스톤이 비어 있다. 다음 일은 [`my.next.spec.md`](my.next.spec.md)의 남은 요구사항(참조로 이동, 변경이력 Explorer 등)을 사용자와 정해 새 마일스톤으로 적는 것이다.
+다음 마일스톤은 아직 없다.
 
 ## 아직 확인하지 않은 것
 

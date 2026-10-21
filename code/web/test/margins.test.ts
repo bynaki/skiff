@@ -38,3 +38,17 @@ describe('sidescrolloff', () => {
     expect(sideChars(0, false)).toBe(0)
   })
 })
+
+describe('the nav bar', () => {
+  test('widens the room at the right by its width, wrapped or not', () => {
+    expect(rightPadding(5, 6)).toBe('calc(5ch + 6px)')
+    expect(rightPadding(0, 6)).toBe('calc(0ch + 6px)')
+    expect(scrollRight(5, 8.4, 6)).toBeCloseTo(48)
+    expect(scrollRight(0, 8.4, 6)).toBe(6)
+  })
+
+  test('leaves the room as it was while it is off', () => {
+    expect(rightPadding(5, 0)).toBe('5ch')
+    expect(scrollRight(5, 8.4, 0)).toBeCloseTo(42)
+  })
+})

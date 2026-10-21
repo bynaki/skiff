@@ -125,6 +125,7 @@ class SettingsTomlTest {
             diff_alpha = 45
             scrolloff = 0
             sidescrolloff = 12
+            nav_bar = true
 
             [files]
             max_size_mb = 8
@@ -145,7 +146,7 @@ class SettingsTomlTest {
         assertEquals(emptyList<SettingsProblem>(), read.problems)
         assertEquals(
             Settings(
-                Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45, scrolloff = 0, sidescrolloff = 12),
+                Settings.Editor("Droid Sans Mono, monospace", 18, 2, false, diffAlpha = 45, scrolloff = 0, sidescrolloff = 12, navBar = true),
                 Settings.Files(8, 0, 5),
                 Settings.Search(listOf("vendor", ".tox"), 20000),
                 Settings.Lsp(30, python = Settings.Server(listOf("pylsp", "-v"))),
@@ -256,6 +257,13 @@ class SettingsTomlTest {
     fun `wrap takes only a boolean`() {
         assertFalse(SettingsToml.read("[editor]\nwrap = false\n").settings.editor.wrap)
         assertTrue(SettingsToml.read("[editor]\nwrap = \"no\"\n").problems.single() is SettingsProblem.Unreadable)
+    }
+
+    @Test
+    fun `the nav bar is off unless turned on, and takes only a boolean`() {
+        assertFalse(SettingsToml.read("").settings.editor.navBar)
+        assertTrue(SettingsToml.read("[editor]\nnav_bar = true\n").settings.editor.navBar)
+        assertTrue(SettingsToml.read("[editor]\nnav_bar = 1\n").problems.single() is SettingsProblem.Unreadable)
     }
 
     @Test

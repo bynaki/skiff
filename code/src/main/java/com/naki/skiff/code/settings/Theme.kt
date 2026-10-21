@@ -40,7 +40,7 @@ object ThemeToml {
         "editor.gutter_border", "editor.cursor", "editor.selection", "editor.code_background",
         "syntax.keyword", "syntax.atom", "syntax.literal", "syntax.string", "syntax.regexp",
         "syntax.definition", "syntax.local", "syntax.type", "syntax.class", "syntax.macro",
-        "syntax.property", "syntax.comment", "syntax.meta", "syntax.invalid",
+        "syntax.property", "syntax.comment", "syntax.meta", "syntax.invalid", "syntax.warning",
         "diff.added", "diff.removed", "diff.changed",
     )
 
