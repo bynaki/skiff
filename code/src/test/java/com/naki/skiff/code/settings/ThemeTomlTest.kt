@@ -3,6 +3,7 @@ package com.naki.skiff.code.settings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.io.File
@@ -40,6 +41,33 @@ class ThemeTomlTest {
         assertTrue(ids.containsAll(listOf("light", "dark")))
         for (entry in index) assertTrue(entry.id, Regex("[a-z][a-z0-9-]*").matches(entry.id))
         for (entry in index) assertTrue(entry.id, entry.base in setOf("light", "dark"))
+    }
+
+    /**
+     * The theme repository's files, which the app downloads, read by the app's own parser
+     * (docs/skiffcode.spec/community-themes.md): run with `SKIFF_THEMES_DIR` naming a checkout of
+     * it before pushing there. Skipped without one.
+     */
+    @Test
+    fun `every theme of the theme repository reads without a problem and has every color`() {
+        val dir = System.getenv("SKIFF_THEMES_DIR")
+        assumeTrue("SKIFF_THEMES_DIR names no checkout of skiffcode-themes", !dir.isNullOrBlank())
+        val files = File(dir, "themes").listFiles { file -> file.name.endsWith(".toml") }.orEmpty().sortedBy { it.name }
+        assertTrue("no themes in $dir/themes", files.isNotEmpty())
+        for (file in files) {
+            val text = file.readText()
+            val read = ThemeToml.read(text, fallback)
+            assertEquals(file.name, emptyList<SettingsProblem>(), read.problems)
+            assertEquals(file.name, ThemeToml.KEYS.toSet(), read.theme.colors.keys)
+            // Every key is written in the file, in order, none of them left to the base's.
+            var table = ""
+            val written = text.lines().mapNotNull { line ->
+                Regex("""\[(\w+)]""").matchAt(line, 0)?.let { table = it.groupValues[1] }
+                Regex("""(\w+) = """).matchAt(line, 0)?.takeIf { table.isNotEmpty() }?.let { "$table.${it.groupValues[1]}" }
+            }
+            assertEquals(file.name, ThemeToml.KEYS, written)
+        }
+        println("read ${files.size} themes from $dir")
     }
 
     @Test

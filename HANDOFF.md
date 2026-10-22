@@ -17,18 +17,15 @@
 ## 마지막 세션 (2026-10-22)
 
 ### 지금 상태
-- **코드는 바꾸지 않았다. 계획만 세웠다:** M13(커뮤니티 테마 45개와 팔레트의 `Theme...` 목록)과 M14(테마 변환 스킬
-  `/theme-convert`). 설계는 새 주제 파일 `docs/skiffcode.spec/community-themes.md`, 할 일은 `skiffcode.plan.md`의 M13·M14다.
-  목차, `settings-theme.md`, `palette.md`에 그리로 가는 한 줄씩을 넣었다.
-- `docs/my.next.spec.md`의 "커뮤니티 테마들 .toml 제공" 절은 사용자가 쓴 것이고, 이 세션은 "정한 것" 한 줄만 더했다.
-- 이번 세션의 사용자 결정은 모두 spec과 계획에 적었다: 모든 변형(대비 단계 포함), ocean은 폴드8의 `ocean copy`, 목록은 팔레트 안,
-  `system`의 테마 고르기는 안 함, 같은 이름이면 사용자 테마가 이김, 스킬은 레포 `.claude/skills/`·명령으로만·결과는 레포
-  `user-themes/<이름>.toml`을 만드는 것까지(건네기·커밋 없음).
-- 15개 저장소의 라이선스는 GitHub API로 봤다(Tokyo Night만 Apache-2.0, Gruvbox는 API가 못 찾지만 README·`package.json`이 MIT).
-  **변형 이름은 저장소의 파일 목록만 보고 적었다** — 원본 파일은 아직 열지 않았으니 구현 때 맞춘다.
+- M13 "테마 저장소 만들기"를 끝냈다. 공개 저장소 `bynaki/skiffcode-themes`(로컬 `~/projects/skiffcode-themes`)에 테마 45개,
+  `index.json`(`format: 1`, `swatch`·`size`·`sha256`), README·LICENSE·NOTICE.md·AGENTS.md, 스크립트와 데이터, 테스트를 올렸고,
+  `raw.githubusercontent.com`에서 로그인 없이 45개가 sha256대로 받아지는 것을 확인했다. 자세한 것은 plan의 그 항목.
+- 앱 레포에는 `ThemeTomlTest`의 `SKIFF_THEMES_DIR` 테스트(다음 항목 것을 당겨 옴)와 그것을 위한 `code/build.gradle.kts`의 입력만
+  더했다. **앱의 번들 45개·스크립트·데이터는 아직 그대로다** — 다음 항목에서 지운다.
+- 테마 저장소는 vitest 5.0.5다(5.0.1의 moderate 권고 둘 때문). 앱 레포의 `code/web`은 아직 5.0.1이다 — 올릴지 사용자에게 물어볼 것.
+- 이제 테마 데이터를 고치는 곳은 테마 저장소다. 앱 레포의 `code/web/scripts/themes/`를 고치지 않는다(곧 지운다).
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. `skiffcode.plan.md`의 첫 `- [ ]`, M13의 "번들 목록과 이름 (Kotlin)"부터 한다. 읽을 spec은 M13 머리의 줄이다.
-3. Ocean 항목은 폴드8에서 `run-as`로 파일을 꺼내야 하니 그때 사용자에게 묻는다. 폴드8 연결은 `~/.claude/skills/fold8-install` 스킬.
-4. 푸시는 사용자에게 묻는다(커밋도 푸시도 사용자가 말할 때만).
+2. `skiffcode.plan.md`의 첫 `- [ ]`, M13의 "앱에서 번들 빼기"부터 한다. 읽을 spec은 M13 머리의 줄이다.
+3. 푸시는 사용자에게 묻는다(커밋도 푸시도 사용자가 말할 때만).

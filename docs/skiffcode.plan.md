@@ -33,9 +33,9 @@
 
 테마 저장소:
 
-- ⬜ 공개 저장소 `bynaki/skiffcode-themes`에 45개 테마, `index.json`, README(묶음마다 원본 링크·소개·라이선스), `LICENSE`, `NOTICE.md`(묶음마다 라이선스 전문)가 있고, 로그인 없이 `index.json`과 테마 파일이 받아진다.
-- ⬜ 저장소의 vitest: 생성 결과가 커밋된 `themes/*.toml`·`index.json`·`NOTICE.md`와 같다. 모든 파일에 원본·커밋·라이선스 머리 주석이 있다. `editor.foreground` 대비가 4.5:1 이상이다(`lowContrast` 예외는 실제로 미달일 때만). `base`가 배경의 밝기와 맞는다. `index.json`의 `size`·`sha256`·`swatch`가 파일과 맞는다. 대응표의 키가 `reference/light.toml`과 같다 — 확인: `npm test`.
-- ⬜ 앱의 파서: `SKIFF_THEMES_DIR`를 준 JVM 테스트에서 45개가 모두 `ThemeToml`로 문제없이 읽힌다.
+- ✅ 공개 저장소 `bynaki/skiffcode-themes`에 45개 테마, `index.json`, README(묶음마다 원본 링크·소개·라이선스), `LICENSE`, `NOTICE.md`(묶음마다 라이선스 전문)가 있고, 로그인 없이 `index.json`과 테마 파일이 받아진다. (2026-10-22, 로그인 없이 curl로 45개와 sha256)
+- ✅ 저장소의 vitest: 생성 결과가 커밋된 `themes/*.toml`·`index.json`·`NOTICE.md`와 같다. 모든 파일에 원본·커밋·라이선스 머리 주석이 있다. `editor.foreground` 대비가 4.5:1 이상이다(`lowContrast` 예외는 실제로 미달일 때만). `base`가 배경의 밝기와 맞는다. `index.json`의 `size`·`sha256`·`swatch`가 파일과 맞는다. 대응표의 키가 `reference/light.toml`과 같다 — 확인: `npm test`. (2026-10-22, 32개 통과)
+- ✅ 앱의 파서: `SKIFF_THEMES_DIR`를 준 JVM 테스트에서 45개가 모두 `ThemeToml`로 문제없이 읽힌다. (2026-10-22)
 
 앱:
 
@@ -79,15 +79,18 @@
   - 대비(`editor.foreground`·주석·키워드·문자열·정의·타입·숫자): Gruvbox Dark Hard 12.0·4.5·4.8·7.9·7.9·9.7·6.0, Medium 10.7·4.0·4.3·7.1·7.1·8.7·5.4, Soft 9.6·3.6·3.8·6.4·6.4·7.7·4.8, Light Hard 10.5·3.3·7.8·4.4·4.4·3.4·6.1, Medium 10.2·3.2·7.6·4.3·4.3·3.3·5.9, Soft 9.2·2.9·6.9·3.9·3.9·3.0·5.4, Everforest Dark Hard 8.2·4.2·5.0·6.5·6.9·7.5·6.0, Medium 7.4·3.8·4.5·5.9·6.2·6.8·5.4, Soft 6.7·3.5·4.1·5.3·5.6·6.2·4.9, Light Hard 5.4·2.7·3.2·2.9·2.8·2.2·3.0, Medium 5.2·2.6·3.0·2.8·2.7·2.1·2.8, Soft 4.7·2.3·2.7·2.5·2.4·1.9·2.6(Everforest 라이트의 문법 색이 낮은 것은 원본 그대로).
   - 한 것(Ocean): 사용자 허락을 받고 폴드8에서 `run-as`로 `ocean copy.toml`을 읽어(기기는 바꾸지 않음) 번들로 옮겼으나, 같은 날 "저장소에 올리지 않는다"는 결정으로 뺐다. 앱 레포도 공개라 Ocean 데이터와, 그것만을 위해 생성 스크립트에 더했던 "커밋·라이선스 없는 묶음" 갈래는 커밋하지 않았다.
   - JVM 336, vitest 234.
-- [ ] 테마 저장소 만들기
+- [x] 테마 저장소 만들기
   - **GitHub에 공개 저장소를 만들고 올리기 직전에 사용자에게 묻는다.** 로컬에서 먼저 다 만든다(`~/projects/skiffcode-themes`).
   - 옮기는 것: `scripts/`(`generate.ts`, `vscode.ts`, `neovim.ts`, `data/`), `test/themes.test.ts`, 생성된 `themes/*.toml` 45개.
   - 바꾸는 것: 출력 위치(`themes/`, 저장소 뿌리의 `index.json`·`NOTICE.md`), `index.json`을 카탈로그 모양으로(`format: 1`, 줄마다 `swatch`·`size`·`sha256`, `light`·`dark` 줄 없음), 머리 주석의 "Written by" 경로, `reference/light.toml`(앱의 사본)과 대조하는 테스트.
   - 더하는 것: README(영어, 묶음마다 원본 링크·소개·라이선스·변형, Alucard는 파생물이라고), `LICENSE`(MIT, 스크립트), `package.json`(Node 24, `npm run themes`, `npm test`; vitest·TypeScript·`@types/node` 고정 버전), `tsconfig.json`, `.gitignore`(`node_modules`, `user-themes/`), `AGENTS.md`(짧게: 명령, 손으로 고치지 않기, `format`·`reference` 규칙).
   - 확인: 저장소에서 `npm run themes`가 커밋된 것과 같은 것을 쓰고 `npm test`가 통과. 앱 레포에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest`가 45개를 읽는다(아래 항목의 테스트).
+  - 한 것(로컬, 2026-10-22): `~/projects/skiffcode-themes`에 위 구조를 다 만들었다. 45개의 색은 앱 번들과 한 줄도 다르지 않고 머리 주석 4–6줄만 바뀌었다 — 파일이 혼자 다니므로 `NOTICE.md`를 "beside this file" 대신 저장소 주소로 가리킨다. `index.json`은 한 줄에 테마 하나(`swatch`는 `Themes.SWATCH`와 같은 여섯, `resolve`한 값). 테스트는 옮긴 것에 더해 `index.json`(형식, 파일마다 한 줄, `size`·`sha256`·`swatch`·`base`가 파일과 맞음, id 모양), 예약어를 쓰지 않음, README가 모든 id와 원본 링크를 적음, 머리 주석의 저장소 주소. 손으로 고친 테마를 세 테스트가 잡는 것을 확인했다. vitest는 5.0.1에 moderate 권고 둘(GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp)이 있어 테마 저장소는 5.0.5로 고정했다(앱 레포는 아직 5.0.1). `npm test`는 `tsc && vitest run`이다.
+  - `SKIFF_THEMES_DIR` 테스트는 아래 항목 것이었지만 이 확인에 필요해 여기서 넣었다: `ThemeTomlTest`의 한 테스트가 `themes/*.toml`을 모두 `ThemeToml`로 읽어 문제가 없고 모든 키가 차례대로 파일에 적혔는지 보고, 변수가 없으면 `Assume`으로 건너뛴다. `:code`의 `build.gradle.kts`가 변수와 그 파일들을 테스트의 입력으로 삼아(그래야 up-to-date로 건너뛰지 않는다) 테스트 JVM에 넘긴다. 45개를 읽고, 변수 없이 건너뛰고, 모르는 표를 더한 파일에 실패하는 것을 확인했다. JVM 337, vitest 234, lint 경고 11(새 경고 없음), 테마 저장소 vitest 32.
+  - 올림(2026-10-22, 사용자 확인): `gh repo create`로 공개 저장소 `bynaki/skiffcode-themes`를 만들고 첫 커밋을 `main`에 올렸다. `raw.githubusercontent.com/bynaki/skiffcode-themes/main/`에서 로그인 없이 `index.json`(로컬과 같음), 테마 45개(모두 `index.json`의 sha256과 같음), README·LICENSE·NOTICE.md가 받아진다.
 - [ ] 앱에서 번들 빼기
   - `assets/themes/`에 `light.toml`·`dark.toml`·`index.json`(두 줄)만 남긴다. `code/web/scripts/`, `test/themes.test.ts`, `@types/node`, `tsconfig.json`의 `scripts`, `buildWeb`의 `web/scripts` 입력, `AGENTS.md`의 `npm run themes`·"번들 테마는 손으로 고치지 않는다"·`@types/node` 줄을 지운다. `window.setTimeout` 두 곳은 그대로 둔다(맞는 코드다).
-  - `ThemeTomlTest`에 `SKIFF_THEMES_DIR` 테스트(없으면 `Assume`으로 건너뜀).
+  - (`ThemeTomlTest`의 `SKIFF_THEMES_DIR` 테스트는 위 항목에서 넣었다.)
   - `AGENTS.md`에 테마 저장소를 한 줄로(어디 있고, 앱의 키를 바꾸면 `reference/light.toml`과 `format`도 바꾼다는 것).
 - [ ] 받기 (Kotlin)
   - `settings/ThemeCatalog.kt`: 박힌 기준 주소, `index.json` 받기와 검사(`format`, 줄마다 id·`nameOf`·`base`·`swatch`·`size`·`sha256`), 테마 받기와 검사(크기 상한, 길이·sha256, `ThemeToml` 문제 없음), 저장은 `Themes.import`. HTTP는 주입할 수 있게(테스트는 가짜). 시간 제한과 크기 상한은 `WebLoader`의 것을 본다.

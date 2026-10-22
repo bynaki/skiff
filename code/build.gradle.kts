@@ -101,3 +101,14 @@ val testWeb = tasks.register<Exec>("testWeb") {
 tasks.named("check") {
     dependsOn(testWeb)
 }
+
+// ThemeTomlTest reads every theme of a skiffcode-themes checkout when SKIFF_THEMES_DIR names one
+// (docs/skiffcode.spec/community-themes.md). The variable and those files are inputs, so pointing at
+// another checkout, or a change in it, runs the tests again instead of leaving them up to date.
+val skiffThemesDir = providers.environmentVariable("SKIFF_THEMES_DIR")
+tasks.withType<Test>().configureEach {
+    inputs.property("skiffThemesDir", skiffThemesDir.orElse(""))
+    inputs.files(skiffThemesDir.map<FileCollection> { dir -> fileTree(dir) { include("themes/*.toml") } }.orElse(files()))
+        .withPropertyName("skiffThemes")
+    skiffThemesDir.orNull?.let { environment("SKIFF_THEMES_DIR", it) }
+}

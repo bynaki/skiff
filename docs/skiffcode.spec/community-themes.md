@@ -197,7 +197,8 @@
       넣기로 2026-10-22 사용자 결정).
 - **파일마다 머리 주석**에 테마 이름, 원본 저장소와 커밋, 라이선스, 저작권자, "Skiff Code 테마로 바꾼 것"을 적는다.
   받은 테마는 원문 그대로 저장되고 `Export Theme`도 원문을 내보내므로 이 주석이 함께 다닌다. 라이선스 전문은 저장소의
-  `NOTICE.md` 하나에 묶음마다 모은다
+  `NOTICE.md` 하나에 묶음마다 모은다. 파일은 저장소 없이 혼자 다니므로, 머리 주석은 "NOTICE.md beside this file"이 아니라
+  전문이 있는 곳을 저장소 주소로 적는다(`The full text is in NOTICE.md of https://github.com/bynaki/skiffcode-themes`)
   (Apache-2.0인 Tokyo Night은 전문과 함께 바꾼 것임을 적는다). 앱 안에서 그것을 보여 주는 화면은 이번에 만들지 않는다.
 
 ## 앱에서 받기
@@ -279,12 +280,12 @@ M13의 변환 방법을 다른 테마에도 쓰게 스킬로 만든다(2026-10-2
 
 테마 저장소:
 
-- ⬜ 공개 저장소 `bynaki/skiffcode-themes`에 45개 테마, `index.json`, README(묶음마다 원본 링크·소개·라이선스), `LICENSE`,
+- ✅ 공개 저장소 `bynaki/skiffcode-themes`에 45개 테마, `index.json`, README(묶음마다 원본 링크·소개·라이선스), `LICENSE`,
   `NOTICE.md`(묶음마다 라이선스 전문)가 있고, 로그인 없이 `index.json`과 테마 파일이 받아진다.
-- ⬜ 저장소의 vitest: 생성 결과가 커밋된 `themes/*.toml`·`index.json`·`NOTICE.md`와 같다. 모든 파일에 원본·커밋·라이선스 머리
+- ✅ 저장소의 vitest: 생성 결과가 커밋된 `themes/*.toml`·`index.json`·`NOTICE.md`와 같다. 모든 파일에 원본·커밋·라이선스 머리
   주석이 있다. `editor.foreground` 대비가 4.5:1 이상이다(`lowContrast` 예외는 실제로 미달일 때만). `base`가 배경의 밝기와 맞는다.
   `index.json`의 `size`·`sha256`·`swatch`가 파일과 맞는다. 대응표의 키가 `reference/light.toml`과 같다 — 확인: `npm test`.
-- ⬜ 앱의 파서: `SKIFF_THEMES_DIR`를 준 JVM 테스트에서 45개가 모두 `ThemeToml`로 문제없이 읽힌다.
+- ✅ 앱의 파서: `SKIFF_THEMES_DIR`를 준 JVM 테스트에서 45개가 모두 `ThemeToml`로 문제없이 읽힌다.
 
 앱:
 
