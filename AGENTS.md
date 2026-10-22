@@ -86,6 +86,7 @@ one failure as a result.
 ./gradlew :code:testDebugUnitTest
 ./gradlew :code:testWeb                      # the page's own tests (vitest); :code:check runs them
 ./gradlew :code:lintDebug
+(cd code/web && npm run themes)              # rewrites the bundled community themes from scripts/themes/data/
 adb -s <serial> shell am start -n com.naki.skiff.code/.ui.MainActivity
 adb -s <serial> logcat -s SkiffCode:V        # bridge traffic and the page's console.log
 ```
@@ -336,6 +337,14 @@ These apply to `:code` only:
   not, and needs its own answer.
 - **ktoml needs the serialization compiler plugin, not KSP**, which is why it works here when Room
   does not. `:code` applies `kotlin-serialization` for it.
+- **`@types/node` is in the project, so the page's `setTimeout` is Node's to `tsc`.** Vite's own type
+  files reference it, which puts Node's globals in every file, `src/` included: a bare `setTimeout`
+  returns `NodeJS.Timeout`, not a number. Write `window.setTimeout` where the result is kept. The
+  types are there for `scripts/themes/`, which runs on Node.
+- **A bundled community theme is never edited by hand.** `assets/themes/*.toml` other than `light`
+  and `dark`, `index.json` and `NOTICE.md` are what `npm run themes` writes from
+  `code/web/scripts/themes/data/*.json`, and `themes.test.ts` fails on any difference. Change the data
+  file and run the script.
 - **TypeScript 7's `tsc` treats a file with no import or export as a global script**, so a
   top-level `status` collides with `window.status`.
 - **`@codemirror/view` 6.43.12 grows `viewportLineBlocks` to thousands of off-screen lines** when a

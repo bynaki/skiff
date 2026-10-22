@@ -78,7 +78,7 @@ export function createBanner(): Banner {
     clearTimeout(fading)
     showing = { text, reload }
     render()
-    if (millis) fading = setTimeout(hide, millis)
+    if (millis) fading = window.setTimeout(hide, millis)
   }
 
   return {

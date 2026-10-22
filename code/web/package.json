@@ -5,9 +5,11 @@
   "scripts": {
     "postinstall": "patch-package",
     "build": "tsc && vite build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "themes": "node scripts/themes/generate.ts"
   },
   "devDependencies": {
+    "@types/node": "24.19.1",
     "patch-package": "8.0.1",
     "typescript": "7.0.2",
     "vite": "8.3.0",

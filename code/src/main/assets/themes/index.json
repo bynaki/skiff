@@ -1,4 +1,8 @@
 [
   { "id": "light", "title": "Light", "family": "Skiff", "base": "light" },
-  { "id": "dark", "title": "Dark", "family": "Skiff", "base": "dark" }
+  { "id": "dark", "title": "Dark", "family": "Skiff", "base": "dark" },
+  { "id": "catppuccin-latte", "title": "Catppuccin Latte", "family": "Catppuccin", "base": "light" },
+  { "id": "catppuccin-frappe", "title": "Catppuccin Frappé", "family": "Catppuccin", "base": "dark" },
+  { "id": "catppuccin-macchiato", "title": "Catppuccin Macchiato", "family": "Catppuccin", "base": "dark" },
+  { "id": "catppuccin-mocha", "title": "Catppuccin Mocha", "family": "Catppuccin", "base": "dark" }
 ]

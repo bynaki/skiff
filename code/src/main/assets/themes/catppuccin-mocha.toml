@@ -1,0 +1,55 @@
+# Catppuccin Mocha, converted to a Skiff Code theme.
+# Source: https://github.com/catppuccin/vscode at befc9e6fc41980f4241408f7049755d47c06ff45,
+#   themes/mocha.json as built into catppuccin-vsc-3.19.0.vsix, the catppuccin-vsc-v3.19.0 release
+# License: MIT, Copyright (c) 2021 Catppuccin. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/catppuccin.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#181825" # sideBar.background
+foreground = "#cdd6f4" # sideBar.foreground
+muted = "#cdd6f4" # descriptionForeground
+border = "#585b70" # panel.border
+faint = "#a6adc8" # disabledForeground
+subtle = "#31324480" # list.hoverBackground
+accent = "#cba6f7" # focusBorder
+scrim = "#1e1e2e99" # none in the source: editor.background at alpha 99
+strong_background = "#cba6f7" # button.background
+strong_foreground = "#11111b" # button.foreground
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#1e1e2e" # editor.background
+foreground = "#cdd6f4" # editor.foreground
+gutter_background = "#1e1e2e" # editorGutter.background
+gutter_foreground = "#7f849c" # editorLineNumber.foreground
+gutter_border = "#585b70" # editorGroup.border
+cursor = "#f5e0dc" # editorCursor.foreground
+selection = "#9399b240" # editor.selectionBackground
+code_background = "#181825" # textCodeBlock.background
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#cba6f7" # token keyword (for keyword.control)
+atom = "#f38ba8" # token constant.language (for constant.language)
+literal = "#fab387" # token constant.numeric (for constant.numeric)
+string = "#a6e3a1" # token string (for string.quoted)
+regexp = "#a6e3a1" # token string (for string.regexp)
+definition = "#89b4fa" # token entity.name.function (for entity.name.function)
+local = "#eba0ac" # token variable.parameter (for variable.parameter)
+type = "#f9e2af" # token entity.name.type (for entity.name.type)
+class = "#f9e2af" # token entity.name.class (for entity.name.class)
+macro = "#89b4fa" # token entity.name.function (for entity.name.function.preprocessor)
+property = "#cdd6f4" # none in the source: editor.foreground
+comment = "#9399b2" # token comment (for comment.line)
+meta = "#fab387" # token meta.decorator (for meta.decorator)
+invalid = "#f38ba8" # editorError.foreground
+warning = "#fab387" # editorWarning.foreground
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#a6e3a1" # editorGutter.addedBackground
+removed = "#f38ba8" # editorGutter.deletedBackground
+changed = "#f9e2af" # editorGutter.modifiedBackground

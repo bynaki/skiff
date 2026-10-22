@@ -17,6 +17,9 @@ class ThemesTest {
     /** The bundled files as the app ships them; unit tests run in the module's directory. */
     private fun themes() = Themes({ path -> File("src/main/assets", path).inputStream() }, dir)
 
+    /** What every install offers, before anything is imported. */
+    private val shipped = Themes({ path -> File("src/main/assets", path).inputStream() }, File("build/no-imported-themes")).names
+
     @Test
     fun `a theme is named after its file`() {
         assertEquals("ocean", themes().nameOf("ocean.toml"))
@@ -109,10 +112,10 @@ class ThemesTest {
     @Test
     fun `an imported theme is offered after the ones every install has, and is used`() {
         val themes = themes()
-        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertEquals(shipped, themes.names)
         val problems = themes.import("ocean", "base = \"dark\"\n[ui]\nbackground = \"#012345\"\n")
         assertEquals(emptyList<SettingsProblem>(), problems)
-        assertEquals(listOf("system", "light", "dark", "ocean"), themes.names)
+        assertEquals(shipped + "ocean", themes.names)
         val ocean = themes.resolve("ocean", night = false)
         assertTrue(ocean.dark)
         assertEquals("#012345", ocean.colors["ui.background"])
@@ -125,7 +128,7 @@ class ThemesTest {
         val text = "# mine\nbase = \"light\"\n[syntax]\nkeyword = \"#abc\"\n"
         themes().import("ocean", text)
         val next = themes()
-        assertEquals(listOf("system", "light", "dark", "ocean"), next.names)
+        assertEquals(shipped + "ocean", next.names)
         assertEquals("#abc", next.resolve("ocean", night = true).colors["syntax.keyword"])
         assertEquals(text, next.text("ocean"))
         assertEquals(File("src/main/assets/themes/dark.toml").readText(), next.text("dark"))
@@ -141,7 +144,7 @@ class ThemesTest {
         assertFalse(themes.isImported("dark"))
         themes.import("ocean", "[ui]\nbackground = \"#222\"\n")
         assertEquals("#222", themes.resolve("ocean", night = false).colors["ui.background"])
-        assertEquals(listOf("system", "light", "dark", "ocean"), themes.names)
+        assertEquals(shipped + "ocean", themes.names)
     }
 
     @Test
@@ -200,10 +203,10 @@ class ThemesTest {
         themes.import("ocean", "base = \"dark\"\n")
         themes.resolve("ocean", night = false)
         themes.delete("ocean")
-        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertEquals(shipped, themes.names)
         assertFalse(themes.isImported("ocean"))
         assertFalse(themes.file("ocean").exists())
-        assertEquals(listOf("system", "light", "dark"), themes().names)
+        assertEquals(shipped, themes().names)
     }
 
     @Test
@@ -213,11 +216,11 @@ class ThemesTest {
         themes.import("sand", "base = \"light\"\n")
         themes.resolve("ocean", night = false)
         themes.deleteAllImported()
-        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertEquals(shipped, themes.names)
         assertFalse(themes.file("ocean").exists())
         assertFalse(themes.file("sand").exists())
         assertTrue(themes.resolve("dark", night = false).dark)
-        assertEquals(listOf("system", "light", "dark"), themes().names)
+        assertEquals(shipped, themes().names)
     }
 
     @Test
@@ -226,7 +229,7 @@ class ThemesTest {
         for (name in listOf("light", "dark", "system", "ocean")) {
             assertThrows(name, IllegalArgumentException::class.java) { themes.delete(name) }
         }
-        assertEquals(listOf("system", "light", "dark"), themes.names)
+        assertEquals(shipped, themes.names)
     }
 
     @Test

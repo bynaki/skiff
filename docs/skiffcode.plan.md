@@ -43,10 +43,13 @@
   - 테스트: `ThemesTest`(예약어, 사용자 것이 이김, 차례, 띠), `ThemeTomlTest`(index의 모든 번들이 키를 다 가짐, index ↔ 파일).
   - 한 것: `nameOf`는 번들 id를 알아야 해서 `Themes`의 메서드가 됐다. 이미 있는 사용자 파일을 읽는 쪽(`listImported`, `ownAt`)은 번들 id를 거부하지 않는 이름 규칙을 따로 쓴다 — 그래야 사용자 것이 이긴다. 가려지는 것은 커뮤니티 번들뿐이다(`light`·`dark`라는 사용자 파일은 원래 없다). 차례는 `index.json`의 순서가 아니라 `Themes.names`가 정한다(`light`·`dark`, 나머지는 보이는 이름 순). 테마 목록은 `pageSettings`가 IO에서 읽는다 — 테마마다 한 번 읽고 캐시하므로 첫 답만 파일을 읽는다. 페이지는 Kotlin이 답하기 전에는 `Theme: …` 명령이 없다(예전에는 세 개를 박아 두었다).
   - 테스트: `ThemesTest` +4(번들 id 거부, 차례와 보이는 이름, 같은 이름이면 사용자 것이 이기고 지우면 번들이 돌아옴, 띠와 `system`의 띠), `ThemeTomlTest` +1(index ↔ 파일, id 모양, `base`)과 기존 1개가 index의 모든 번들을 본다. `commands.test.ts`는 목록 모양만 바꿨다. JVM 336, vitest 208, lint 경고 12(모두 이번에 손대지 않은 줄).
-- [ ] 생성 스크립트와 첫 묶음 (Catppuccin 4)
+- [x] 생성 스크립트와 첫 묶음 (Catppuccin 4)
   - `code/web/scripts/themes/generate.ts`와 `npm run themes`. 묶음 데이터의 모양(원본 URL·커밋 SHA·키마다 값과 원본 이름), 대응표의 "없을 때" 규칙, `diff.*`를 불투명하게 섞기, 머리 주석, `index.json`과 `NOTICE.md` 쓰기, 대비 표.
   - Catppuccin은 `catppuccin/vscode`의 JSON을 읽어 데이터로 옮긴다. `light`·`dark`의 원문은 바꾸지 않는다(스크립트가 쓰지 않는 파일로 둔다).
   - vitest `themes.test.ts`: 생성 결과 = 커밋된 파일, 머리 주석, `NOTICE.md`, `editor.foreground` 대비 4.5:1.
+  - 한 것: 데이터는 `scripts/themes/data/catppuccin.json`(JSON, 색 하나가 한 줄). VS Code 테마를 대응표대로 읽는 `scripts/themes/vscode.ts`를 따로 두었다 — 남은 VS Code 묶음 5개와 M14가 같은 것을 쓴다. Catppuccin은 저장소에 만들어진 JSON이 없어 `catppuccin-vsc-v3.19.0` 릴리스의 `.vsix`에서 읽었다(커밋 `befc9e6`). toml의 색마다 원본 이름을 줄 끝 주석으로 단다(ktoml이 읽는 것은 `ThemeTomlTest`가 본다). `@types/node`(24.19.1, 개발용)를 더했고, 그 때문에 `tsc`가 페이지의 `setTimeout`을 Node 것으로 봐 두 곳을 `window.setTimeout`으로 바꿨다(`AGENTS.md`). `buildWeb`의 입력에 `web/scripts`를 더했다(`tsc`가 본다).
+  - 대비(`editor.foreground`·주석·키워드·문자열·정의·타입·숫자): Latte 7.1·3.5·4.8·3.0·4.3·2.3·2.6, Frappé 8.1·4.5·5.6·7.1·5.3·7.6·5.8, Macchiato 9.9·5.3·6.8·9.2·6.6·10.2·7.6, Mocha 11.3·5.8·8.1·11.0·7.8·12.9·9.3. Latte의 문법 색이 낮은 것은 원본 그대로다.
+  - 테스트: 새 `themes.test.ts` 17개(커밋된 파일 = 생성 결과, toml이 그것뿐, 머리 주석, `NOTICE.md`의 전문, 대비 4.5:1(`light`·`dark` 포함), id·이름, 대응표 키 = `light.toml`의 키, 없을 때 채우기·scrim·`diff` 섞기·거부 세 가지·서로 가리키는 두 키, WCAG 대비, toml 모양, `vscode.ts`의 스코프 고르기 셋). `ThemesTest`의 번들 목록을 박아 둔 6곳을 실제 번들로 바꿨다. 손으로 고친 번들 파일을 테스트가 잡는 것을 한 번 확인했다. JVM 336, vitest 225, lint 경고 11.
 - [ ] Neovim에서 읽는 묶음 (14개)
   - Tokyo Night 4, Kanagawa 3, Vague 1, Cyberdream 2, Kanagawa Paper 2, Oxocarbon 2. 각 저장소의 팔레트와 highlight 정의에서 대응표의 Neovim 칸을 읽는다. Tokyo Night은 Apache-2.0이라 `NOTICE.md`에 전문과 바꾼 것임을 적는다.
 - [ ] VS Code에서 읽는 묶음 (14개)

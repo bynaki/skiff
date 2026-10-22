@@ -79,7 +79,7 @@ export function setFontSize(size: number): void {
   document.documentElement.style.setProperty('--code-font-size', `${fontSize}px`)
   // Once the fingers have settled, not sixty times a second on the way there.
   clearTimeout(writing)
-  writing = setTimeout(() => write(KEY, String(fontSize)), WRITE_DELAY)
+  writing = window.setTimeout(() => write(KEY, String(fontSize)), WRITE_DELAY)
 }
 
 /**

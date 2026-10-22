@@ -14,7 +14,7 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
 
   | 묶음 | 저장소 | 라이선스 | 변형(id) | 개수 |
   |---|---|---|---|---|
-  | Catppuccin | `catppuccin/catppuccin` | MIT | `catppuccin-latte`, `-frappe`, `-macchiato`, `-mocha` | 4 |
+  | Catppuccin | `catppuccin/catppuccin`(읽은 곳은 `catppuccin/vscode`) | MIT | `catppuccin-latte`, `-frappe`, `-macchiato`, `-mocha` | 4 |
   | Dracula | `dracula/dracula-theme` | MIT | `dracula`, `alucard`(라이트) | 2 |
   | Rosé Pine | `rose-pine/rose-pine-theme` | MIT | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn` | 3 |
   | Tokyo Night | `folke/tokyonight.nvim` | **Apache-2.0** | `tokyonight-night`, `-storm`, `-moon`, `-day` | 4 |
@@ -85,10 +85,22 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   - 알파가 든 원본 색(VS Code의 `#rrggbbaa` 선택색 등)은 **그대로 둔다.** Skiff 테마가 `#rrggbbaa`를 받는다. 다만 `diff.*`는
     `diff_alpha`가 다시 곱해지므로 불투명하게 바꾼다(그 배경 위에 섞은 색).
   - `base`는 원본의 라이트/다크 구분이다. 상태바 아이콘과 빠진 키의 폴백이 그것을 따른다.
-- **생성 스크립트로 만들고, 만든 파일을 커밋한다.** `code/web/scripts/themes/`에 묶음마다 데이터 파일(원본 위치·커밋 SHA·위
-  표의 키마다 고른 값과 그 값이 원본의 어느 이름에서 왔는지) 하나와, 그것을 toml로 쓰는 `generate.ts` 하나를 둔다. Node 24가
-  `.ts`를 바로 돌려 의존성이 늘지 않는다(`npm run themes`). 빌드 때 네트워크에서 받지 않는다 — 원본에서 값을 옮기는 것은
-  데이터 파일을 쓸 때 한 번이다.
+- **생성 스크립트로 만들고, 만든 파일을 커밋한다.** `code/web/scripts/themes/data/<묶음>.json`에 묶음마다 데이터 파일(원본 위치·
+  커밋 SHA·라이선스 전문·위 표의 키마다 고른 값과 그 값이 원본의 어느 이름에서 왔는지, 색 하나가 한 줄) 하나와, 그것을 toml로
+  쓰는 `generate.ts` 하나를 둔다. Node 24가 `.ts`를 바로 돌린다(`npm run themes`). 늘어난 의존성은 스크립트의 타입을 위한
+  `@types/node`(개발용) 하나다. 빌드 때 네트워크에서 받지 않는다 — 원본에서 값을 옮기는 것은 데이터 파일을 쓸 때 한 번이다.
+  - 데이터 파일에 없는 키는 `generate.ts`가 위 표의 "없을 때"로 채운다. "—"인 키가 없거나, 서로를 가리키는 두 키(`ui.border`와
+    `editor.gutter_border`, `ui.subtle`과 `editor.selection`)가 둘 다 없거나, 색이 아닌 값이 있으면 아무것도 쓰지 않고 실패한다.
+    `ui.scrim`은 VS Code에 맞는 것이 없어 늘 `editor.background`에 알파 `99`다(번들 `light`·`dark`의 scrim과 같은 알파).
+  - VS Code 원본은 `scripts/themes/vscode.ts <theme.json>`이 위 표대로 읽어 데이터의 `colors`를 낸다. TextMate 스코프는 VS Code처럼
+    고른다: 문법이 실제로 붙이는 스코프(`keyword.control`, `string.quoted`, `comment.line`)에 대해, 그것이거나 그 부모인 선택자 중
+    마디가 가장 많은 것, 같으면 뒤의 규칙. 부모 스코프가 있어야 맞는 선택자(`meta.function entity.name`)와 언어별 규칙
+    (`string.regexp.ts`)은 보지 않는다. 알파가 `00`인 색(`sideBar.border = #00000000`)은 없는 것으로 친다.
+  - toml의 색마다 줄 끝 주석에 그 값이 원본의 어느 이름에서 왔는지 적는다(`# sideBar.background`, `# token keyword (for
+    keyword.control)`, `# none in the source: editor.foreground`). 복사해서 고치는 사람이 원본과 견줄 수 있게.
+  - Catppuccin은 `catppuccin/vscode`를 읽었다. 저장소에는 테마를 만드는 TS만 있고 만들어진 JSON이 없어, 그 커밋의 릴리스
+    (`catppuccin-vsc-v3.19.0`)에 붙은 `.vsix` 안의 `themes/*.json`을 읽고 데이터에 그렇게 적었다. npm의 `@catppuccin/vscode`는
+    3.18.1에 멈춰 있어 쓰지 않았다.
   - vitest가 생성 결과와 커밋된 `assets/themes/*.toml`이 같은지 본다. 손으로 고친 번들 파일은 테스트가 잡는다.
   - 스크립트는 테마마다 WCAG 대비(`editor.foreground`·문법 색 대 `editor.background`)를 표로 낸다. **`editor.foreground`만
     4.5:1 미만이면 실패**로 하고, 나머지는 보고만 한다 — 주석을 일부러 흐리게 둔 테마(Rosé Pine, Vesper)가 있고, 원본을 따르는
