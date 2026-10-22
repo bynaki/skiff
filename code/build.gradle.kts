@@ -81,7 +81,6 @@ val buildWeb = tasks.register<Exec>("buildWeb") {
     commandLine("npm", "run", "build")
     inputs.files("web/package.json", "web/package-lock.json", "web/index.html", "web/tsconfig.json", "web/vite.config.ts")
     inputs.dir("web/src")
-    inputs.dir("web/scripts")
     inputs.dir("web/patches")
     outputs.dir("src/main/assets/web")
 }

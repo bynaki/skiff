@@ -17,15 +17,17 @@
 ## 마지막 세션 (2026-10-22)
 
 ### 지금 상태
-- M13 "테마 저장소 만들기"를 끝냈다. 공개 저장소 `bynaki/skiffcode-themes`(로컬 `~/projects/skiffcode-themes`)에 테마 45개,
-  `index.json`(`format: 1`, `swatch`·`size`·`sha256`), README·LICENSE·NOTICE.md·AGENTS.md, 스크립트와 데이터, 테스트를 올렸고,
-  `raw.githubusercontent.com`에서 로그인 없이 45개가 sha256대로 받아지는 것을 확인했다. 자세한 것은 plan의 그 항목.
-- 앱 레포에는 `ThemeTomlTest`의 `SKIFF_THEMES_DIR` 테스트(다음 항목 것을 당겨 옴)와 그것을 위한 `code/build.gradle.kts`의 입력만
-  더했다. **앱의 번들 45개·스크립트·데이터는 아직 그대로다** — 다음 항목에서 지운다.
-- 테마 저장소는 vitest 5.0.5다(5.0.1의 moderate 권고 둘 때문). 앱 레포의 `code/web`은 아직 5.0.1이다 — 올릴지 사용자에게 물어볼 것.
-- 이제 테마 데이터를 고치는 곳은 테마 저장소다. 앱 레포의 `code/web/scripts/themes/`를 고치지 않는다(곧 지운다).
+- M13 "앱에서 번들 빼기"를 끝냈다. `code/src/main/assets/themes/`에는 `light.toml`·`dark.toml`과 두 줄짜리 `index.json`만 남았고,
+  `code/web/scripts/`, `test/themes.test.ts`, `@types/node`, `npm run themes`, `tsconfig.json`의 `scripts`, `buildWeb`의
+  `web/scripts` 입력, `AGENTS.md`의 해당 줄 둘(`@types/node`, 번들 테마 손으로 고치지 않기)과 명령 한 줄을 지웠다.
+- `@types/node` 없이도 `tsc`가 통과한다(Vite 타입의 참조는 `skipLibCheck`로 넘어감). `window.setTimeout` 두 곳은 그대로 뒀다.
+- JVM 337(건너뜀 1 — `SKIFF_THEMES_DIR` 없을 때), vitest 208(테마 테스트 26개가 빠짐), lint 경고 11(그대로).
+  `SKIFF_THEMES_DIR=~/projects/skiffcode-themes`로 `ThemeTomlTest` 12개가 건너뜀 없이 통과.
+- 테마 데이터를 고치는 곳은 이제 테마 저장소뿐이다(`~/projects/skiffcode-themes`, `AGENTS.md`의 "Themes live outside the app too").
+- 앱 레포의 `code/web`도 vitest 5.0.5로 올렸다(사용자 결정, 5.0.1의 moderate 권고 둘). `npm audit`에는 high 셋이 남았다:
+  `markdown-it` 15.0.2(→15.0.3), `source-map-js`(`npm audit fix`), `patch-package`가 끌어오는 `braces` — 손대지 않았다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. `skiffcode.plan.md`의 첫 `- [ ]`, M13의 "앱에서 번들 빼기"부터 한다. 읽을 spec은 M13 머리의 줄이다.
+2. `skiffcode.plan.md`의 첫 `- [ ]`, M13의 "받기 (Kotlin)"부터 한다. 읽을 spec은 M13 머리의 줄이다.
 3. 푸시는 사용자에게 묻는다(커밋도 푸시도 사용자가 말할 때만).
