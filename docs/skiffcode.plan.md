@@ -19,7 +19,71 @@
 
 ## 할 일
 
-다음 마일스톤은 아직 없다.
+### M13. 커뮤니티 테마와 `Theme...` 목록
+
+읽을 spec: [`community-themes.md`](skiffcode.spec/community-themes.md). 테마 파일의 규칙은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 `themes/*.toml`과 import·복사 항목만, 팔레트 모드는 [`palette.md`](skiffcode.spec/palette.md)의 A·B·C와 최근 목록만.
+
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "커뮤니티 테마들 .toml 제공". 사용자 결정(2026-10-22): 15개 저장소의 **모든 변형**(대비 단계 포함, 45개 = 44 + `ocean`), "ocean theme"은 **폴드8의 `ocean copy`**, 목록은 **팔레트 안의 목록**, `system`이 따를 테마 고르기는 **이번엔 하지 않음**. 같은 이름의 사용자 테마가 있으면 **사용자 것이 이긴다**(같은 날 사용자 결정).
+
+지금(코드로 확인): `settings/Theme.kt`의 `Themes.bundled`가 `light`·`dark`를 박아 두고, `names`가 `system` + 번들 + 가져온 것을 낸다. 이름 규칙은 `Themes.nameOf`(`system`/`light`/`dark` 거부). 페이지는 `commands.ts`의 `THEME_TITLES`와 `Theme: …` 명령(`source.themes()`마다 하나), `palette.ts`의 `PaletteMode`가 `command`·`file`·`symbol` 셋이다. 번들 파일은 `code/src/main/assets/themes/{light,dark}.toml`이고 `ThemeTomlTest`가 키를 다 갖는지 본다.
+
+**성공 조건**
+
+- ⬜ JVM: 번들 47개(커뮤니티 45 + `light`·`dark`)가 모든 키를 갖고 읽을 때 문제가 없다. `index.json`과 `assets/themes/*.toml`이 하나씩 맞는다. 번들 id가 가져오기와 복사에서 대소문자 없이 거부된다. 같은 이름의 사용자 테마가 있으면 그것이 이긴다. `names`의 차례 — 확인: `ThemeTomlTest`, `ThemesTest`. `:code` 린트에 새 경고가 없다.
+- ⬜ vitest: 생성 스크립트의 결과가 커밋된 파일과 같다. 모든 파일에 원본·커밋·라이선스 머리 주석이 있고, `NOTICE.md`에 묶음마다 라이선스가 있다. 모든 테마의 `editor.foreground` 대비가 4.5:1 이상이다. 팔레트: `Theme: …`가 없고 `Theme...`가 있다, 테마 목록의 차례·표시·퍼지 검색, 고르면 `setTheme`과 `>` 모드로 닫힘 — 확인: 새 테스트 `themes.test.ts`, `commands.test.ts`, `palette.test.ts`.
+- ⬜ 탭: `Theme...`에 48줄이 색 띠와 함께 보이고 지금 테마에 표시가 있다. 고르면 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된 마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다. `mocha`를 치면 좁혀진다.
+- ⬜ 탭, 사용자 확인: 45개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을 사용자가 원본 테마와 견주어 보고 괜찮다고 한다. 모음은 스크립트가 테마를 차례로 바꾸며 `screencap`으로 만든다.
+- ⬜ 폴드8 커버 화면(글꼴 배율 1.5): 테마 목록의 이름과 띠가 잘리지 않고 목록이 스크롤된다. 사용자 기기라 테마를 바꾸는 것은 사용자에게 묻고, 끝나면 되돌린다.
+- ⬜ 폴드8: 번들 `ocean`의 색이 사용자의 `ocean copy`와 키마다 같다.
+
+- [ ] 번들 목록과 이름 (Kotlin)
+  - `assets/themes/index.json`(id, 보이는 이름, 묶음, `base`)을 두고 지금은 `light`·`dark` 두 줄만 넣는다. `Themes.bundled`를 이 파일에서 만든다.
+  - `nameOf`가 번들 id를 대소문자 없이 거부한다. 같은 이름의 사용자 파일이 이미 있으면 사용자 것이 이긴다.
+  - `settings` 답의 `themes`를 이름 목록에서 `{ id, title, dark, swatch }` 목록으로 바꾼다(띠 색 여섯, `system`은 따르는 번들의 것). 페이지의 `THEME_TITLES`를 지운다.
+  - 테스트: `ThemesTest`(예약어, 사용자 것이 이김, 차례, 띠), `ThemeTomlTest`(index의 모든 번들이 키를 다 가짐, index ↔ 파일).
+- [ ] 생성 스크립트와 첫 묶음 (Catppuccin 4)
+  - `code/web/scripts/themes/generate.ts`와 `npm run themes`. 묶음 데이터의 모양(원본 URL·커밋 SHA·키마다 값과 원본 이름), 대응표의 "없을 때" 규칙, `diff.*`를 불투명하게 섞기, 머리 주석, `index.json`과 `NOTICE.md` 쓰기, 대비 표.
+  - Catppuccin은 `catppuccin/vscode`의 JSON을 읽어 데이터로 옮긴다. `light`·`dark`의 원문은 바꾸지 않는다(스크립트가 쓰지 않는 파일로 둔다).
+  - vitest `themes.test.ts`: 생성 결과 = 커밋된 파일, 머리 주석, `NOTICE.md`, `editor.foreground` 대비 4.5:1.
+- [ ] Neovim에서 읽는 묶음 (14개)
+  - Tokyo Night 4, Kanagawa 3, Vague 1, Cyberdream 2, Kanagawa Paper 2, Oxocarbon 2. 각 저장소의 팔레트와 highlight 정의에서 대응표의 Neovim 칸을 읽는다. Tokyo Night은 Apache-2.0이라 `NOTICE.md`에 전문과 바꾼 것임을 적는다.
+- [ ] VS Code에서 읽는 묶음 (14개)
+  - Dracula 2(Alucard는 `dracula-theme`의 스펙에서), Rosé Pine 3(`rose-pine/vscode`), Winter is Coming 3, Flexoki 2(`flexoki/vscode`), Vesper 1, Ayu 3(`ayu-colors`의 `themes/*.yaml`과 `src`). 이탤릭 없는 변형은 넣지 않는다.
+- [ ] Vim에서 읽는 묶음과 Ocean (13개)
+  - Gruvbox 6, Everforest 6 — 대비 단계는 원본의 옵션(`g:gruvbox_contrast_*`, `g:everforest_background`)이 바꾸는 배경 값을 그대로 쓴다.
+  - Ocean: 폴드8의 `ocean copy.toml`을 사용자 허락을 받고 `run-as`로 꺼내 데이터로 옮긴다. 성공 조건의 "키마다 같다"를 이때 본다.
+- [ ] 페이지: `Theme...`와 테마 목록 모드
+  - `Theme: …` 명령을 지우고 `Theme...`를 더한다. `PaletteMode`에 `theme`을 더하되 스와이프 순환에는 넣지 않는다. 빈 입력에 전부, 차례, 지금 테마 표시, 색 띠, 퍼지 검색, 고르면 `setTheme` 후 `>` 모드로 A.
+  - vitest: `commands.test.ts`, `palette.test.ts`.
+- [ ] 확인: 탭, 견본 모음, 폴드8
+  - 성공 조건의 탭 두 항목과 폴드8 두 항목. 견본 모음은 테마를 차례로 바꾸며 찍는 스크립트로 만들어 사용자에게 보낸다. 끝나면 두 기기의 `settings.toml`을 md5로 되돌린다.
+
+### M14. 테마 변환 스킬 `/theme-convert`
+
+읽을 spec: [`community-themes.md`](skiffcode.spec/community-themes.md)의 "바꾸는 방법"과 "변환 스킬". 이름 규칙은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 가져오기 항목만.
+
+M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-10-22): 결과는 **`Import Theme`으로 들일 toml 하나**(번들에 넣지 않음), 자리는 **레포의 `.claude/skills/theme-convert/`**, **명령으로만** 부른다. 파일은 **레포의 `user-themes/<이름>.toml`에 만드는 것까지**이고 건네기와 커밋은 하지 않는다(같은 날 사용자 결정).
+
+지금(M13이 끝났을 때를 가정): `code/web/scripts/themes/generate.ts`가 묶음 데이터에서 `assets/themes/*.toml`, `index.json`, `NOTICE.md`를 쓴다. 레포 스킬은 `.claude/skills/commit` 하나다.
+
+**성공 조건**
+
+- ⬜ vitest: 한 파일 모드가 같은 데이터에 번들 모드와 똑같은 toml을 쓰고, `index.json`·`NOTICE.md`·`assets/themes`를 건드리지 않는다. 잘못된 데이터(빠진 필수 키, 색이 아닌 값)는 파일을 쓰지 않고 실패한다 — 확인: `themes.test.ts`.
+- ⬜ JVM: 한 파일 모드가 쓴 견본 toml이 `ThemeToml.read`에서 문제없이 읽힌다 — 확인: `ThemeTomlTest`(테스트 리소스의 견본).
+- ⬜ 스킬: 번들에 없는 테마 둘로 `/theme-convert`를 끝까지 돌린다 — VS Code 원본 하나, Neovim 원본 하나(어느 것으로 할지 그때 사용자에게 묻는다). 한 번 돌릴 때마다 레포에서 바뀐 것은 `user-themes/`의 새 파일 하나뿐이고, 머리 주석에 원본·커밋·라이선스가 있다. 번들 id와 겹치는 이름을 주면 다른 이름을 제안한다.
+- ⬜ 탭, 사용자 확인: 그 두 파일을 `Import Theme`으로 들이면 경고 배너 없이 들어오고, 견본을 찍은 화면을 사용자가 원본과 견주어 보고 괜찮다고 한다. 확인용으로는 adb로 탭의 `Download/`에 넣어 들인다.
+- ⬜ 스킬의 프런트매터에 `disable-model-invocation: true`가 있고, 스킬 목록에 명령으로 보인다.
+
+- [ ] 생성 스크립트의 한 파일 모드
+  - `npm run themes -- --one <데이터> --out <경로>`. 번들 모드와 같은 함수로 toml을 쓰고, 목록·NOTICE는 쓰지 않는다. 필수 키가 빠졌거나 색이 아니면 쓰지 않고 실패한다. 대비 표는 같이 낸다.
+  - 테스트: `themes.test.ts`에 한 파일 모드, `ThemeTomlTest`에 견본 읽기.
+- [ ] 스킬 쓰기
+  - `.claude/skills/theme-convert/SKILL.md`: 프런트매터(`disable-model-invocation: true`, 인자 `<저장소 URL> [변형]`). 단계는 원본 고르기 → 원본 파일과 커밋 SHA → scratchpad에 묶음 데이터 → 한 파일 모드 → 대비 표 보기 → 이름 정하기(`nameOf` 규칙, 번들 id 피하기) → `user-themes/<이름>.toml`에 쓰기(커밋하지 않음). 대응표는 `community-themes.md`를 가리키고 옮겨 적지 않는다. 라이선스가 허용 라이선스가 아니면 알린다.
+  - 묶음 데이터의 모양은 M13의 데이터 파일 하나를 예로 가리킨다.
+  - `user-themes/`를 만든다(무엇을 두는 곳인지 적은 `README.md` 하나와 함께).
+  - `AGENTS.md`에 스킬 한 줄(무엇을 하고, 번들에 더하는 것은 아니라는 것).
+- [ ] 확인: 두 테마로 끝까지, 탭에 들이기
+  - 성공 조건의 스킬·탭 항목. 고를 테마는 사용자에게 묻는다(후보: VS Code 원본 Nord, Neovim 원본 Nightfox).
 
 ## 아직 확인하지 않은 것
 

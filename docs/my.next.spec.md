@@ -44,3 +44,24 @@
 - https 일때 viewer에서 링크로 표시히고 탭하면 연결앱 창 띠운다.
 - https가 .md 파일이면 앱 내에서 연다.
 - .md 파일이면 이 앱내에서 연다.
+
+### 커뮤니티 테마들 .toml 제공
+- 아래 테마들을 skiffcode 테마에 맞게 .toml로 변환해서 기본 제공
+- 커맨드 팔레트 메뉴 `Theme...` 로 하고 선택하면 테마 목록 창 띠우기
+- 정한 것(2026-10-22): 변형은 대비 단계까지 전부, ocean은 폴드8의 `ocean copy`, 목록은 팔레트 안의 목록. 설계는 `skiffcode.spec/community-themes.md`, 할 일은 `skiffcode.plan.md`의 M13.
+- https://github.com/catppuccin/catppuccin
+- https://github.com/dracula/dracula-theme
+- https://github.com/rose-pine/rose-pine-theme
+- https://github.com/folke/tokyonight.nvim
+- https://github.com/johnpapa/vscode-winteriscoming
+- https://github.com/morhetz/gruvbox
+- https://github.com/rebelot/kanagawa.nvim
+- https://github.com/sainnhe/everforest
+- https://github.com/vague-theme/vague.nvim
+- https://github.com/scottmckendry/cyberdream.nvim
+- https://github.com/thesimonho/kanagawa-paper
+- https://github.com/nyoom-engineering/oxocarbon.nvim
+- https://github.com/kepano/flexoki
+- https://github.com/raunofreiberg/vesper
+- https://github.com/ayu-theme/ayu-colors
+- ocean theme

@@ -14,24 +14,21 @@
 
 ---
 
-## 마지막 세션 (2026-10-21)
+## 마지막 세션 (2026-10-22)
 
 ### 지금 상태
-- **M12(오른쪽 네비게이션 바, `[editor] nav_bar`)를 끝내고 `skiffcode.plan.done.md`로 옮겼고, 브랜치 `spec/next`에
-  커밋했다. 아직 푸시하지 않았다.**
-  `docs/my.next.spec.md`의 변경은 사용자가 직접 한 것이다.
-- 설계와 결정은 spec `nav-bar.md`. "제안"으로 두었던 네 가지(폭 6px, 왼쪽 git·오른쪽 진단, info·hint 뺌, 표시 없어도
-  상자)는 사용자가 그대로 두기로 했다. 테마에 `[syntax] warning`을 더했다.
-- 켜져 있으면 시스템 세로 스크롤바를 숨긴다(사용자 요청). CSS로는 Android WebView에서 안 되어 `.cm-scroller`를 오른쪽으로
-  24px 밀고 `.cm-editor`의 `overflow: clip`으로 자른다(`hidden`이면 커서 스크롤이 편집기를 옆으로 민다).
-- JVM 331, vitest 208, tsc 통과, `:code` 린트 경고 11(기준과 같다). 마지막 코드 변경 뒤에 돌렸다.
-- 탭과 폴드8 모두 최신 빌드가 설치되어 있다. 탭의 `settings.toml`은 백업 md5로 되돌렸다. 폴드8은 사용자가 이미
-  `nav_bar = true`로 켜 두어 설정을 바꾸지 않았다. 시험용 임시 레포 `~/skiff-navbar-check`와 앱의 그 프로젝트는 지웠다.
-- 폴드8 커버 화면을 찍을 때는 디스플레이가 둘이라 `screencap -d <커버 화면의 물리 id>`가 필요하다. 오른쪽 위의 회색
-  손잡이는 삼성 엣지 패널이다.
+- **코드는 바꾸지 않았다. 계획만 세웠다:** M13(커뮤니티 테마 45개와 팔레트의 `Theme...` 목록)과 M14(테마 변환 스킬
+  `/theme-convert`). 설계는 새 주제 파일 `docs/skiffcode.spec/community-themes.md`, 할 일은 `skiffcode.plan.md`의 M13·M14다.
+  목차, `settings-theme.md`, `palette.md`에 그리로 가는 한 줄씩을 넣었다.
+- `docs/my.next.spec.md`의 "커뮤니티 테마들 .toml 제공" 절은 사용자가 쓴 것이고, 이 세션은 "정한 것" 한 줄만 더했다.
+- 이번 세션의 사용자 결정은 모두 spec과 계획에 적었다: 모든 변형(대비 단계 포함), ocean은 폴드8의 `ocean copy`, 목록은 팔레트 안,
+  `system`의 테마 고르기는 안 함, 같은 이름이면 사용자 테마가 이김, 스킬은 레포 `.claude/skills/`·명령으로만·결과는 레포
+  `user-themes/<이름>.toml`을 만드는 것까지(건네기·커밋 없음).
+- 15개 저장소의 라이선스는 GitHub API로 봤다(Tokyo Night만 Apache-2.0, Gruvbox는 API가 못 찾지만 README·`package.json`이 MIT).
+  **변형 이름은 저장소의 파일 목록만 보고 적었다** — 원본 파일은 아직 열지 않았으니 구현 때 맞춘다.
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
-2. 푸시는 사용자에게 묻는다(커밋도 푸시도 사용자가 말할 때만).
-3. `skiffcode.plan.md`의 "할 일"이 비어 있다. 다음 마일스톤은 `docs/my.next.spec.md`의 남은 요구사항에서 사용자와 정한다.
-   그 밖의 후보는 계획의 "아직 확인하지 않은 것"과 "알려진 문제"다.
+2. `skiffcode.plan.md`의 첫 `- [ ]`, M13의 "번들 목록과 이름 (Kotlin)"부터 한다. 읽을 spec은 M13 머리의 줄이다.
+3. Ocean 항목은 폴드8에서 `run-as`로 파일을 꺼내야 하니 그때 사용자에게 묻는다. 폴드8 연결은 `~/.claude/skills/fold8-install` 스킬.
+4. 푸시는 사용자에게 묻는다(커밋도 푸시도 사용자가 말할 때만).
