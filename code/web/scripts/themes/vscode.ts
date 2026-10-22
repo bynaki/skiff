@@ -5,7 +5,7 @@
 //   node scripts/themes/vscode.ts <theme.json>
 //
 // prints `{ title, base, colors }`, where each color is `{ value, from }` and `from` names the
-// workbench color or the TextMate scope it was read from. A key the theme says nothing about is left
+// workbench color or the TextMate scope it was read from. The file may be JSONC, as VS Code allows. A key the theme says nothing about is left
 // out, for `generate.ts` to fill by the mapping table's last column.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -39,9 +39,11 @@ export const SOURCES: Record<string, string[]> = {
   'ui.background': ['ui:sideBar.background'],
   'ui.foreground': ['ui:sideBar.foreground', 'ui:foreground'],
   'ui.muted': ['ui:descriptionForeground'],
-  'ui.border': ['ui:panel.border', 'ui:sideBar.border'],
+  // A theme that hides its panel borders (Rosé Pine) still draws its widgets'.
+  'ui.border': ['ui:panel.border', 'ui:sideBar.border', 'ui:editorWidget.border'],
   'ui.faint': ['ui:disabledForeground'],
   'ui.subtle': ['ui:list.hoverBackground'],
+  // Only an opaque one: Rosé Pine's focusBorder is a faint gray, which marks nothing.
   'ui.accent': ['ui:focusBorder', 'ui:button.background'],
   'ui.strong_background': ['ui:button.background'],
   'ui.strong_foreground': ['ui:button.foreground'],
@@ -73,9 +75,37 @@ export const SOURCES: Record<string, string[]> = {
   'diff.changed': ['ui:editorGutter.modifiedBackground'],
 }
 
+/**
+ * What VS Code draws for a workbench color the theme does not give, for the ones [SOURCES] reads that
+ * have such a default: a color for dark and light themes, or the color it follows. From `registerColor`
+ * in microsoft/vscode at 3a12a6ee5e86e2a80470da49cc8f1bf04f6e27f9. Tried only after every source of a key.
+ */
+export const DEFAULTS: Record<string, { dark: string; light: string } | string> = {
+  'panel.border': { dark: '#80808059', light: '#80808059' },
+  'disabledForeground': { dark: '#cccccc80', light: '#61616180' },
+  'editorLineNumber.foreground': { dark: '#858585', light: '#237893' },
+  'editorCursor.foreground': { dark: '#aeafad', light: '#000000' },
+  'editorError.foreground': { dark: '#f14c4c', light: '#e51400' },
+  'editorWarning.foreground': { dark: '#cca700', light: '#bf8803' },
+  'editorGutter.addedBackground': { dark: '#487e02', light: '#48985d' },
+  'editorGutter.deletedBackground': 'editorError.foreground',
+  'editorGutter.modifiedBackground': { dark: '#1b81a8', light: '#2090d3' },
+}
+
+/** The keys that take only an opaque color from the theme, passing over one with alpha. */
+const OPAQUE = new Set(['ui.accent'])
+
 /** A color written as `#rrggbbaa` with `00` alpha draws nothing, and is taken as not given. */
 function invisible(color: string): boolean {
   return /^#[0-9a-f]{6}00$/i.test(color) || /^#[0-9a-f]{3}0$/i.test(color)
+}
+
+/** Whether [color], `#rgba` or `#rrggbbaa`, lets what is under it show. */
+function translucent(color: string): boolean {
+  const hex = color.slice(1).toLowerCase()
+  if (hex.length === 4) return hex[3] !== 'f'
+  if (hex.length === 8) return hex.slice(6) !== 'ff'
+  return false
 }
 
 /**
@@ -100,26 +130,74 @@ export function tokenColor(rules: TokenRule[], scope: string): Picked | null {
   return best && { value: best.value.toLowerCase(), from: `token ${best.selector} (for ${scope})` }
 }
 
-/** Every key [theme] gives a color for, each from the first of [SOURCES] it has. */
+/**
+ * [text] as JSON with what VS Code also takes in a theme file left out: line and block comments and
+ * trailing commas, outside strings.
+ */
+export function parseJsonc(text: string): unknown {
+  let out = ''
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at]
+    if (char === '"') {
+      const end = /"(?:[^"\\]|\\.)*"/y
+      end.lastIndex = at
+      const string = end.exec(text)?.[0] ?? text.slice(at)
+      out += string
+      at += string.length - 1
+    } else if (text.startsWith('//', at)) {
+      at = text.indexOf('\n', at) === -1 ? text.length : text.indexOf('\n', at) - 1
+    } else if (text.startsWith('/*', at)) {
+      at = text.indexOf('*/', at + 2) === -1 ? text.length : text.indexOf('*/', at + 2) + 1
+    } else {
+      out += char
+    }
+  }
+  return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'))
+}
+
+/** What VS Code draws for the workbench color [name] in [theme] when the theme leaves it out, if anything. */
+function byDefault(theme: VscodeTheme, base: 'light' | 'dark', name: string): Picked | null {
+  const fallback = DEFAULTS[name]
+  if (fallback === undefined) return null
+  if (typeof fallback === 'object') return { value: fallback[base], from: `${name}: VS Code's default for a ${base} theme` }
+  const own = theme.colors?.[fallback]
+  if (own !== undefined) return { value: own.toLowerCase(), from: `${name}: VS Code's default, ${fallback}` }
+  const followed = byDefault(theme, base, fallback)
+  return followed && { value: followed.value, from: `${name}: VS Code's default, ${followed.from}` }
+}
+
+/**
+ * Every key [theme] gives a color for, each from the first of [SOURCES] it has, or else from the first
+ * of them VS Code has a default for: what VS Code would draw.
+ */
 export function fromVscode(theme: VscodeTheme): { title: string; base: 'light' | 'dark'; colors: Record<string, Picked> } {
+  const base = theme.type === 'light' ? 'light' : 'dark'
   const colors: Record<string, Picked> = {}
   for (const [key, sources] of Object.entries(SOURCES)) {
-    for (const source of sources) {
-      const [kind, name] = [source.slice(0, source.indexOf(':')), source.slice(source.indexOf(':') + 1)]
+    const parsed = sources.map((source) => [source.slice(0, source.indexOf(':')), source.slice(source.indexOf(':') + 1)])
+    for (const [kind, name] of parsed) {
       const picked =
         kind === 'ui'
           ? theme.colors?.[name] !== undefined ? { value: theme.colors[name].toLowerCase(), from: name } : null
           : tokenColor(theme.tokenColors ?? [], name)
-      if (picked && !invisible(picked.value)) {
+      if (picked && !invisible(picked.value) && !(OPAQUE.has(key) && translucent(picked.value))) {
+        colors[key] = picked
+        break
+      }
+    }
+    if (colors[key]) continue
+    for (const [kind, name] of parsed) {
+      const picked = kind === 'ui' && theme.colors?.[name] === undefined ? byDefault(theme, base, name) : null
+      if (picked) {
         colors[key] = picked
         break
       }
     }
   }
-  return { title: theme.name ?? '', base: theme.type === 'light' ? 'light' : 'dark', colors }
+  return { title: theme.name ?? '', base, colors }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const theme = JSON.parse(readFileSync(process.argv[2], 'utf8')) as VscodeTheme
+  const theme = parseJsonc(readFileSync(process.argv[2], 'utf8')) as VscodeTheme
   console.log(JSON.stringify(fromVscode(theme), null, 2))
 }

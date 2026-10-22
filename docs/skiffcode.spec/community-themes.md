@@ -15,8 +15,8 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | 묶음 | 저장소 | 라이선스 | 변형(id) | 개수 |
   |---|---|---|---|---|
   | Catppuccin | `catppuccin/catppuccin`(읽은 곳은 `catppuccin/vscode`) | MIT | `catppuccin-latte`, `-frappe`, `-macchiato`, `-mocha` | 4 |
-  | Dracula | `dracula/dracula-theme` | MIT | `dracula`, `alucard`(라이트) | 2 |
-  | Rosé Pine | `rose-pine/rose-pine-theme` | MIT | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn` | 3 |
+  | Dracula | `dracula/dracula-theme`(읽은 곳은 `dracula/visual-studio-code`) | MIT | `dracula`, `alucard`(라이트) | 2 |
+  | Rosé Pine | `rose-pine/rose-pine-theme`(읽은 곳은 `rose-pine/vscode`) | MIT | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn` | 3 |
   | Tokyo Night | `folke/tokyonight.nvim` | **Apache-2.0** | `tokyonight-night`, `-storm`, `-moon`, `-day` | 4 |
   | Winter is Coming | `johnpapa/vscode-winteriscoming` | MIT | `winter-is-coming-dark-blue`, `-dark`, `-light` | 3 |
   | Gruvbox | `morhetz/gruvbox` | MIT/X11(README와 `package.json`) | `gruvbox-dark-hard`, `-dark-medium`, `-dark-soft`, `-light-hard`, `-light-medium`, `-light-soft` | 6 |
@@ -28,11 +28,13 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | Oxocarbon | `nyoom-engineering/oxocarbon.nvim` | MIT | `oxocarbon-dark`, `-light` | 2 |
   | Flexoki | `kepano/flexoki` | MIT | `flexoki-dark`, `-light` | 2 |
   | Vesper | `raunofreiberg/vesper` | MIT | `vesper` | 1 |
-  | Ayu | `ayu-theme/ayu-colors` | MIT | `ayu-light`, `-mirage`, `-dark` | 3 |
+  | Ayu | `ayu-theme/ayu-colors`(읽은 곳은 `ayu-theme/vscode-ayu`) | MIT | `ayu-light`, `-mirage`, `-dark` | 3 |
   | Ocean | 폴드8의 `ocean copy`(사용자 것) | — | `ocean` | 1 |
 
   라이선스는 2026-10-22에 GitHub API로 봤다. 변형 이름은 저장소가 부르는 이름을 따르고, 구현 때 원본에서 다시 맞춘다.
   `cyberdream-muted`는 구현 때 저장소에서 찾은 세 번째 변형이다(`colors/cyberdream-muted.lua`, README의 `variant = "muted"`).
+  넣지 않은 것: VS Code 포트만의 변형인 Dracula Soft(`dracula/visual-studio-code`가 Dracula 색의 채도를 20% 낮춘 것 — Dracula
+  스펙의 변형은 Dracula와 Alucard뿐이다), Ayu의 `unbordered`(경계선만 다른 모양 변형), Rosé Pine의 `no-italics`.
 - **id**는 소문자와 `-`만 쓴다. `settings.toml`의 `theme = "catppuccin-mocha"`와 `assets/themes/<id>.toml`의 파일 이름이다.
   화면에 보이는 이름(`Catppuccin Mocha`, `Rosé Pine Dawn`)은 따로 둔다(아래 "목록 파일").
 - **Ocean**은 폴드8 앱 안의 `filesDir/themes/ocean copy.toml`을 그대로 가져와 머리 주석만 붙인다. 사용자 기기라 꺼내는 것은
@@ -51,10 +53,10 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | `ui.background` | `sideBar.background` | `NormalFloat` bg | `editor.background` |
   | `ui.foreground` | `sideBar.foreground`, `foreground` | `NormalFloat` fg | `editor.foreground` |
   | `ui.muted` | `descriptionForeground` | `Comment` fg | `syntax.comment` |
-  | `ui.border` | `panel.border`, `sideBar.border` | `FloatBorder` fg, `WinSeparator` fg | `editor.gutter_border` |
+  | `ui.border` | `panel.border`, `sideBar.border`, `editorWidget.border` | `FloatBorder` fg, `WinSeparator` fg | `editor.gutter_border` |
   | `ui.faint` | `disabledForeground` | `NonText` fg | `ui.muted` |
   | `ui.subtle` | `list.hoverBackground` | `CursorLine` bg | `editor.selection` |
-  | `ui.accent` | `focusBorder`, `button.background` | `Function` fg | `syntax.definition` |
+  | `ui.accent` | `focusBorder`, `button.background`(불투명한 것만) | `Function` fg | `syntax.definition` |
   | `ui.scrim` | — | — | `editor.background` + 알파 `99` |
   | `ui.strong_background` / `strong_foreground` | `button.background` / `button.foreground` | `PmenuSel` bg / fg(없으면 `Pmenu` fg) | `ui.foreground` / `ui.background` |
   | `editor.background` / `foreground` | `editor.background` / `editor.foreground` | `Normal` bg / fg | — (반드시 있다) |
@@ -97,6 +99,13 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
     고른다: 문법이 실제로 붙이는 스코프(`keyword.control`, `string.quoted`, `comment.line`)에 대해, 그것이거나 그 부모인 선택자 중
     마디가 가장 많은 것, 같으면 뒤의 규칙. 부모 스코프가 있어야 맞는 선택자(`meta.function entity.name`)와 언어별 규칙
     (`string.regexp.ts`)은 보지 않는다. 알파가 `00`인 색(`sideBar.border = #00000000`)은 없는 것으로 친다.
+    - 파일은 JSONC여도 된다(주석과 끝 쉼표, VS Code가 받는 그대로 — Vesper).
+    - 테마가 workbench 색을 아예 적지 않으면 **VS Code가 그리는 기본값**을 쓴다(`DEFAULTS`, microsoft/vscode의 `registerColor`에서
+      옮김: `panel.border`, `disabledForeground`, `editorLineNumber.foreground`, `editorCursor.foreground`, `editorError`·`editorWarning.foreground`,
+      `editorGutter.*Background`). 그 키의 모든 원본을 테마에서 찾은 뒤에만 보고, 주석은 `# editorGutter.addedBackground: VS Code's
+      default for a dark theme`다. 테마가 투명하게 적은 색(Rosé Pine의 `panel.border = #0000`)은 일부러 숨긴 것이라 기본값을 쓰지 않는다.
+    - `ui.accent`는 불투명한 색만 받는다. Rosé Pine의 `focusBorder`는 20% 회색이라 강조가 되지 않아 `button.background`로 간다.
+    - `ui.border`의 셋째 원본 `editorWidget.border`는 패널 경계를 숨긴 테마(Rosé Pine)가 위젯에는 긋는 선이다.
   - Neovim 원본은 `scripts/themes/neovim.ts <플러그인 디렉터리> <colorscheme> [light|dark]`가 읽는다. 정적으로 Lua를 읽지 않고,
     `nvim --headless --clean`에서 그 색 구성표를 실제로 불러(`background`가 주어지면 먼저 맞추고) 위 표의 그룹을 Neovim이 그리는
     대로 읽는다: 링크를 따라가고(색 구성표가 정하지 않은 tree-sitter 그룹은 Neovim 기본 링크의 끝), `reverse`인 그룹은 뒤집은
@@ -109,6 +118,12 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   - Catppuccin은 `catppuccin/vscode`를 읽었다. 저장소에는 테마를 만드는 TS만 있고 만들어진 JSON이 없어, 그 커밋의 릴리스
     (`catppuccin-vsc-v3.19.0`)에 붙은 `.vsix` 안의 `themes/*.json`을 읽고 데이터에 그렇게 적었다. npm의 `@catppuccin/vscode`는
     3.18.1에 멈춰 있어 쓰지 않았다.
+  - VS Code로 읽은 여섯 묶음: Dracula는 `dracula/visual-studio-code`가 YAML에서 빌드하는 저장소라 마지막 릴리스 v2.24.3
+    (커밋 `9726e1f`)의 `.vsix` 안 `theme/dracula.json`을 읽었다. **Alucard**는 VS Code 테마가 없어, 그 JSON의 모든 색을 Dracula
+    스펙(draculatheme.com/spec)의 같은 역할의 Alucard 색으로 바꾸고 라이트 테마로 읽었다(Background Light와 떠 있는 배경이 Dracula에선
+    같은 `#343746`이지만 읽는 색에는 나오지 않는다). 주석은 `# focusBorder, Dracula's #6272a4 as Alucard's`다. Ayu는 같은 org의
+    `ayu-theme/vscode-ayu`가 커밋해 둔 `ayu-{light,mirage,dark}.json`을 읽었다(`ayu-colors`의 YAML보다 우선순위 ①). Rosé Pine,
+    Winter is Coming, Flexoki(`kepano/flexoki`의 `vscode/`), Vesper는 저장소의 JSON을 그대로 읽었다.
   - Neovim으로 읽은 여섯 묶음(Tokyo Night, Kanagawa, Vague, Cyberdream, Kanagawa Paper, Oxocarbon)은 각 저장소의 기본 브랜치
     머리를 Neovim 0.12.4에서 읽었다. 설정은 모두 기본값이다(투명 배경 끔 등). Oxocarbon은 색 구성표가 하나라 `background`를
     `dark`·`light`로 바꿔 두 번 읽었다. Tokyo Night은 저장소에 저작권 줄이 없어 저작권자를 "by Folke Lemaitre"로 적고, Apache-2.0

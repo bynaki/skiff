@@ -1,0 +1,47 @@
+{
+  "family": "Vesper",
+  "repository": "https://github.com/raunofreiberg/vesper",
+  "commit": "9043f3849b776949445f0cd4990365959cca35a3",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2023 Rauno Freiberg",
+  "licenseText": "MIT License\n\nCopyright (c) 2023 Rauno Freiberg\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n",
+  "themes": [
+    {
+      "id": "vesper",
+      "title": "Vesper",
+      "base": "dark",
+      "source": "themes/Vesper-dark-color-theme.json",
+      "colors": {
+        "ui.background": { "value": "#101010", "from": "sideBar.background" },
+        "ui.border": { "value": "#80808059", "from": "panel.border: VS Code's default for a dark theme" },
+        "ui.faint": { "value": "#cccccc80", "from": "disabledForeground: VS Code's default for a dark theme" },
+        "ui.subtle": { "value": "#282828", "from": "list.hoverBackground" },
+        "ui.accent": { "value": "#ffc799", "from": "focusBorder" },
+        "ui.strong_background": { "value": "#ffc799", "from": "button.background" },
+        "ui.strong_foreground": { "value": "#000", "from": "button.foreground" },
+        "editor.background": { "value": "#101010", "from": "editor.background" },
+        "editor.foreground": { "value": "#fff", "from": "editor.foreground" },
+        "editor.gutter_foreground": { "value": "#505050", "from": "editorLineNumber.foreground" },
+        "editor.cursor": { "value": "#aeafad", "from": "editorCursor.foreground: VS Code's default for a dark theme" },
+        "editor.selection": { "value": "#ffffff25", "from": "editor.selectionBackground" },
+        "syntax.keyword": { "value": "#a0a0a0", "from": "token keyword.control (for keyword.control)" },
+        "syntax.literal": { "value": "#ffc799", "from": "token constant.numeric (for constant.numeric)" },
+        "syntax.string": { "value": "#99ffe4", "from": "token string (for string.quoted)" },
+        "syntax.regexp": { "value": "#a0a0a0", "from": "token string.regexp (for string.regexp)" },
+        "syntax.definition": { "value": "#ffc799", "from": "token entity.name.function (for entity.name.function)" },
+        "syntax.local": { "value": "#fff", "from": "token variable (for variable.parameter)" },
+        "syntax.type": { "value": "#ffc799", "from": "token entity.name (for entity.name.type)" },
+        "syntax.class": { "value": "#ffc799", "from": "token entity.name (for entity.name.class)" },
+        "syntax.macro": { "value": "#ffc799", "from": "token entity.name.function (for entity.name.function.preprocessor)" },
+        "syntax.property": { "value": "#fff", "from": "token variable (for variable.other.property)" },
+        "syntax.comment": { "value": "#8b8b8b94", "from": "token comment (for comment.line)" },
+        "syntax.meta": { "value": "#a0a0a0", "from": "token storage.type (for storage.type.annotation)" },
+        "syntax.invalid": { "value": "#ff8080", "from": "token invalid (for invalid)" },
+        "syntax.warning": { "value": "#ffc799", "from": "editorWarning.foreground" },
+        "diff.added": { "value": "#99ffe4", "from": "editorGutter.addedBackground" },
+        "diff.removed": { "value": "#ff8080", "from": "editorGutter.deletedBackground" },
+        "diff.changed": { "value": "#ffc799", "from": "editorGutter.modifiedBackground" }
+      }
+    }
+  ]
+}

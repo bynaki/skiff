@@ -1,0 +1,55 @@
+# Dracula, converted to a Skiff Code theme.
+# Source: https://github.com/dracula/visual-studio-code at 9726e1f6b51a4382334bc36e03128fcf02c3fb45,
+#   theme/dracula.json as built into dracula.vsix, the v2.24.3 release
+# License: MIT, Copyright (c) 2016 Dracula Theme. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/dracula.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#21222c" # sideBar.background
+foreground = "#f8f8f2" # foreground
+muted = "#6272a4" # none in the source: syntax.comment
+border = "#bd93f9" # panel.border
+faint = "#cccccc80" # disabledForeground: VS Code's default for a dark theme
+subtle = "#44475a75" # list.hoverBackground
+accent = "#6272a4" # focusBorder
+scrim = "#282a3699" # none in the source: editor.background at alpha 99
+strong_background = "#44475a" # button.background
+strong_foreground = "#f8f8f2" # button.foreground
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#282a36" # editor.background
+foreground = "#f8f8f2" # editor.foreground
+gutter_background = "#282a36" # none in the source: editor.background
+gutter_foreground = "#6272a4" # editorLineNumber.foreground
+gutter_border = "#bd93f9" # editorGroup.border
+cursor = "#aeafad" # editorCursor.foreground: VS Code's default for a dark theme
+selection = "#44475a" # editor.selectionBackground
+code_background = "#21222c" # none in the source: ui.background
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#ff79c6" # token keyword (for keyword.control)
+atom = "#bd93f9" # token constant (for constant.language)
+literal = "#bd93f9" # token constant (for constant.numeric)
+string = "#f1fa8c" # token string (for string.quoted)
+regexp = "#f1fa8c" # token string.regexp (for string.regexp)
+definition = "#50fa7b" # token entity.name.function (for entity.name.function)
+local = "#ffb86c" # token variable.parameter (for variable.parameter)
+type = "#8be9fd" # token entity.name.type (for entity.name.type)
+class = "#8be9fd" # token entity.name.class (for entity.name.class)
+macro = "#50fa7b" # token entity.name.function (for entity.name.function.preprocessor)
+property = "#f8f8f2" # token variable (for variable.other.property)
+comment = "#6272a4" # token comment (for comment.line)
+meta = "#ff79c6" # token storage (for storage.type.annotation)
+invalid = "#ff5555" # token invalid (for invalid)
+warning = "#8be9fd" # editorWarning.foreground
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#3c9259" # editorGutter.addedBackground, over editor.background
+removed = "#944046" # editorGutter.deletedBackground, over editor.background
+changed = "#5a8a9a" # editorGutter.modifiedBackground, over editor.background

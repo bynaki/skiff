@@ -20,7 +20,7 @@ import {
   toml,
 } from '../scripts/themes/generate'
 import { type Dump, GROUPS, SOURCES as NEOVIM_SOURCES, fromNeovim } from '../scripts/themes/neovim'
-import { tokenColor } from '../scripts/themes/vscode'
+import { fromVscode, parseJsonc, tokenColor } from '../scripts/themes/vscode'
 
 const committed = (name: string) => readFileSync(THEMES_DIR + name, 'utf8')
 
@@ -225,6 +225,36 @@ describe("reading a VS Code theme's tokens", () => {
   test('finds nothing for a scope no rule colors', () => {
     expect(tokenColor(rules, 'comment.line')).toBeNull()
     expect(tokenColor(rules, 'keywords')).toBeNull()
+  })
+})
+
+describe('reading a VS Code theme', () => {
+  test('takes JSONC: comments and trailing commas, but not inside strings', () => {
+    const text = '{\n  // the name\n  "name": "a // b", /* c */\n  "colors": { "x": "#fff", },\n}'
+    expect(parseJsonc(text)).toEqual({ name: 'a // b', colors: { x: '#fff' } })
+  })
+
+  test("falls back to what VS Code draws for a color the theme leaves out, for the theme's kind", () => {
+    const dark = fromVscode({ colors: { 'editorError.foreground': '#AA0000' } }).colors
+    expect(dark['diff.added']).toEqual({ value: '#487e02', from: "editorGutter.addedBackground: VS Code's default for a dark theme" })
+    expect(dark['diff.removed']).toEqual({ value: '#aa0000', from: "editorGutter.deletedBackground: VS Code's default, editorError.foreground" })
+    const light = fromVscode({ type: 'light', colors: {} }).colors
+    expect(light['diff.removed'].value).toBe('#e51400')
+    expect(light['editor.cursor'].value).toBe('#000000')
+  })
+
+  test("reads the theme's own sources before any default, and takes no default for an invisible color", () => {
+    const colors = fromVscode({ colors: { 'panel.border': '#0000', 'editorWidget.border': '#123456' } }).colors
+    expect(colors['ui.border']).toEqual({ value: '#123456', from: 'editorWidget.border' })
+    // The theme hid its panel border on purpose; VS Code draws none, so nothing is read.
+    expect(fromVscode({ colors: { 'panel.border': '#0000' } }).colors['ui.border']).toBeUndefined()
+    expect(fromVscode({ colors: {} }).colors['ui.border'].value).toBe('#80808059')
+  })
+
+  test('takes only an opaque accent', () => {
+    const colors = fromVscode({ colors: { focusBorder: '#6e6a8633', 'button.background': '#ebbcba' } }).colors
+    expect(colors['ui.accent']).toEqual({ value: '#ebbcba', from: 'button.background' })
+    expect(fromVscode({ colors: { focusBorder: '#6e6a86ff' } }).colors['ui.accent'].value).toBe('#6e6a86ff')
   })
 })
 

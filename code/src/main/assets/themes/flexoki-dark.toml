@@ -1,0 +1,55 @@
+# Flexoki Dark, converted to a Skiff Code theme.
+# Source: https://github.com/kepano/flexoki at 8d723bac4a9ac46adfdf99d42155286977aac72a,
+#   vscode/Flexoki-Dark-color-theme.json
+# License: MIT, Copyright (c) 2023 Steph Ango. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/flexoki.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#100f0f" # sideBar.background
+foreground = "#cecdc3" # sideBar.foreground
+muted = "#878580" # none in the source: syntax.comment
+border = "#343331" # panel.border
+faint = "#cccccc80" # disabledForeground: VS Code's default for a dark theme
+subtle = "#343331" # list.hoverBackground
+accent = "#3aa99f" # button.background
+scrim = "#100f0f99" # none in the source: editor.background at alpha 99
+strong_background = "#3aa99f" # button.background
+strong_foreground = "#100f0f" # button.foreground
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#100f0f" # editor.background
+foreground = "#cecdc3" # editor.foreground
+gutter_background = "#100f0f" # editorGutter.background
+gutter_foreground = "#403e3c" # editorLineNumber.foreground
+gutter_border = "#343331" # editorGroup.border
+cursor = "#aeafad" # editorCursor.foreground: VS Code's default for a dark theme
+selection = "#cecdc333" # editor.selectionBackground
+code_background = "#100f0f" # none in the source: ui.background
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#879a39" # token keyword (for keyword.control)
+atom = "#8b7ec8" # none in the source: syntax.literal
+literal = "#8b7ec8" # token constant.numeric (for constant.numeric)
+string = "#3aa99f" # token string (for string.quoted)
+regexp = "#3aa99f" # token string (for string.regexp)
+definition = "#da702c" # token entity.name.function (for entity.name.function)
+local = "#cecdc3" # token variable.parameter (for variable.parameter)
+type = "#d0a215" # token entity.name.type (for entity.name.type)
+class = "#da702c" # token entity.name.type.class (for entity.name.type.class)
+macro = "#4385be" # token entity.name.function.preprocessor (for entity.name.function.preprocessor)
+property = "#4385be" # token variable.other.property (for variable.other.property)
+comment = "#878580" # token comment (for comment.line)
+meta = "#d0a215" # token meta.decorator (for meta.decorator)
+invalid = "#d14d41" # editorError.foreground
+warning = "#da702c" # editorWarning.foreground
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#879a39" # editorGutter.addedBackground
+removed = "#d14d41" # editorGutter.deletedBackground
+changed = "#3aa99f" # editorGutter.modifiedBackground

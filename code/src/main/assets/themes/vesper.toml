@@ -1,0 +1,55 @@
+# Vesper, converted to a Skiff Code theme.
+# Source: https://github.com/raunofreiberg/vesper at 9043f3849b776949445f0cd4990365959cca35a3,
+#   themes/Vesper-dark-color-theme.json
+# License: MIT, Copyright (c) 2023 Rauno Freiberg. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/vesper.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#101010" # sideBar.background
+foreground = "#fff" # none in the source: editor.foreground
+muted = "#8b8b8b94" # none in the source: syntax.comment
+border = "#80808059" # panel.border: VS Code's default for a dark theme
+faint = "#cccccc80" # disabledForeground: VS Code's default for a dark theme
+subtle = "#282828" # list.hoverBackground
+accent = "#ffc799" # focusBorder
+scrim = "#10101099" # none in the source: editor.background at alpha 99
+strong_background = "#ffc799" # button.background
+strong_foreground = "#000" # button.foreground
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#101010" # editor.background
+foreground = "#fff" # editor.foreground
+gutter_background = "#101010" # none in the source: editor.background
+gutter_foreground = "#505050" # editorLineNumber.foreground
+gutter_border = "#80808059" # none in the source: ui.border
+cursor = "#aeafad" # editorCursor.foreground: VS Code's default for a dark theme
+selection = "#ffffff25" # editor.selectionBackground
+code_background = "#101010" # none in the source: ui.background
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#a0a0a0" # token keyword.control (for keyword.control)
+atom = "#ffc799" # none in the source: syntax.literal
+literal = "#ffc799" # token constant.numeric (for constant.numeric)
+string = "#99ffe4" # token string (for string.quoted)
+regexp = "#a0a0a0" # token string.regexp (for string.regexp)
+definition = "#ffc799" # token entity.name.function (for entity.name.function)
+local = "#fff" # token variable (for variable.parameter)
+type = "#ffc799" # token entity.name (for entity.name.type)
+class = "#ffc799" # token entity.name (for entity.name.class)
+macro = "#ffc799" # token entity.name.function (for entity.name.function.preprocessor)
+property = "#fff" # token variable (for variable.other.property)
+comment = "#8b8b8b94" # token comment (for comment.line)
+meta = "#a0a0a0" # token storage.type (for storage.type.annotation)
+invalid = "#ff8080" # token invalid (for invalid)
+warning = "#ffc799" # editorWarning.foreground
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#99ffe4" # editorGutter.addedBackground
+removed = "#ff8080" # editorGutter.deletedBackground
+changed = "#ffc799" # editorGutter.modifiedBackground

@@ -1,0 +1,55 @@
+# Ayu Mirage, converted to a Skiff Code theme.
+# Source: https://github.com/ayu-theme/vscode-ayu at 7f438df22446f02e79cdfc2f3771b0b273f34654,
+#   ayu-mirage.json
+# License: MIT, Copyright (c) 2016 Ike Kurghinyan. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/ayu.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#1f2430" # sideBar.background
+foreground = "#707a8c" # foreground
+muted = "#707a8c" # descriptionForeground
+border = "#171b24" # panel.border
+faint = "#707a8c80" # disabledForeground
+subtle = "#63759926" # list.hoverBackground
+accent = "#ffcc66" # focusBorder
+scrim = "#24293699" # none in the source: editor.background at alpha 99
+strong_background = "#ffcc66" # button.background
+strong_foreground = "#735923" # button.foreground
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#242936" # editor.background
+foreground = "#cccac2" # editor.foreground
+gutter_background = "#242936" # none in the source: editor.background
+gutter_foreground = "#707a8c80" # editorLineNumber.foreground
+gutter_border = "#171b24" # editorGroup.border
+cursor = "#ffcc66" # editorCursor.foreground
+selection = "#409fff40" # editor.selectionBackground
+code_background = "#1f2430" # none in the source: ui.background
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#ffa659" # token keyword (for keyword.control)
+atom = "#dfbfff" # token constant.language (for constant.language)
+literal = "#dfbfff" # token constant.numeric (for constant.numeric)
+string = "#d5ff80" # token string (for string.quoted)
+regexp = "#95e6cb" # token string.regexp (for string.regexp)
+definition = "#ffcd66" # token entity.name.function (for entity.name.function)
+local = "#dfbfff" # token variable.parameter (for variable.parameter)
+type = "#73d0ff" # token entity.name (for entity.name.type)
+class = "#73d0ff" # token entity.name (for entity.name.class)
+macro = "#ffcd66" # token entity.name.function (for entity.name.function.preprocessor)
+property = "#cccac2" # token variable (for variable.other.property)
+comment = "#6e7c8f" # token comment (for comment.line)
+meta = "#d9be98" # token storage.type.annotation (for storage.type.annotation)
+invalid = "#ff6666" # token invalid (for invalid)
+warning = "#ffcc66" # editorWarning.foreground
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#87d96c" # editorGutter.addedBackground
+removed = "#f27983" # editorGutter.deletedBackground
+changed = "#80bfff" # editorGutter.modifiedBackground
