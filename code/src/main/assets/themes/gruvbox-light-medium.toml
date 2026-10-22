@@ -1,0 +1,55 @@
+# Gruvbox Light Medium, converted to a Skiff Code theme.
+# Source: https://github.com/morhetz/gruvbox at ef8864bb42bf244f0295d1c5a403b27e3d139695,
+#   the highlight groups of :colorscheme gruvbox, with background=light and let g:gruvbox_contrast_light = 'medium' and let g:gruvbox_invert_selection = 0, read in Neovim v0.12.4
+# License: MIT, by Pavel Pertsev, whose repository states MIT/X11 without a license file. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/gruvbox.json. The comment
+# after each color names what in the source it came from.
+base = "light"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#fbf1c7" # none in the source: editor.background
+foreground = "#3c3836" # none in the source: editor.foreground
+muted = "#928374" # Comment fg
+border = "#3c3836" # WinSeparator fg (via Normal)
+faint = "#d5c4a1" # NonText fg (via GruvboxBg2)
+subtle = "#ebdbb2" # CursorLine bg
+accent = "#79740e" # Function fg (via GruvboxGreenBold)
+scrim = "#fbf1c799" # none in the source: editor.background at alpha 99
+strong_background = "#076678" # PmenuSel bg
+strong_foreground = "#d5c4a1" # PmenuSel fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#fbf1c7" # Normal bg
+foreground = "#3c3836" # Normal fg
+gutter_background = "#ebdbb2" # SignColumn bg
+gutter_foreground = "#a89984" # LineNr fg
+gutter_border = "#3c3836" # WinSeparator fg (via Normal)
+cursor = "#3c3836" # Cursor bg (reversed)
+selection = "#bdae93" # Visual bg
+code_background = "#ebdbb2" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#9d0006" # @keyword fg (via GruvboxRed)
+atom = "#8f3f71" # @boolean fg (via GruvboxPurple)
+literal = "#8f3f71" # @number fg (via GruvboxPurple)
+string = "#79740e" # @string fg (via String)
+regexp = "#af3a03" # @string.regexp fg (via GruvboxOrange)
+definition = "#79740e" # @function fg (via GruvboxGreenBold)
+local = "#3c3836" # none in the source: editor.foreground
+type = "#b57614" # @type fg (via GruvboxYellow)
+class = "#b57614" # @lsp.type.class fg (via GruvboxYellow)
+macro = "#79740e" # @function.macro fg (via GruvboxGreenBold)
+property = "#076678" # @property fg (via GruvboxBlue)
+comment = "#928374" # @comment fg (via Comment)
+meta = "#427b58" # @attribute fg (via GruvboxAqua)
+invalid = "#9d0006" # ALEErrorSign fg (via GruvboxRedSign)
+warning = "#b57614" # ALEWarningSign fg (via GruvboxYellowSign)
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#79740e" # diffAdded fg (via GruvboxGreen)
+removed = "#9d0006" # diffRemoved fg (via GruvboxRed)
+changed = "#427b58" # diffChanged fg (via GruvboxAqua)

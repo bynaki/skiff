@@ -15,7 +15,7 @@
   - `font_size`는 Reset Zoom이 돌아가는 크기다. 핀치한 크기(`localStorage`의 `zoom.size`)는 따로 남고, 설정의 크기가 **바뀌었을 때**와 핀치한 적이 없는 **첫 실행**에만 지금 크기도 그리로 옮긴다.
 - `themes/*.toml`: `[ui]`(메뉴, 사이드바, 팔레트), `[editor]`, `[syntax]`, `[diff]`. Web에서 CSS 변수로 바꾸고 **메뉴와 레이어에 똑같이** 적용한다. 다크와 라이트를 기본 번들한다. 잘못된 값은 기본값으로 폴백하고 오류를 알린다.
   - **고르는 것은 `settings.toml`의 `[editor] theme`이고 기본값은 `system`이다**(2026-09-28 사용자 결정). `system`은 기기의 다크 모드에 맞는 번들을 쓴다. 팔레트의 `Theme: …` 명령이 그 줄을 고쳐 쓴다. 사용자 테마는 import와 함께 들어온다.
-    - **M13에서 번들에 커뮤니티 테마 45개가 더해지고, `Theme: …` 명령들은 팔레트의 `Theme...` 목록 하나로 바뀐다**(2026-10-22 사용자 결정). 무엇을 넣고 어떻게 바꾸는지, 번들 id가 예약어가 되는 것은 [커뮤니티 테마와 테마 목록](community-themes.md).
+    - **M13에서 커뮤니티 테마 45개를 공개 저장소에 모으고 앱에서 `Download Theme...`으로 골라 받는다. 번들은 `light`·`dark` 그대로이고, `Theme: …` 명령들은 팔레트의 `Theme...` 목록 하나로 바뀐다**(2026-10-22 사용자 결정). 받은 테마는 가져온 테마와 같은 사용자 테마다. 자세한 것은 [커뮤니티 테마와 테마 목록](community-themes.md).
   - 검사와 폴백은 Kotlin(`settings/Theme.kt`)이 한다. 빠진 색과 쓸 수 없는 색은 같은 `base`의 번들 값이고, 모르는 키가 있으면 base 전체다 — `settings.toml`과 같은 규칙이다. 페이지는 온전한 한 벌을 받아 변수로 쓴다.
   - 다크 모드는 `uiMode`로 Kotlin이 읽는다. WebView의 `prefers-color-scheme`는 앱 테마를 따르지 기기를 따르지 않을 수 있고, 액티비티를 다시 만들지 않으려면 어차피 `onConfigurationChanged`를 받아야 한다.
 - 설정과 테마의 import/export는 SAF(`ACTION_OPEN_DOCUMENT` / `ACTION_CREATE_DOCUMENT`)로 한다. 팔레트의 `Import Settings`, `Export Settings`, `Import Theme`, `Export Theme`.

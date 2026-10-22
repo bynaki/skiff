@@ -1,0 +1,55 @@
+# Everforest Light Soft, converted to a Skiff Code theme.
+# Source: https://github.com/sainnhe/everforest at 85a86eb62409e3ec88713bff3d1b9d7374e112e4,
+#   the highlight groups of :colorscheme everforest, with background=light and let g:everforest_background = 'soft', read in Neovim v0.12.4
+# License: MIT, Copyright (c) 2019 sainnhe. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/everforest.json. The comment
+# after each color names what in the source it came from.
+base = "light"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#e5dfc5" # NormalFloat bg
+foreground = "#5c6a72" # NormalFloat fg
+muted = "#939f91" # Comment fg
+border = "#939f91" # FloatBorder fg
+faint = "#d8d3ba" # NonText fg
+subtle = "#eae4ca" # CursorLine bg
+accent = "#8da101" # Function fg
+scrim = "#f3ead399" # none in the source: editor.background at alpha 99
+strong_background = "#93b259" # PmenuSel bg
+strong_foreground = "#f3ead3" # PmenuSel fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#f3ead3" # Normal bg
+foreground = "#5c6a72" # Normal fg
+gutter_background = "#f3ead3" # none in the source: editor.background
+gutter_foreground = "#b9c0ab" # LineNr fg
+gutter_border = "#d8d3ba" # WinSeparator fg (via VertSplit)
+cursor = "#5c6a72" # Cursor bg
+selection = "#e1e4bd" # Visual bg
+code_background = "#eae4ca" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#f85552" # @keyword fg (via Red)
+atom = "#df69ba" # @boolean fg (via Purple)
+literal = "#df69ba" # @number fg (via Purple)
+string = "#35a77c" # @string fg (via Aqua)
+regexp = "#8da101" # @string.regexp fg (via Green)
+definition = "#8da101" # @function fg (via Green)
+local = "#5c6a72" # @variable.parameter fg (via Fg)
+type = "#dfa000" # @type fg (via YellowItalic)
+class = "#dfa000" # @lsp.type.class fg (via YellowItalic)
+macro = "#8da101" # @function.macro fg (via Green)
+property = "#3a94c5" # @property fg (via Blue)
+comment = "#939f91" # @comment fg (via Comment)
+meta = "#df69ba" # @attribute fg (via Purple)
+invalid = "#f85552" # DiagnosticError fg
+warning = "#dfa000" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#8da101" # GitSignsAdd fg (via GreenSign)
+removed = "#f85552" # GitSignsDelete fg (via RedSign)
+changed = "#3a94c5" # GitSignsChange fg (via BlueSign)
