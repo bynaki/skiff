@@ -219,6 +219,38 @@ so a file made by an older version shows it too. ktoml refuses a table with no k
 children in a table"), so `SettingsToml.read` blanks the header of a table whose keys are all
 commented out before decoding it.
 
+### Themes live outside the app too
+
+The community themes are not in this repository. They are in the public repository
+**`bynaki/skiffcode-themes`** (checked out at `~/projects/skiffcode-themes`), which `Download Theme...`
+reads from `main` over raw.githubusercontent.com: `index.json` and `themes/<id>.toml`, written there
+by its own generator from per-project data files (its `AGENTS.md` has the commands). Besides those,
+every theme a person has imported, copied or downloaded is a file on their device the app does not
+control. The design is `docs/skiffcode.spec/community-themes.md`.
+
+**The theme keys are the app's**: the bundled `light.toml` and `ThemeToml.KEYS`. The theme repository
+follows them through `reference/light.toml`, a copy of the bundled file, and the app treats a key it
+does not know as a problem. So **when a feature needs a theme key added, renamed, removed or given
+a new meaning, tell the user before implementing it and propose how** (user's decision, 2026-10-22)
+— never grow the keys quietly. The proposal says:
+
+- what the key is, where it is drawn, and its light and dark values;
+- what happens to themes already out there: a key a file leaves out takes the bundled theme of the
+  same `base`, so check whether that is right for the new key or it needs its own fallback;
+- what changes in the theme repository: `reference/light.toml`, `FALLBACK` in `scripts/generate.ts`
+  and the `SOURCES` of `vscode.ts` and `neovim.ts` (which VS Code color and Neovim group feed it),
+  every theme regenerated, and whether `FORMAT` must go up — it must whenever an app that does not
+  know the change would report the new files as having problems, because the app refuses a list
+  whose `format` is higher than its own;
+- what changes in the spec: the key list in `settings-theme.md` and the mapping table in
+  `community-themes.md`.
+
+Once the user agrees, both repositories change together: the app, then the theme repository, then
+`SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest` here, which reads
+every theme there with the app's parser. **Pushing the theme repository's `main` publishes to every
+user at once**, so it follows the same rule as a push here: ask first. Push a raised `format` no
+earlier than an app release that knows it: before then no installed app can read the list at all.
+
 ### UI
 
 `WorkspaceViewModel` holds two `PaneController`s (A and B). Split view is **the user's choice**,
