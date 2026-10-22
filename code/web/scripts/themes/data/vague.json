@@ -1,0 +1,52 @@
+{
+  "family": "Vague",
+  "repository": "https://github.com/vague-theme/vague.nvim",
+  "commit": "73f8aaa866bf3d14dd0b0ab9e48c11794c1cb7ab",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2024 Alberto Hernandez",
+  "licenseText": "MIT License\n\nCopyright (c) 2024 Alberto Hernandez\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n",
+  "themes": [
+    {
+      "id": "vague",
+      "title": "Vague",
+      "base": "dark",
+      "source": "the highlight groups of :colorscheme vague, read in Neovim v0.12.4",
+      "colors": {
+        "ui.background": { "value": "#1c1c24", "from": "NormalFloat bg" },
+        "ui.foreground": { "value": "#cdcdcd", "from": "NormalFloat fg" },
+        "ui.muted": { "value": "#606079", "from": "Comment fg" },
+        "ui.border": { "value": "#cdcdcd", "from": "FloatBorder fg (via NormalFloat)" },
+        "ui.faint": { "value": "#606079", "from": "NonText fg" },
+        "ui.subtle": { "value": "#252530", "from": "CursorLine bg" },
+        "ui.accent": { "value": "#c48282", "from": "Function fg" },
+        "ui.strong_background": { "value": "#cdcdcd", "from": "PmenuSel bg (reversed)" },
+        "ui.strong_foreground": { "value": "#252530", "from": "PmenuSel fg (reversed)" },
+        "editor.background": { "value": "#141415", "from": "Normal bg" },
+        "editor.foreground": { "value": "#cdcdcd", "from": "Normal fg" },
+        "editor.gutter_foreground": { "value": "#606079", "from": "LineNr fg" },
+        "editor.gutter_border": { "value": "#878787", "from": "WinSeparator fg" },
+        "editor.cursor": { "value": "#cdcdcd", "from": "Cursor bg" },
+        "editor.selection": { "value": "#333738", "from": "Visual bg" },
+        "editor.code_background": { "value": "#252530", "from": "ColorColumn bg" },
+        "syntax.keyword": { "value": "#6e94b2", "from": "@keyword fg (via Keyword)" },
+        "syntax.atom": { "value": "#e0a363", "from": "@boolean fg (via Boolean)" },
+        "syntax.literal": { "value": "#e0a363", "from": "@number fg (via Number)" },
+        "syntax.string": { "value": "#e8b589", "from": "@string fg (via String)" },
+        "syntax.regexp": { "value": "#6e94b2", "from": "@string.regexp fg (via SpecialChar)" },
+        "syntax.definition": { "value": "#c48282", "from": "@function fg (via Function)" },
+        "syntax.local": { "value": "#bb9dbd", "from": "@variable.parameter fg" },
+        "syntax.type": { "value": "#9bb4bc", "from": "@type fg (via Type)" },
+        "syntax.class": { "value": "#aeaed1", "from": "@lsp.type.class fg (via Structure)" },
+        "syntax.macro": { "value": "#6e94b2", "from": "@function.macro fg (via PreProc)" },
+        "syntax.property": { "value": "#c3c3d5", "from": "@property fg" },
+        "syntax.comment": { "value": "#606079", "from": "@comment fg (via Comment)" },
+        "syntax.meta": { "value": "#6e94b2", "from": "@attribute fg (via PreProc)" },
+        "syntax.invalid": { "value": "#d8647e", "from": "DiagnosticError fg" },
+        "syntax.warning": { "value": "#f3be7c", "from": "DiagnosticWarn fg" },
+        "diff.added": { "value": "#7fa563", "from": "Added fg" },
+        "diff.removed": { "value": "#d8647e", "from": "Removed fg" },
+        "diff.changed": { "value": "#f3be7c", "from": "Changed fg" }
+      }
+    }
+  ]
+}

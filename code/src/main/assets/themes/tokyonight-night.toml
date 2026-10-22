@@ -1,0 +1,55 @@
+# Tokyo Night Night, converted to a Skiff Code theme.
+# Source: https://github.com/folke/tokyonight.nvim at cdc07ac78467a233fd62c493de29a17e0cf2b2b6,
+#   the highlight groups of :colorscheme tokyonight-night, read in Neovim v0.12.4
+# License: Apache-2.0, by Folke Lemaitre, whose repository states no copyright line. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/tokyonight.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#16161e" # NormalFloat bg
+foreground = "#c0caf5" # NormalFloat fg
+muted = "#565f89" # Comment fg
+border = "#27a1b9" # FloatBorder fg
+faint = "#545c7e" # NonText fg
+subtle = "#292e42" # CursorLine bg
+accent = "#7aa2f7" # Function fg
+scrim = "#1a1b2699" # none in the source: editor.background at alpha 99
+strong_background = "#343a55" # PmenuSel bg
+strong_foreground = "#c0caf5" # Pmenu fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#1a1b26" # Normal bg
+foreground = "#c0caf5" # Normal fg
+gutter_background = "#1a1b26" # SignColumn bg
+gutter_foreground = "#3b4261" # LineNr fg
+gutter_border = "#15161e" # WinSeparator fg
+cursor = "#c0caf5" # Cursor bg
+selection = "#283457" # Visual bg
+code_background = "#15161e" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#9d7cd8" # @keyword fg
+atom = "#ff9e64" # @boolean fg (via Constant)
+literal = "#ff9e64" # @number fg (via Constant)
+string = "#9ece6a" # @string fg (via String)
+regexp = "#b4f9f8" # @string.regexp fg
+definition = "#7aa2f7" # @function fg (via Function)
+local = "#e0af68" # @variable.parameter fg
+type = "#2ac3de" # @type fg (via Type)
+class = "#2ac3de" # @lsp.type.class fg (via Type)
+macro = "#7dcfff" # @function.macro fg (via PreProc)
+property = "#73daca" # @property fg
+comment = "#565f89" # @comment fg (via Comment)
+meta = "#7dcfff" # @attribute fg (via PreProc)
+invalid = "#db4b4b" # DiagnosticError fg
+warning = "#e0af68" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#449dab" # GitSignsAdd fg
+removed = "#914c54" # GitSignsDelete fg
+changed = "#6183bb" # GitSignsChange fg

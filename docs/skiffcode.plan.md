@@ -23,16 +23,16 @@
 
 읽을 spec: [`community-themes.md`](skiffcode.spec/community-themes.md). 테마 파일의 규칙은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 `themes/*.toml`과 import·복사 항목만, 팔레트 모드는 [`palette.md`](skiffcode.spec/palette.md)의 A·B·C와 최근 목록만.
 
-원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "커뮤니티 테마들 .toml 제공". 사용자 결정(2026-10-22): 15개 저장소의 **모든 변형**(대비 단계 포함, 45개 = 44 + `ocean`), "ocean theme"은 **폴드8의 `ocean copy`**, 목록은 **팔레트 안의 목록**, `system`이 따를 테마 고르기는 **이번엔 하지 않음**. 같은 이름의 사용자 테마가 있으면 **사용자 것이 이긴다**(같은 날 사용자 결정).
+원래 요구사항은 [`my.next.spec.md`](my.next.spec.md)의 "커뮤니티 테마들 .toml 제공". 사용자 결정(2026-10-22): 15개 저장소의 **모든 변형**(대비 단계 포함, 46개 = 45 + `ocean`), "ocean theme"은 **폴드8의 `ocean copy`**, 목록은 **팔레트 안의 목록**, `system`이 따를 테마 고르기는 **이번엔 하지 않음**. 같은 이름의 사용자 테마가 있으면 **사용자 것이 이긴다**(같은 날 사용자 결정).
 
 지금(코드로 확인): `settings/Theme.kt`의 `Themes.bundled`가 `light`·`dark`를 박아 두고, `names`가 `system` + 번들 + 가져온 것을 낸다. 이름 규칙은 `Themes.nameOf`(`system`/`light`/`dark` 거부). 페이지는 `commands.ts`의 `THEME_TITLES`와 `Theme: …` 명령(`source.themes()`마다 하나), `palette.ts`의 `PaletteMode`가 `command`·`file`·`symbol` 셋이다. 번들 파일은 `code/src/main/assets/themes/{light,dark}.toml`이고 `ThemeTomlTest`가 키를 다 갖는지 본다.
 
 **성공 조건**
 
-- ⬜ JVM: 번들 47개(커뮤니티 45 + `light`·`dark`)가 모든 키를 갖고 읽을 때 문제가 없다. `index.json`과 `assets/themes/*.toml`이 하나씩 맞는다. 번들 id가 가져오기와 복사에서 대소문자 없이 거부된다. 같은 이름의 사용자 테마가 있으면 그것이 이긴다. `names`의 차례 — 확인: `ThemeTomlTest`, `ThemesTest`. `:code` 린트에 새 경고가 없다.
+- ⬜ JVM: 번들 48개(커뮤니티 46 + `light`·`dark`)가 모든 키를 갖고 읽을 때 문제가 없다. `index.json`과 `assets/themes/*.toml`이 하나씩 맞는다. 번들 id가 가져오기와 복사에서 대소문자 없이 거부된다. 같은 이름의 사용자 테마가 있으면 그것이 이긴다. `names`의 차례 — 확인: `ThemeTomlTest`, `ThemesTest`. `:code` 린트에 새 경고가 없다.
 - ⬜ vitest: 생성 스크립트의 결과가 커밋된 파일과 같다. 모든 파일에 원본·커밋·라이선스 머리 주석이 있고, `NOTICE.md`에 묶음마다 라이선스가 있다. 모든 테마의 `editor.foreground` 대비가 4.5:1 이상이다. 팔레트: `Theme: …`가 없고 `Theme...`가 있다, 테마 목록의 차례·표시·퍼지 검색, 고르면 `setTheme`과 `>` 모드로 닫힘 — 확인: 새 테스트 `themes.test.ts`, `commands.test.ts`, `palette.test.ts`.
-- ⬜ 탭: `Theme...`에 48줄이 색 띠와 함께 보이고 지금 테마에 표시가 있다. 고르면 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된 마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다. `mocha`를 치면 좁혀진다.
-- ⬜ 탭, 사용자 확인: 45개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을 사용자가 원본 테마와 견주어 보고 괜찮다고 한다. 모음은 스크립트가 테마를 차례로 바꾸며 `screencap`으로 만든다.
+- ⬜ 탭: `Theme...`에 49줄이 색 띠와 함께 보이고 지금 테마에 표시가 있다. 고르면 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된 마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다. `mocha`를 치면 좁혀진다.
+- ⬜ 탭, 사용자 확인: 46개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을 사용자가 원본 테마와 견주어 보고 괜찮다고 한다. 모음은 스크립트가 테마를 차례로 바꾸며 `screencap`으로 만든다.
 - ⬜ 폴드8 커버 화면(글꼴 배율 1.5): 테마 목록의 이름과 띠가 잘리지 않고 목록이 스크롤된다. 사용자 기기라 테마를 바꾸는 것은 사용자에게 묻고, 끝나면 되돌린다.
 - ⬜ 폴드8: 번들 `ocean`의 색이 사용자의 `ocean copy`와 키마다 같다.
 
@@ -50,8 +50,13 @@
   - 한 것: 데이터는 `scripts/themes/data/catppuccin.json`(JSON, 색 하나가 한 줄). VS Code 테마를 대응표대로 읽는 `scripts/themes/vscode.ts`를 따로 두었다 — 남은 VS Code 묶음 5개와 M14가 같은 것을 쓴다. Catppuccin은 저장소에 만들어진 JSON이 없어 `catppuccin-vsc-v3.19.0` 릴리스의 `.vsix`에서 읽었다(커밋 `befc9e6`). toml의 색마다 원본 이름을 줄 끝 주석으로 단다(ktoml이 읽는 것은 `ThemeTomlTest`가 본다). `@types/node`(24.19.1, 개발용)를 더했고, 그 때문에 `tsc`가 페이지의 `setTimeout`을 Node 것으로 봐 두 곳을 `window.setTimeout`으로 바꿨다(`AGENTS.md`). `buildWeb`의 입력에 `web/scripts`를 더했다(`tsc`가 본다).
   - 대비(`editor.foreground`·주석·키워드·문자열·정의·타입·숫자): Latte 7.1·3.5·4.8·3.0·4.3·2.3·2.6, Frappé 8.1·4.5·5.6·7.1·5.3·7.6·5.8, Macchiato 9.9·5.3·6.8·9.2·6.6·10.2·7.6, Mocha 11.3·5.8·8.1·11.0·7.8·12.9·9.3. Latte의 문법 색이 낮은 것은 원본 그대로다.
   - 테스트: 새 `themes.test.ts` 17개(커밋된 파일 = 생성 결과, toml이 그것뿐, 머리 주석, `NOTICE.md`의 전문, 대비 4.5:1(`light`·`dark` 포함), id·이름, 대응표 키 = `light.toml`의 키, 없을 때 채우기·scrim·`diff` 섞기·거부 세 가지·서로 가리키는 두 키, WCAG 대비, toml 모양, `vscode.ts`의 스코프 고르기 셋). `ThemesTest`의 번들 목록을 박아 둔 6곳을 실제 번들로 바꿨다. 손으로 고친 번들 파일을 테스트가 잡는 것을 한 번 확인했다. JVM 336, vitest 225, lint 경고 11.
-- [ ] Neovim에서 읽는 묶음 (14개)
-  - Tokyo Night 4, Kanagawa 3, Vague 1, Cyberdream 2, Kanagawa Paper 2, Oxocarbon 2. 각 저장소의 팔레트와 highlight 정의에서 대응표의 Neovim 칸을 읽는다. Tokyo Night은 Apache-2.0이라 `NOTICE.md`에 전문과 바꾼 것임을 적는다.
+- [x] Neovim에서 읽는 묶음 (15개)
+  - Tokyo Night 4, Kanagawa 3, Vague 1, Cyberdream 2(→3), Kanagawa Paper 2, Oxocarbon 2. 각 저장소의 팔레트와 highlight 정의에서 대응표의 Neovim 칸을 읽는다. Tokyo Night은 Apache-2.0이라 `NOTICE.md`에 전문과 바꾼 것임을 적는다.
+  - 한 것: `scripts/themes/neovim.ts` — 색 구성표를 `nvim --headless --clean`에서 실제로 불러 대응표의 그룹을 Neovim이 그리는 대로 읽는다(링크의 끝, `reverse`는 뒤집은 색). Lua를 정적으로 읽으면 묶음마다 팔레트·설정·링크를 다시 짜야 해서다. 데이터 여섯 개(`tokyonight`, `kanagawa`, `vague`, `cyberdream`, `kanagawa-paper`, `oxocarbon`)는 각 저장소의 기본 브랜치 머리를 Neovim 0.12.4에서 읽었다. Cyberdream에 세 번째 변형 `cyberdream-muted`가 있어 넣었다("모든 변형", 합계 46). Vague는 `PmenuSel`을 정하지 않아 Neovim 기본(`reverse`만)이 쓰여, 뒤집힌 그룹의 빈 색을 그 아래 글의 색으로 채우게 했다(안 그러면 글자와 배경이 같은 색). 대응표의 Neovim 칸을 실제로 읽은 그룹에 맞췄다(클래스는 `@lsp.type.class`→`@type`, `strong_foreground`는 `Pmenu` fg도, diff는 `Added`·`Removed`·`Changed`도).
+  - Kanagawa Paper Canvas는 원본의 `Normal`(`#616569` 위 `#e1e1de`)이 4.48:1이라 4.5:1 규칙에 걸린다. 원본 그대로 넣기로 했다(2026-10-22 사용자 결정): 데이터의 `lowContrast`에 이유를 적은 테마는 실패 대신 경고이고, 4.5:1을 넘게 되면 테스트가 예외를 지우라고 실패한다. Canvas의 대비 4.48·2.4·3.0·3.4·3.2·3.2·3.0.
+  - 대비(`editor.foreground`·주석·키워드·문자열·정의·타입·숫자): Tokyo Night Night 10.6·2.8·5.1·9.4·6.8·8.1·8.4, Storm 9.0·2.4·4.4·8.0·5.8·6.9·7.2, Moon 10.3·3.1·8.6·11.1·6.7·7.4·7.2, Day 4.5·2.5·4.7·4.0·3.1·3.6·3.7, Kanagawa Wave 11.3·3.3·4.7·7.5·5.9·6.2·5.6, Dragon 10.8·4.2·5.8·6.0·6.9·6.9·6.2, Lotus 6.2·2.9·6.1·3.3·4.6·3.9·3.7, Vague 11.6·3.0·5.7·10.0·6.0·8.5·8.4, Cyberdream 17.8·4.7·10.8·13.6·6.8·5.3·10.8, Light 17.8·3.8·3.2·4.5·6.4·5.2·3.2, Muted 17.8·4.7·8.6·10.9·7.3·5.9·8.6, Kanagawa Paper Ink 11.3·3.3·5.6·5.4·5.9·6.2·5.6, Oxocarbon Dark 11.7·2.3·7.7·7.7·7.7·7.7·10.6, Light 9.6·18.1·3.3·2.4·7.3·3.3·1.8(주석이 본문보다 진한 `#161616`인 것은 원본 그대로).
+  - `base`는 `vim.o.background`가 아니라 `Normal` 배경의 밝기로 정한다: `cyberdream-light`와 `kanagawa-lotus`는 밝은 색을 불러 놓고 `background`를 `dark`로 둔다(커밋 전 데이터를 열어 보다 찾았다).
+  - 테스트: `themes.test.ts` +5(`neovim.ts`: 첫 그룹·링크·뒤집힘 주석, 밝기로 정하는 `base`, 없는 키는 비움, 모든 키와 그룹 한 번씩; 모든 번들의 `base`가 배경의 밝기와 맞음). 나머지는 기존 테스트가 새 번들을 그대로 본다. JVM 336, vitest 230, lint 경고 11(새 경고 없음).
 - [ ] VS Code에서 읽는 묶음 (14개)
   - Dracula 2(Alucard는 `dracula-theme`의 스펙에서), Rosé Pine 3(`rose-pine/vscode`), Winter is Coming 3, Flexoki 2(`flexoki/vscode`), Vesper 1, Ayu 3(`ayu-colors`의 `themes/*.yaml`과 `src`). 이탤릭 없는 변형은 넣지 않는다.
 - [ ] Vim에서 읽는 묶음과 Ocean (13개)

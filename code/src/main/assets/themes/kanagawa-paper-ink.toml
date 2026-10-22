@@ -1,0 +1,55 @@
+# Kanagawa Paper Ink, converted to a Skiff Code theme.
+# Source: https://github.com/thesimonho/kanagawa-paper.nvim at d6ba194faba511c9b112a13c79b5e123dcb5dd41,
+#   the highlight groups of :colorscheme kanagawa-paper-ink, read in Neovim v0.12.4
+# License: MIT, Copyright (c) 2021 Tommaso Laurenzi, Copyright (c) 2024 Simon Ho. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/kanagawa-paper.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#2a2a37" # NormalFloat bg
+foreground = "#c8c093" # NormalFloat fg
+muted = "#727169" # Comment fg
+border = "#363646" # FloatBorder fg
+faint = "#54546d" # NonText fg
+subtle = "#2a2a37" # CursorLine bg
+accent = "#859fac" # Function fg
+scrim = "#1f1f2899" # none in the source: editor.background at alpha 99
+strong_background = "#363646" # PmenuSel bg
+strong_foreground = "#dcd7ba" # Pmenu fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#1f1f28" # Normal bg
+foreground = "#dcd7ba" # Normal fg
+gutter_background = "#1f1f28" # none in the source: editor.background
+gutter_foreground = "#54546d" # LineNr fg
+gutter_border = "#8992a7" # WinSeparator fg
+cursor = "#dcd7ba" # Cursor bg
+selection = "#363646" # Visual bg
+code_background = "#2a2a37" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#a292a3" # @keyword fg (via Keyword)
+atom = "#b6927b" # @boolean fg (via Boolean)
+literal = "#a292a3" # @number fg (via Number)
+string = "#8a9a7b" # @string fg (via String)
+regexp = "#c4746e" # @string.regexp fg
+definition = "#859fac" # @function fg (via Function)
+local = "#a6a69c" # @variable.parameter fg
+type = "#8ea49e" # @type fg (via Type)
+class = "#8ea49e" # @lsp.type.class fg (via Type)
+macro = "#859fac" # @function.macro fg
+property = "#c4b28a" # @property fg (via Identifier)
+comment = "#727169" # @comment fg
+meta = "#c4b28a" # @attribute fg
+invalid = "#c4746e" # DiagnosticError fg
+warning = "#c4b28a" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#699469" # GitSignsAdd fg
+removed = "#c4746e" # GitSignsDelete fg
+changed = "#c4b28a" # GitSignsChange fg

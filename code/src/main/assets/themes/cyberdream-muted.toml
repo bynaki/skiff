@@ -1,0 +1,55 @@
+# Cyberdream Muted, converted to a Skiff Code theme.
+# Source: https://github.com/scottmckendry/cyberdream.nvim at 642c55ad2225f9f4809905918121b2c6d252ad58,
+#   the highlight groups of :colorscheme cyberdream-muted, read in Neovim v0.12.4
+# License: MIT, Copyright (c) 2023 Scott McKendry. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/cyberdream.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#16181a" # NormalFloat bg
+foreground = "#ffffff" # NormalFloat fg
+muted = "#7b8496" # Comment fg
+border = "#3c4048" # FloatBorder fg
+faint = "#434851" # NonText fg
+subtle = "#3c4048" # CursorLine bg
+accent = "#78a8e8" # Function fg
+scrim = "#16181a99" # none in the source: editor.background at alpha 99
+strong_background = "#3c4048" # PmenuSel bg
+strong_foreground = "#ffffff" # PmenuSel fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#16181a" # Normal bg
+foreground = "#ffffff" # Normal fg
+gutter_background = "#16181a" # SignColumn bg
+gutter_foreground = "#4f535a" # LineNr fg
+gutter_border = "#3c4048" # WinSeparator fg
+cursor = "#ffffff" # Cursor bg
+selection = "#3c4048" # Visual bg
+code_background = "#3c4048" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#e3a875" # @keyword fg (via Keyword)
+atom = "#7ed8e8" # @boolean fg (via Boolean)
+literal = "#e3a875" # @number fg (via Number)
+string = "#7ee088" # @string fg (via String)
+regexp = "#e878a8" # @string.regexp fg (via Special)
+definition = "#78a8e8" # @function fg (via Function)
+local = "#ffffff" # @variable.parameter fg
+type = "#b07ee8" # @type fg (via Type)
+class = "#b07ee8" # @lsp.type.class fg (via Type)
+macro = "#7ed8e8" # @function.macro fg (via PreProc)
+property = "#ffffff" # @property fg (via Identifier)
+comment = "#7b8496" # @comment fg (via Comment)
+meta = "#7ed8e8" # @attribute fg (via PreProc)
+invalid = "#e8796f" # DiagnosticError fg
+warning = "#e3c875" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#7ee088" # GitSignsAdd fg
+removed = "#e8796f" # GitSignsDelete fg
+changed = "#e3a875" # GitSignsChange fg

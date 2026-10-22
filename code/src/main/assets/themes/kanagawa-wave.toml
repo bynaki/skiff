@@ -1,0 +1,55 @@
+# Kanagawa Wave, converted to a Skiff Code theme.
+# Source: https://github.com/rebelot/kanagawa.nvim at bb85e4bfc8d89b0e62c8fa53ccdd13d12e2f77b3,
+#   the highlight groups of :colorscheme kanagawa-wave, read in Neovim v0.12.4
+# License: MIT, Copyright (c) 2021 Tommaso Laurenzi. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/kanagawa.json. The comment
+# after each color names what in the source it came from.
+base = "dark"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#16161d" # NormalFloat bg
+foreground = "#c8c093" # NormalFloat fg
+muted = "#727169" # Comment fg
+border = "#54546d" # FloatBorder fg
+faint = "#54546d" # NonText fg
+subtle = "#363646" # CursorLine bg
+accent = "#7e9cd8" # Function fg
+scrim = "#1f1f2899" # none in the source: editor.background at alpha 99
+strong_background = "#2d4f67" # PmenuSel bg
+strong_foreground = "#dcd7ba" # Pmenu fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#1f1f28" # Normal bg
+foreground = "#dcd7ba" # Normal fg
+gutter_background = "#2a2a37" # SignColumn bg
+gutter_foreground = "#54546d" # LineNr fg
+gutter_border = "#16161d" # WinSeparator fg
+cursor = "#dcd7ba" # Cursor bg
+selection = "#223249" # Visual bg
+code_background = "#2a2a37" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#957fb8" # @keyword fg (via Keyword)
+atom = "#ffa066" # @boolean fg (via Boolean)
+literal = "#d27e99" # @number fg (via Number)
+string = "#98bb6c" # @string fg (via String)
+regexp = "#c0a36e" # @string.regexp fg
+definition = "#7e9cd8" # @function fg (via Function)
+local = "#b8b4d0" # @variable.parameter fg
+type = "#7aa89f" # @type fg (via Type)
+class = "#7aa89f" # @lsp.type.class fg (via Type)
+macro = "#e46876" # @function.macro fg (via PreProc)
+property = "#e6c384" # @property fg (via Identifier)
+comment = "#727169" # @comment fg (via Comment)
+meta = "#ffa066" # @attribute fg (via Constant)
+invalid = "#e82424" # DiagnosticError fg
+warning = "#ff9e3b" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#76946a" # GitSignsAdd fg
+removed = "#c34043" # GitSignsDelete fg
+changed = "#dca561" # GitSignsChange fg

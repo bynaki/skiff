@@ -19,6 +19,7 @@ import {
   resolve,
   toml,
 } from '../scripts/themes/generate'
+import { type Dump, GROUPS, SOURCES as NEOVIM_SOURCES, fromNeovim } from '../scripts/themes/neovim'
 import { tokenColor } from '../scripts/themes/vscode'
 
 const committed = (name: string) => readFileSync(THEMES_DIR + name, 'utf8')
@@ -108,9 +109,21 @@ describe('the bundled themes', () => {
   test(`have editor.foreground at ${MIN_CONTRAST}:1 or more over editor.background, Skiff Code's own too`, () => {
     const files = readdirSync(THEMES_DIR).filter((name) => name.endsWith('.toml'))
     expect(files.length).toBeGreaterThan(2)
+    const excused = new Set(bundles.flatMap(([, bundle]) => bundle.themes.filter((theme) => theme.lowContrast).map((theme) => `${theme.id}.toml`)))
     for (const name of files) {
-      const colors = colorsOf(committed(name))
-      expect(contrasts(colors)['editor.foreground'], name).toBeGreaterThanOrEqual(MIN_CONTRAST)
+      const measured = contrasts(colorsOf(committed(name)))['editor.foreground']
+      // A theme let be below needs to be: the reason goes when the source's colors change.
+      if (excused.has(name)) expect(measured, name).toBeLessThan(MIN_CONTRAST)
+      else expect(measured, name).toBeGreaterThanOrEqual(MIN_CONTRAST)
+    }
+  })
+
+  test('are light when their background is nearer white than black, and dark when not', () => {
+    for (const name of readdirSync(THEMES_DIR).filter((it) => it.endsWith('.toml'))) {
+      const text = committed(name)
+      const background = colorsOf(text)['editor.background']
+      const light = contrast(background, '#000000') > contrast(background, '#ffffff')
+      expect(/^base = "(\w+)"/m.exec(text)?.[1], name).toBe(light ? 'light' : 'dark')
     }
   })
 
@@ -212,5 +225,45 @@ describe("reading a VS Code theme's tokens", () => {
   test('finds nothing for a scope no rule colors', () => {
     expect(tokenColor(rules, 'comment.line')).toBeNull()
     expect(tokenColor(rules, 'keywords')).toBeNull()
+  })
+})
+
+describe("reading a Neovim colorscheme's groups", () => {
+  const dump: Dump = {
+    background: 'light',
+    groups: {
+      Normal: { fg: '#111111', bg: '#eeeeee' },
+      '@keyword': { fg: '#222222' },
+      Keyword: { fg: '#333333' },
+      '@number': { fg: '#444444', via: 'Constant' },
+      PmenuSel: { fg: '#eeeeee', bg: '#111111', reverse: true },
+      NormalFloat: {},
+    },
+  }
+
+  test('takes the first group that has the color, saying where its links ended and that it was reversed', () => {
+    const { base, colors } = fromNeovim(dump)
+    expect(base).toBe('light')
+    expect(colors['editor.background']).toEqual({ value: '#eeeeee', from: 'Normal bg' })
+    expect(colors['syntax.keyword']).toEqual({ value: '#222222', from: '@keyword fg' })
+    expect(colors['syntax.literal']).toEqual({ value: '#444444', from: '@number fg (via Constant)' })
+    expect(colors['ui.strong_background']).toEqual({ value: '#111111', from: 'PmenuSel bg (reversed)' })
+  })
+
+  test("is light by its background's color, not by what the colorscheme left 'background'", () => {
+    expect(fromNeovim({ ...dump, background: 'dark' }).base).toBe('light')
+    expect(fromNeovim({ background: 'light', groups: { Normal: { bg: '#202020' } } }).base).toBe('dark')
+    expect(fromNeovim({ background: 'light', groups: {} }).base).toBe('light')
+  })
+
+  test('leaves out a key no group colors, for the table to fill', () => {
+    const { colors } = fromNeovim(dump)
+    expect(colors['ui.background']).toBeUndefined()
+    expect(colors['syntax.string']).toBeUndefined()
+  })
+
+  test('reads a group for every key the files have, and each group once', () => {
+    expect(Object.keys(NEOVIM_SOURCES)).toEqual(Object.keys(FALLBACK).filter((key) => key !== 'ui.scrim'))
+    expect(new Set(GROUPS).size).toBe(GROUPS.length)
   })
 })

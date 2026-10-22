@@ -1,0 +1,55 @@
+# Oxocarbon Light, converted to a Skiff Code theme.
+# Source: https://github.com/nyoom-engineering/oxocarbon.nvim at cd6523a0836d6e8ee823d343149fd06c7b71fdde,
+#   the highlight groups of :colorscheme oxocarbon, with background=light, read in Neovim v0.12.4
+# License: MIT, Copyright (c) 2022 Riccardo Mazzarini. The full text is in NOTICE.md beside this file.
+# Written by code/web/scripts/themes/generate.ts from scripts/themes/data/oxocarbon.json. The comment
+# after each color names what in the source it came from.
+base = "light"
+
+# The menu, the sidebar, the palette, the open files menu and the banner.
+[ui]
+background = "#fafafa" # NormalFloat bg
+foreground = "#90a4ae" # NormalFloat fg
+muted = "#161616" # Comment fg
+border = "#fafafa" # FloatBorder fg
+faint = "#d0d0d0" # NonText fg
+subtle = "#f2f2f2" # CursorLine bg
+accent = "#ff7eb6" # Function fg
+scrim = "#ffffff99" # none in the source: editor.background at alpha 99
+strong_background = "#d0d0d0" # PmenuSel bg
+strong_foreground = "#ff7eb6" # PmenuSel fg
+
+# The document: the code views and rendered markdown.
+[editor]
+background = "#ffffff" # Normal bg
+foreground = "#37474f" # Normal fg
+gutter_background = "#ffffff" # SignColumn bg
+gutter_foreground = "#161616" # LineNr fg
+gutter_border = "#f2f2f2" # WinSeparator fg
+cursor = "#37474f" # Cursor bg
+selection = "#d0d0d0" # Visual bg
+code_background = "#f2f2f2" # ColorColumn bg
+
+# The colors of code, in the code views and in rendered markdown.
+[syntax]
+keyword = "#ee5396" # @keyword fg
+atom = "#ee5396" # @boolean fg (via Boolean)
+literal = "#ffab91" # @number fg (via Number)
+string = "#be95ff" # @string fg (via String)
+regexp = "#37474f" # @string.regexp fg (via SpecialChar)
+definition = "#673ab7" # @function fg
+local = "#37474f" # @variable.parameter fg
+type = "#ee5396" # @type fg (via Type)
+class = "#ee5396" # @lsp.type.class fg (via Structure)
+macro = "#08bdba" # @function.macro fg
+property = "#ff6f00" # @property fg
+comment = "#161616" # @comment fg (via Comment)
+meta = "#ffab91" # @attribute fg
+invalid = "#ff6f00" # DiagnosticError fg
+warning = "#be95ff" # DiagnosticWarn fg
+
+# The diff layer's lines, tinted by diff_alpha, and the git gutter's bars.
+[diff]
+added = "#08bdba" # diffAdded fg
+removed = "#ff6f00" # diffRemoved fg
+changed = "#ee5396" # diffChanged fg

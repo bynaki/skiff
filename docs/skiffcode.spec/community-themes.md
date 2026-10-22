@@ -10,7 +10,7 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
 
 - **요구사항의 15개 저장소의 모든 변형과, 폴드8의 사용자 테마 `ocean copy`다**(2026-10-22 사용자 결정). 대비 단계(hard·medium·soft)도
   각각 하나의 테마다. 이탤릭을 끈 변형(winteriscoming의 `no-italics`)은 넣지 않는다 — Skiff 테마에 글꼴 모양 키가 없어 색이
-  같은 두 벌이 된다. 합쳐 **45개**이고, 지금의 `light`·`dark`와 `system`을 더해 목록은 48줄이다.
+  같은 두 벌이 된다. 합쳐 **46개**이고, 지금의 `light`·`dark`와 `system`을 더해 목록은 49줄이다.
 
   | 묶음 | 저장소 | 라이선스 | 변형(id) | 개수 |
   |---|---|---|---|---|
@@ -23,8 +23,8 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | Kanagawa | `rebelot/kanagawa.nvim` | MIT | `kanagawa-wave`, `-dragon`, `-lotus` | 3 |
   | Everforest | `sainnhe/everforest` | MIT | `everforest-dark-hard`, `-dark-medium`, `-dark-soft`, `-light-hard`, `-light-medium`, `-light-soft` | 6 |
   | Vague | `vague-theme/vague.nvim` | MIT | `vague` | 1 |
-  | Cyberdream | `scottmckendry/cyberdream.nvim` | MIT | `cyberdream`, `cyberdream-light` | 2 |
-  | Kanagawa Paper | `thesimonho/kanagawa-paper` | MIT | `kanagawa-paper-ink`, `-canvas` | 2 |
+  | Cyberdream | `scottmckendry/cyberdream.nvim` | MIT | `cyberdream`, `cyberdream-light`, `cyberdream-muted` | 3 |
+  | Kanagawa Paper | `thesimonho/kanagawa-paper.nvim` | MIT | `kanagawa-paper-ink`, `-canvas` | 2 |
   | Oxocarbon | `nyoom-engineering/oxocarbon.nvim` | MIT | `oxocarbon-dark`, `-light` | 2 |
   | Flexoki | `kepano/flexoki` | MIT | `flexoki-dark`, `-light` | 2 |
   | Vesper | `raunofreiberg/vesper` | MIT | `vesper` | 1 |
@@ -32,6 +32,7 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | Ocean | 폴드8의 `ocean copy`(사용자 것) | — | `ocean` | 1 |
 
   라이선스는 2026-10-22에 GitHub API로 봤다. 변형 이름은 저장소가 부르는 이름을 따르고, 구현 때 원본에서 다시 맞춘다.
+  `cyberdream-muted`는 구현 때 저장소에서 찾은 세 번째 변형이다(`colors/cyberdream-muted.lua`, README의 `variant = "muted"`).
 - **id**는 소문자와 `-`만 쓴다. `settings.toml`의 `theme = "catppuccin-mocha"`와 `assets/themes/<id>.toml`의 파일 이름이다.
   화면에 보이는 이름(`Catppuccin Mocha`, `Rosé Pine Dawn`)은 따로 둔다(아래 "목록 파일").
 - **Ocean**은 폴드8 앱 안의 `filesDir/themes/ocean copy.toml`을 그대로 가져와 머리 주석만 붙인다. 사용자 기기라 꺼내는 것은
@@ -50,12 +51,12 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | `ui.background` | `sideBar.background` | `NormalFloat` bg | `editor.background` |
   | `ui.foreground` | `sideBar.foreground`, `foreground` | `NormalFloat` fg | `editor.foreground` |
   | `ui.muted` | `descriptionForeground` | `Comment` fg | `syntax.comment` |
-  | `ui.border` | `panel.border`, `sideBar.border` | `FloatBorder`, `WinSeparator` | `editor.gutter_border` |
+  | `ui.border` | `panel.border`, `sideBar.border` | `FloatBorder` fg, `WinSeparator` fg | `editor.gutter_border` |
   | `ui.faint` | `disabledForeground` | `NonText` fg | `ui.muted` |
   | `ui.subtle` | `list.hoverBackground` | `CursorLine` bg | `editor.selection` |
-  | `ui.accent` | `focusBorder`, `button.background` | `Function` fg 또는 원본이 강조색이라 부르는 것 | `syntax.definition` |
+  | `ui.accent` | `focusBorder`, `button.background` | `Function` fg | `syntax.definition` |
   | `ui.scrim` | — | — | `editor.background` + 알파 `99` |
-  | `ui.strong_background` / `strong_foreground` | `button.background` / `button.foreground` | `PmenuSel` bg / fg | `ui.foreground` / `ui.background` |
+  | `ui.strong_background` / `strong_foreground` | `button.background` / `button.foreground` | `PmenuSel` bg / fg(없으면 `Pmenu` fg) | `ui.foreground` / `ui.background` |
   | `editor.background` / `foreground` | `editor.background` / `editor.foreground` | `Normal` bg / fg | — (반드시 있다) |
   | `editor.gutter_background` | `editorGutter.background` | `SignColumn` bg | `editor.background` |
   | `editor.gutter_foreground` | `editorLineNumber.foreground` | `LineNr` fg | `ui.muted` |
@@ -71,16 +72,16 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
   | `syntax.definition` | `entity.name.function` | `@function`, `Function` | — |
   | `syntax.local` | `variable.parameter` | `@variable.parameter` | `editor.foreground` |
   | `syntax.type` | `entity.name.type`, `support.type` | `@type`, `Type` | — |
-  | `syntax.class` | `entity.name.class` | `@type`(클래스), `Structure` | `syntax.type` |
+  | `syntax.class` | `entity.name.class` | `@lsp.type.class`, `@type` | `syntax.type` |
   | `syntax.macro` | `entity.name.function.preprocessor` | `@function.macro`, `Macro` | `syntax.keyword` |
   | `syntax.property` | `variable.other.property` | `@property`, `@variable.member` | `editor.foreground` |
   | `syntax.comment` | `comment` | `@comment`, `Comment` | — |
   | `syntax.meta` | `meta.decorator`, `storage.type.annotation` | `@attribute`, `PreProc` | `syntax.comment` |
   | `syntax.invalid` | `invalid`, `editorError.foreground` | `DiagnosticError` | — |
   | `syntax.warning` | `editorWarning.foreground` | `DiagnosticWarn` | — |
-  | `diff.added` | `editorGutter.addedBackground` | `GitSignsAdd`, `diffAdded` | — |
-  | `diff.removed` | `editorGutter.deletedBackground` | `GitSignsDelete`, `diffRemoved` | — |
-  | `diff.changed` | `editorGutter.modifiedBackground` | `GitSignsChange`, `diffChanged` | — |
+  | `diff.added` | `editorGutter.addedBackground` | `GitSignsAdd`, `diffAdded`, `Added` | — |
+  | `diff.removed` | `editorGutter.deletedBackground` | `GitSignsDelete`, `diffRemoved`, `Removed` | — |
+  | `diff.changed` | `editorGutter.modifiedBackground` | `GitSignsChange`, `diffChanged`, `Changed` | — |
 
   - 알파가 든 원본 색(VS Code의 `#rrggbbaa` 선택색 등)은 **그대로 둔다.** Skiff 테마가 `#rrggbbaa`를 받는다. 다만 `diff.*`는
     `diff_alpha`가 다시 곱해지므로 불투명하게 바꾼다(그 배경 위에 섞은 색).
@@ -96,15 +97,29 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
     고른다: 문법이 실제로 붙이는 스코프(`keyword.control`, `string.quoted`, `comment.line`)에 대해, 그것이거나 그 부모인 선택자 중
     마디가 가장 많은 것, 같으면 뒤의 규칙. 부모 스코프가 있어야 맞는 선택자(`meta.function entity.name`)와 언어별 규칙
     (`string.regexp.ts`)은 보지 않는다. 알파가 `00`인 색(`sideBar.border = #00000000`)은 없는 것으로 친다.
+  - Neovim 원본은 `scripts/themes/neovim.ts <플러그인 디렉터리> <colorscheme> [light|dark]`가 읽는다. 정적으로 Lua를 읽지 않고,
+    `nvim --headless --clean`에서 그 색 구성표를 실제로 불러(`background`가 주어지면 먼저 맞추고) 위 표의 그룹을 Neovim이 그리는
+    대로 읽는다: 링크를 따라가고(색 구성표가 정하지 않은 tree-sitter 그룹은 Neovim 기본 링크의 끝), `reverse`인 그룹은 뒤집은
+    색이며 빈 쪽은 그 아래 글(`PmenuSel`은 `Pmenu`, 나머지는 `Normal`)의 색이다 — Neovim 자신의 `PmenuSel`이 `reverse`뿐이다.
+    클래스 이름은 언어 서버가 칠하면 `@lsp.type.class`, 아니면 `@type`이라 그 차례로 본다. 색 구성표의 코드를 Neovim처럼 돌리고,
+    캐시는 임시 디렉터리에 쓴다. `base`는 `Normal` 배경이 흰색과 검은색 중 어디에 가까운지로 정한다 — `cyberdream-light`와
+    `kanagawa-lotus`는 밝은 색을 불러 놓고 `background`를 `dark`로 둔다. 모든 번들의 `base`가 배경과 맞는지 테스트가 본다. 주석은 `# @number fg (via Constant)`, `# PmenuSel bg (reversed)`처럼 링크의 끝과 뒤집힘을 적는다.
   - toml의 색마다 줄 끝 주석에 그 값이 원본의 어느 이름에서 왔는지 적는다(`# sideBar.background`, `# token keyword (for
     keyword.control)`, `# none in the source: editor.foreground`). 복사해서 고치는 사람이 원본과 견줄 수 있게.
   - Catppuccin은 `catppuccin/vscode`를 읽었다. 저장소에는 테마를 만드는 TS만 있고 만들어진 JSON이 없어, 그 커밋의 릴리스
     (`catppuccin-vsc-v3.19.0`)에 붙은 `.vsix` 안의 `themes/*.json`을 읽고 데이터에 그렇게 적었다. npm의 `@catppuccin/vscode`는
     3.18.1에 멈춰 있어 쓰지 않았다.
+  - Neovim으로 읽은 여섯 묶음(Tokyo Night, Kanagawa, Vague, Cyberdream, Kanagawa Paper, Oxocarbon)은 각 저장소의 기본 브랜치
+    머리를 Neovim 0.12.4에서 읽었다. 설정은 모두 기본값이다(투명 배경 끔 등). Oxocarbon은 색 구성표가 하나라 `background`를
+    `dark`·`light`로 바꿔 두 번 읽었다. Tokyo Night은 저장소에 저작권 줄이 없어 저작권자를 "by Folke Lemaitre"로 적고, Apache-2.0
+    4(b)의 "바꾼 파일임을 알림"은 머리 주석의 "converted to a Skiff Code theme"과 `NOTICE.md` 머리말이 한다.
   - vitest가 생성 결과와 커밋된 `assets/themes/*.toml`이 같은지 본다. 손으로 고친 번들 파일은 테스트가 잡는다.
   - 스크립트는 테마마다 WCAG 대비(`editor.foreground`·문법 색 대 `editor.background`)를 표로 낸다. **`editor.foreground`만
     4.5:1 미만이면 실패**로 하고, 나머지는 보고만 한다 — 주석을 일부러 흐리게 둔 테마(Rosé Pine, Vesper)가 있고, 원본을 따르는
     것이 우선이다.
+    - 예외는 테마 데이터의 `lowContrast`에 이유를 적은 것뿐이다. 그 테마는 실패 대신 경고를 내고, 원본이 바뀌어 4.5:1을 넘으면
+      테스트가 예외를 지우라고 실패한다. 지금은 Kanagawa Paper Canvas 하나다(원본 `#616569` 위 `#e1e1de`, 4.48:1 — 원본 그대로
+      넣기로 2026-10-22 사용자 결정).
 - **파일마다 머리 주석**에 테마 이름, 원본 저장소와 커밋, 라이선스, 저작권자, "Skiff Code 테마로 바꾼 것"을 적는다.
   `Export Theme`은 원문을 내보내므로 이 주석이 함께 나간다. 라이선스 전문은 `assets/themes/NOTICE.md` 하나에 묶음마다 모은다
   (Apache-2.0인 Tokyo Night은 전문과 함께 바꾼 것임을 적는다). 앱 안에서 그것을 보여 주는 화면은 이번에 만들지 않는다.
@@ -121,7 +136,7 @@ import/export, 복사·편집·삭제는 [설정과 테마](settings-theme.md) �
 
 ## 팔레트의 `Theme...`
 
-- **`Theme: …` 명령들을 `Theme...` 하나로 바꾼다**(요구사항). 48개가 커맨드 목록에 섞이면 팔레트가 테마로 덮인다. `Import Theme`,
+- **`Theme: …` 명령들을 `Theme...` 하나로 바꾼다**(요구사항). 49개가 커맨드 목록에 섞이면 팔레트가 테마로 덮인다. `Import Theme`,
   `Export Theme`, `Copy Theme`, `Edit Theme`, `Delete Theme`은 그대로 커맨드다.
 - **`Theme...`를 실행하면 같은 팔레트가 테마 목록으로 바뀐다**(2026-10-22 사용자 결정, VS Code의 Color Theme 고르기와 같다). 따로
   띄우는 창은 만들지 않는다. [팔레트](palette.md)의 네 번째 모드지만 **입력 버튼의 스와이프로는 가지 않고** `Theme...`로만 들어간다.
@@ -172,15 +187,15 @@ M13의 변환 방법을 다른 테마에도 쓰게 스킬로 만든다(2026-10-2
 이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
 [`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
 
-- ⬜ JVM: 번들 47개(커뮤니티 45 + `light`·`dark`)가 모든 키를 갖고 읽을 때 문제가 없다. `index.json`과 `assets/themes/*.toml`이 하나씩
+- ⬜ JVM: 번들 48개(커뮤니티 46 + `light`·`dark`)가 모든 키를 갖고 읽을 때 문제가 없다. `index.json`과 `assets/themes/*.toml`이 하나씩
   맞는다. 번들 id가 가져오기와 복사에서 대소문자 없이 거부된다. 같은 이름의 사용자 테마가 있으면 그것이 이긴다. `names`의 차례 —
   확인: `ThemeTomlTest`, `ThemesTest`. `:code` 린트에 새 경고가 없다.
 - ⬜ vitest: 생성 스크립트의 결과가 커밋된 파일과 같다. 모든 파일에 원본·커밋·라이선스 머리 주석이 있고, `NOTICE.md`에 묶음마다
   라이선스가 있다. 모든 테마의 `editor.foreground` 대비가 4.5:1 이상이다. 팔레트: `Theme: …`가 없고 `Theme...`가 있다, 테마 목록의
   차례·표시·퍼지 검색, 고르면 `setTheme`과 `>` 모드로 닫힘 — 확인: 새 테스트 `themes.test.ts`, `commands.test.ts`, `palette.test.ts`.
-- ⬜ 탭: `Theme...`에 48줄이 색 띠와 함께 보이고 지금 테마에 표시가 있다. 고르면 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된
+- ⬜ 탭: `Theme...`에 49줄이 색 띠와 함께 보이고 지금 테마에 표시가 있다. 고르면 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된
   마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다. `mocha`를 치면 좁혀진다.
-- ⬜ 탭, 사용자 확인: 45개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을
+- ⬜ 탭, 사용자 확인: 46개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을
   사용자가 원본 테마와 견주어 보고 괜찮다고 한다. 모음은 스크립트가 테마를 차례로 바꾸며 `screencap`으로 만든다.
 - ⬜ 폴드8 커버 화면(글꼴 배율 1.5): 테마 목록의 이름과 띠가 잘리지 않고 목록이 스크롤된다. 사용자 기기라 테마를 바꾸는 것은
   사용자에게 묻고, 끝나면 되돌린다.

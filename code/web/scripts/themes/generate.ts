@@ -27,6 +27,8 @@ export interface ThemeData {
   source: string
   /** By Skiff key; a key left out is filled by [FALLBACK]. */
   colors: Record<string, Picked>
+  /** Why this theme's `editor.foreground` is let be below [MIN_CONTRAST]: the source's own colors. */
+  lowContrast?: string
 }
 
 /** One collection of themes from one source, as a data file holds it. */
@@ -241,7 +243,7 @@ export function notice(bundles: Bundle[]): string {
 /** The keys whose contrast against `editor.background` the table shows. */
 const MEASURED = ['editor.foreground', 'syntax.comment', 'syntax.keyword', 'syntax.string', 'syntax.definition', 'syntax.type', 'syntax.literal']
 
-/** Below this, `editor.foreground` fails the run; the others are only shown. */
+/** Below this, `editor.foreground` fails the run unless the theme says why; the others are only shown. */
 export const MIN_CONTRAST = 4.5
 
 /** Each [MEASURED] key's contrast against [colors]' `editor.background`. */
@@ -273,7 +275,9 @@ function main(): void {
       files.set(`${theme.id}.toml`, toml(bundle, theme, name))
       const measured = contrasts(Object.fromEntries(Object.entries(resolve(theme)).map(([key, picked]) => [key, picked.value])))
       rows.push([theme.id, ...MEASURED.map((key) => measured[key].toFixed(1))].join('\t'))
-      if (measured['editor.foreground'] < MIN_CONTRAST) failing.push(theme.id)
+      if (measured['editor.foreground'] >= MIN_CONTRAST) continue
+      if (theme.lowContrast) console.warn(`${theme.id}: editor.foreground is below ${MIN_CONTRAST}:1, let be: ${theme.lowContrast}`)
+      else failing.push(theme.id)
     }
   }
   console.log(rows.join('\n'))
