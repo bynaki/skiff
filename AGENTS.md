@@ -591,8 +591,8 @@ kept for M6 and not loaded by the page. The versions it pinned stand, with what 
 added:
 
 - Kotlin: `androidx.webkit` 1.17.0, `com.akuleshov7:ktoml-core` 0.7.1
-- Build: `vite` 8.3.0, `typescript` 7.0.2, `patch-package` 8.0.1 (M5, for the CodeMirror patch above)
-- Page: `markdown-it` 15.0.2 (ships its own types), `@codemirror/language-data` 6.5.2 (every
+- Build: `vite` 8.3.5, `typescript` 7.0.2, `patch-package` 8.0.1 (M5, for the CodeMirror patch above)
+- Page: `markdown-it` 15.0.3 (ships its own types), `@codemirror/language-data` 6.5.2 (every
   language's parser as its own chunk, loaded by file name when first needed)
 - `@codemirror/`: `view` 6.43.12, `state` 6.7.5, `language` 6.12.4, `lang-javascript` 6.2.5,
   `merge` 6.12.2, `lsp-client` 6.3.0, `lint` 6.9.7, and `commands` 6.11.1, which M3 added for

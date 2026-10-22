@@ -24,8 +24,9 @@
 - JVM 337(건너뜀 1 — `SKIFF_THEMES_DIR` 없을 때), vitest 208(테마 테스트 26개가 빠짐), lint 경고 11(그대로).
   `SKIFF_THEMES_DIR=~/projects/skiffcode-themes`로 `ThemeTomlTest` 12개가 건너뜀 없이 통과.
 - 테마 데이터를 고치는 곳은 이제 테마 저장소뿐이다(`~/projects/skiffcode-themes`, `AGENTS.md`의 "Themes live outside the app too").
-- 앱 레포의 `code/web`도 vitest 5.0.5로 올렸다(사용자 결정, 5.0.1의 moderate 권고 둘). `npm audit`에는 high 셋이 남았다:
-  `markdown-it` 15.0.2(→15.0.3), `source-map-js`(`npm audit fix`), `patch-package`가 끌어오는 `braces` — 손대지 않았다.
+- 앱 레포의 `code/web`도 vitest 5.0.5로 올렸다(사용자 결정, 5.0.1의 moderate 권고 둘). 이어서 high 권고로 `markdown-it` 15.0.3,
+  `source-map-js` 1.2.2(`npm audit fix`, `argparse` 3.0.3도 같이), `vite` 8.3.5로 올렸다(사용자 결정). 남은 high는
+  `patch-package`가 끌어오는 `braces` 하나다(고치려면 `patch-package`를 6.0.7로 내려야 해서 두었다).
 
 ### 다음 세션이 할 일
 1. `AGENTS.md`를 읽는다.
