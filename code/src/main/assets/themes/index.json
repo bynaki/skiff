@@ -1,0 +1,4 @@
+[
+  { "id": "light", "title": "Light", "family": "Skiff", "base": "light" },
+  { "id": "dark", "title": "Dark", "family": "Skiff", "base": "dark" }
+]

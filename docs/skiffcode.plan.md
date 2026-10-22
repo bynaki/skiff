@@ -36,11 +36,13 @@
 - ⬜ 폴드8 커버 화면(글꼴 배율 1.5): 테마 목록의 이름과 띠가 잘리지 않고 목록이 스크롤된다. 사용자 기기라 테마를 바꾸는 것은 사용자에게 묻고, 끝나면 되돌린다.
 - ⬜ 폴드8: 번들 `ocean`의 색이 사용자의 `ocean copy`와 키마다 같다.
 
-- [ ] 번들 목록과 이름 (Kotlin)
+- [x] 번들 목록과 이름 (Kotlin)
   - `assets/themes/index.json`(id, 보이는 이름, 묶음, `base`)을 두고 지금은 `light`·`dark` 두 줄만 넣는다. `Themes.bundled`를 이 파일에서 만든다.
   - `nameOf`가 번들 id를 대소문자 없이 거부한다. 같은 이름의 사용자 파일이 이미 있으면 사용자 것이 이긴다.
   - `settings` 답의 `themes`를 이름 목록에서 `{ id, title, dark, swatch }` 목록으로 바꾼다(띠 색 여섯, `system`은 따르는 번들의 것). 페이지의 `THEME_TITLES`를 지운다.
   - 테스트: `ThemesTest`(예약어, 사용자 것이 이김, 차례, 띠), `ThemeTomlTest`(index의 모든 번들이 키를 다 가짐, index ↔ 파일).
+  - 한 것: `nameOf`는 번들 id를 알아야 해서 `Themes`의 메서드가 됐다. 이미 있는 사용자 파일을 읽는 쪽(`listImported`, `ownAt`)은 번들 id를 거부하지 않는 이름 규칙을 따로 쓴다 — 그래야 사용자 것이 이긴다. 가려지는 것은 커뮤니티 번들뿐이다(`light`·`dark`라는 사용자 파일은 원래 없다). 차례는 `index.json`의 순서가 아니라 `Themes.names`가 정한다(`light`·`dark`, 나머지는 보이는 이름 순). 테마 목록은 `pageSettings`가 IO에서 읽는다 — 테마마다 한 번 읽고 캐시하므로 첫 답만 파일을 읽는다. 페이지는 Kotlin이 답하기 전에는 `Theme: …` 명령이 없다(예전에는 세 개를 박아 두었다).
+  - 테스트: `ThemesTest` +4(번들 id 거부, 차례와 보이는 이름, 같은 이름이면 사용자 것이 이기고 지우면 번들이 돌아옴, 띠와 `system`의 띠), `ThemeTomlTest` +1(index ↔ 파일, id 모양, `base`)과 기존 1개가 index의 모든 번들을 본다. `commands.test.ts`는 목록 모양만 바꿨다. JVM 336, vitest 208, lint 경고 12(모두 이번에 손대지 않은 줄).
 - [ ] 생성 스크립트와 첫 묶음 (Catppuccin 4)
   - `code/web/scripts/themes/generate.ts`와 `npm run themes`. 묶음 데이터의 모양(원본 URL·커밋 SHA·키마다 값과 원본 이름), 대응표의 "없을 때" 규칙, `diff.*`를 불투명하게 섞기, 머리 주석, `index.json`과 `NOTICE.md` 쓰기, 대비 표.
   - Catppuccin은 `catppuccin/vscode`의 JSON을 읽어 데이터로 옮긴다. `light`·`dark`의 원문은 바꾸지 않는다(스크립트가 쓰지 않는 파일로 둔다).

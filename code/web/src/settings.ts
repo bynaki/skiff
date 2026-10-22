@@ -11,6 +11,19 @@ import { EditorView } from '@codemirror/view'
 import { NAV_BAR_ROOM, navBar } from './navBar'
 import { type Theme, showTheme } from './theme'
 
+/**
+ * A theme as the palette lists it, named and drawn by Kotlin: [swatch] is its `editor.background`,
+ * `editor.foreground`, `syntax.keyword`, `syntax.string`, `syntax.definition` and `ui.accent`.
+ * `system`'s are those of the bundled theme it follows now.
+ */
+export interface ThemeEntry {
+  /** What `settings.toml`'s `theme` says. */
+  id: string
+  title: string
+  dark: boolean
+  swatch: string[]
+}
+
 /** What Kotlin's `settings` answers and `settingsChanged` carries. */
 export interface Settings {
   /** A CSS font family. */
@@ -33,8 +46,8 @@ export interface Settings {
   lspTimeoutMs: number
   /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
   theme: Theme
-  /** Every name `theme` may take, imported themes included, for the palette's Theme commands. */
-  themes: string[]
+  /** Every theme `theme` may name, the person's own included, in the palette's order. */
+  themes: ThemeEntry[]
   /** Whether the theme on the screen is the person's own, which the palette can delete. */
   ownTheme: boolean
 }

@@ -3,6 +3,7 @@ package com.naki.skiff.code.settings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.io.File
 
@@ -18,14 +19,27 @@ class ThemeTomlTest {
     private val dark = themes.resolve("dark", night = false).colors
     private val fallback = { isDark: Boolean -> if (isDark) dark else light }
 
+    private val index = Json.decodeFromString<List<BundledTheme>>(File("src/main/assets/themes/index.json").readText())
+
     @Test
-    fun `each bundled theme reads without a problem and has every color`() {
-        for ((name, isDark) in listOf("light" to false, "dark" to true)) {
-            val read = bundled(name)
-            assertEquals(name, emptyList<SettingsProblem>(), read.problems)
-            assertEquals(name, isDark, read.theme.dark)
-            assertEquals(name, ThemeToml.KEYS.toSet(), read.theme.colors.keys)
+    fun `each bundled theme reads without a problem, has every color and is on the side the index says`() {
+        for (entry in index) {
+            val read = bundled(entry.id)
+            assertEquals(entry.id, emptyList<SettingsProblem>(), read.problems)
+            assertEquals(entry.id, entry.base == "dark", read.theme.dark)
+            assertEquals(entry.id, ThemeToml.KEYS.toSet(), read.theme.colors.keys)
         }
+    }
+
+    @Test
+    fun `the index lists every bundled file once, and nothing else`() {
+        val ids = index.map { it.id }
+        assertEquals(ids.distinct(), ids)
+        val files = File("src/main/assets/themes").listFiles { file -> file.name.endsWith(".toml") }.orEmpty()
+        assertEquals(files.map { it.name.removeSuffix(".toml") }.toSet(), ids.toSet())
+        assertTrue(ids.containsAll(listOf("light", "dark")))
+        for (entry in index) assertTrue(entry.id, Regex("[a-z][a-z0-9-]*").matches(entry.id))
+        for (entry in index) assertTrue(entry.id, entry.base in setOf("light", "dark"))
     }
 
     @Test

@@ -24,7 +24,7 @@ import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
 import { setLinkHooks } from './markdown'
-import { type Settings, showSettings } from './settings'
+import { type Settings, type ThemeEntry, showSettings } from './settings'
 import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
@@ -95,8 +95,8 @@ let labels: Labels | null = null
 let chosenFontSize = DEFAULT_FONT_SIZE
 /** How many files off the screen keep their buffer, as `settings.toml` says. */
 let keptBuffers = RETAINED_BUFFERS
-/** The palette's Theme commands, until Kotlin says which themes there are: the ones every install has. */
-let themes = ['system', 'light', 'dark']
+/** The palette's Theme commands; none until Kotlin says which themes there are, which it does at once. */
+let themes: ThemeEntry[] = []
 /** Whether the theme on the screen is the person's own; until Kotlin says, it is a bundled one. */
 let ownTheme = false
 /**

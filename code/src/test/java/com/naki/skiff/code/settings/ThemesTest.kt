@@ -19,23 +19,91 @@ class ThemesTest {
 
     @Test
     fun `a theme is named after its file`() {
-        assertEquals("ocean", Themes.nameOf("ocean.toml"))
-        assertEquals("Ocean", Themes.nameOf("Ocean.TOML"))
-        assertEquals("ocean (1)", Themes.nameOf("ocean (1).toml"))
-        assertEquals("바다", Themes.nameOf("바다.toml"))
-        assertEquals("ocean", Themes.nameOf("ocean"))
+        assertEquals("ocean", themes().nameOf("ocean.toml"))
+        assertEquals("Ocean", themes().nameOf("Ocean.TOML"))
+        assertEquals("ocean (1)", themes().nameOf("ocean (1).toml"))
+        assertEquals("바다", themes().nameOf("바다.toml"))
+        assertEquals("ocean", themes().nameOf("ocean"))
     }
 
     @Test
     fun `a name that reaches out of the directory, or that TOML would have to escape, is refused`() {
         for (fileName in listOf("../ocean.toml", "a/b.toml", ".toml", ".hidden.toml", "a.b.toml", "say \"hi\".toml", "a\\b.toml", "a\u0000.toml", "")) {
-            assertNull(fileName, Themes.nameOf(fileName))
+            assertNull(fileName, themes().nameOf(fileName))
         }
     }
 
     @Test
     fun `the names settings already means something by are refused, in any case`() {
-        for (fileName in listOf("system.toml", "light.toml", "Dark.toml")) assertNull(fileName, Themes.nameOf(fileName))
+        for (fileName in listOf("system.toml", "light.toml", "Dark.toml")) assertNull(fileName, themes().nameOf(fileName))
+    }
+
+    /**
+     * Themes over a bundle that also ships [extra] — id to `title`, `base` and the file's text — listed
+     * in that order after `light` and `dark`, the way an update that adds themes would ship them.
+     */
+    private fun shipping(vararg extra: Pair<String, Triple<String, String, String>>): Themes {
+        val assets = Files.createTempDirectory("assets").toFile()
+        val bundled = File(assets, "themes").apply { mkdirs() }
+        for (name in listOf("light", "dark")) File("src/main/assets/themes/$name.toml").copyTo(File(bundled, "$name.toml"))
+        val lines = listOf("""{ "id": "light", "title": "Light", "family": "Skiff", "base": "light" }""", """{ "id": "dark", "title": "Dark", "family": "Skiff", "base": "dark" }""") +
+            extra.map { (id, theme) ->
+                File(bundled, "$id.toml").writeText(theme.third)
+                """{ "id": "$id", "title": "${theme.first}", "family": "Test", "base": "${theme.second}" }"""
+            }
+        File(bundled, "index.json").writeText(lines.joinToString(",\n", "[\n", "\n]\n"))
+        return Themes({ path -> File(assets, path).inputStream() }, dir)
+    }
+
+    private val ocean = "ocean" to Triple("Ocean", "dark", File("src/main/assets/themes/dark.toml").readText().replace("#0d1117", "#012345"))
+    private val sand = "sand" to Triple("Sand", "light", File("src/main/assets/themes/light.toml").readText())
+
+    @Test
+    fun `a bundled theme's id is refused to import or copy under, in any case`() {
+        val themes = shipping(ocean)
+        for (fileName in listOf("ocean.toml", "Ocean.toml", "OCEAN")) assertNull(fileName, themes.nameOf(fileName))
+        assertEquals("ocean mine", themes.nameOf("ocean mine.toml"))
+    }
+
+    @Test
+    fun `the bundled themes come after light and dark by the name they show, and the person's own after them`() {
+        val themes = shipping(sand, ocean)
+        themes.import("bay", "base = \"dark\"\n")
+        themes.import("Anchor", "base = \"dark\"\n")
+        assertEquals(listOf("system", "light", "dark", "ocean", "sand", "Anchor", "bay"), themes.names)
+        assertEquals(listOf("System", "Light", "Dark", "Ocean", "Sand", "Anchor", "bay"), themes.entries(night = false).map { it.title })
+    }
+
+    @Test
+    fun `a file of the person's own with a bundled theme's id wins over it`() {
+        val text = "base = \"light\"\n[ui]\nbackground = \"#fedcba\"\n"
+        dir.mkdirs()
+        File(dir, "ocean.toml").writeText(text)
+        val themes = shipping(ocean, sand)
+        assertEquals(listOf("system", "light", "dark", "sand", "ocean"), themes.names)
+        assertTrue(themes.isImported("ocean"))
+        assertEquals("#fedcba", themes.resolve("ocean", night = false).colors["ui.background"])
+        assertFalse(themes.resolve("ocean", night = false).dark)
+        assertEquals(text, themes.text("ocean"))
+        assertEquals("ocean", themes.ownAt(themes.file("ocean").path))
+        assertEquals("ocean", themes.entries(night = false).last().title)
+        // Without theirs, the bundled one is offered again.
+        themes.delete("ocean")
+        assertEquals(listOf("system", "light", "dark", "ocean", "sand"), themes.names)
+        assertEquals("#012345", themes.resolve("ocean", night = false).colors["editor.background"])
+    }
+
+    @Test
+    fun `each theme is listed with its swatch, and system with the one it follows`() {
+        val themes = shipping(ocean)
+        val dark = themes.resolve("dark", night = false)
+        val entries = themes.entries(night = true).associateBy { it.id }
+        assertEquals(Themes.SWATCH.map { dark.colors.getValue(it) }, entries.getValue("dark").swatch)
+        assertEquals(entries.getValue("dark").swatch, entries.getValue("system").swatch)
+        assertTrue(entries.getValue("system").dark)
+        assertEquals("#012345", entries.getValue("ocean").swatch.first())
+        assertEquals(entries.getValue("light").swatch, themes.entries(night = false).first().swatch)
+        assertEquals(6, entries.getValue("ocean").swatch.size)
     }
 
     @Test

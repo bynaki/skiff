@@ -10,9 +10,7 @@
 // everything else the palette shows (2026-09-21 사용자 결정).
 import type { LayerName } from './layers/pane'
 import type { PaletteItem } from './palette'
-
-/** How the themes every install has are named in the palette; an imported one goes by its own name. */
-const THEME_TITLES: Record<string, string> = { system: 'System', light: 'Light', dark: 'Dark' }
+import type { ThemeEntry } from './settings'
 
 /** What the commands act on, and what says which of them there is anything to act on. */
 export interface CommandSource {
@@ -32,7 +30,7 @@ export interface CommandSource {
   /** Opens `settings.toml`, which saving applies. */
   openSettings(): void
   /** What `settings.toml`'s `theme` may say, from Kotlin: `system`, the bundled themes, then the imported ones. */
-  themes(): string[]
+  themes(): ThemeEntry[]
   /** Writes `theme` into `settings.toml`, which applies it. */
   setTheme(name: string): void
   /** Each through the system's file picker; what came of it arrives later, on the banner. */
@@ -98,7 +96,7 @@ export function commands(source: CommandSource): PaletteItem[] {
     { name: 'Open Settings', run: () => source.openSettings() },
     { name: 'Import Settings', run: () => source.importSettings() },
     { name: 'Export Settings', run: () => source.exportSettings() },
-    ...source.themes().map((theme) => ({ name: `Theme: ${THEME_TITLES[theme] ?? theme}`, run: () => source.setTheme(theme) })),
+    ...source.themes().map((theme) => ({ name: `Theme: ${theme.title}`, run: () => source.setTheme(theme.id) })),
     { name: 'Import Theme', run: () => source.importTheme() },
     { name: 'Export Theme', run: () => source.exportTheme() },
     { name: 'Copy Theme', run: () => source.copyTheme() },

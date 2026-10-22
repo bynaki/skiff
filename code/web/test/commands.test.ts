@@ -2,9 +2,16 @@
 import { describe, expect, test } from 'vitest'
 import { type CommandSource, commands } from '../src/commands'
 import type { LayerName } from '../src/layers/pane'
+import type { ThemeEntry } from '../src/settings'
+
+/** A theme as Kotlin lists it; the swatch does not matter to a command. */
+const entry = (id: string, title: string): ThemeEntry => ({ id, title, dark: false, swatch: [] })
+
+/** What every install has, as Kotlin names them. */
+const BASES = [entry('system', 'System'), entry('light', 'Light'), entry('dark', 'Dark')]
 
 /** A source that says what it was asked to do, over a screen described by [state]. */
-function source(state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) {
+function source(state: { open: boolean; layer: LayerName | null; themes?: ThemeEntry[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) {
   const ran: string[] = []
   const command: CommandSource = {
     open: () => state.open,
@@ -18,7 +25,7 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
     resetZoom: () => ran.push('resetZoom'),
     toggleSidebar: () => ran.push('toggleSidebar'),
     openSettings: () => ran.push('openSettings'),
-    themes: () => state.themes ?? ['system', 'light', 'dark'],
+    themes: () => state.themes ?? BASES,
     setTheme: (name) => ran.push(`setTheme ${name}`),
     importSettings: () => ran.push('importSettings'),
     exportSettings: () => ran.push('exportSettings'),
@@ -42,7 +49,7 @@ function source(state: { open: boolean; layer: LayerName | null; themes?: string
   return { command, ran }
 }
 
-const names = (state: { open: boolean; layer: LayerName | null; themes?: string[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) =>
+const names = (state: { open: boolean; layer: LayerName | null; themes?: ThemeEntry[]; ownTheme?: boolean; lsp?: boolean; back?: boolean; forward?: boolean }) =>
   commands(source(state).command).map((item) => item.name)
 
 describe('what the palette offers', () => {
@@ -175,8 +182,9 @@ describe('what the palette offers', () => {
     ])
   })
 
-  test('offers an imported theme by its own name, after the ones every install has', () => {
-    const { command, ran } = source({ open: false, layer: null, themes: ['system', 'light', 'dark', 'ocean (1)', '바다'] })
+  test('offers each theme by the title Kotlin gives it, and sets it by its id', () => {
+    const offered = [...BASES, entry('ocean (1)', 'ocean (1)'), entry('바다', '바다')]
+    const { command, ran } = source({ open: false, layer: null, themes: offered })
     const themes = commands(command).filter((item) => item.name.startsWith('Theme: '))
     expect(themes.map((item) => item.name)).toEqual([
       'Theme: System',

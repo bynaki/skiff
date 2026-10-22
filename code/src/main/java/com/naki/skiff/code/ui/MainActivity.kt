@@ -62,6 +62,7 @@ import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.settings.SettingsToml
 import com.naki.skiff.code.settings.Theme
+import com.naki.skiff.code.settings.ThemeEntry
 import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.code.skiffCode
 import com.naki.skiff.data.store.ServerProfile
@@ -626,10 +627,12 @@ class MainActivity : Activity() {
     /**
      * The settings the page applies itself; the file limits and the poll stay on this side. The
      * theme goes as its colors, already chosen for the dark mode the device is in — and around the
-     * page too, since whatever is sent here is what the page is about to become.
+     * page too, since whatever is sent here is what the page is about to become. The theme list rides
+     * along with each theme's swatch, read once per theme and kept, so only the first answer reads files.
      */
-    private fun pageSettings(read: SettingsRead): JSONObject = with(read.settings) {
+    private suspend fun pageSettings(read: SettingsRead): JSONObject = with(read.settings) {
         val theme = showAround(read)
+        val themes = withContext(Dispatchers.IO) { container.themes.entries(night) }
         JSONObject()
             .put("font", editor.font)
             .put("fontSize", editor.fontSize)
@@ -642,9 +645,12 @@ class MainActivity : Activity() {
             .put("keptBuffers", files.keptBuffers)
             .put("lspTimeoutMs", lsp.timeoutSeconds * 1000)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
-            .put("themes", JSONArray(container.themes.names))
+            .put("themes", JSONArray(themes.map { it.toJson() }))
             .put("ownTheme", container.themes.isImported(container.themes.nameIn(editor.theme, night)))
     }
+
+    private fun ThemeEntry.toJson() =
+        JSONObject().put("id", id).put("title", title).put("dark", dark).put("swatch", JSONArray(swatch))
 
     /** The theme on the screen by name: the one chosen, or for `system` the bundled one it follows now. */
     private suspend fun shownTheme() = container.themes.nameIn(container.settings.current().settings.editor.theme, night)
@@ -695,7 +701,7 @@ class MainActivity : Activity() {
             contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                 ?.use { if (it.moveToFirst()) it.getString(0) else null }
         } ?: uri.lastPathSegment.orEmpty()
-        val name = Themes.nameOf(fileName)
+        val name = container.themes.nameOf(fileName)
             ?: return notice(getString(R.string.theme_name_refused, fileName), lasting = true)
         val text = readPicked(uri) ?: return
         if (container.themes.isImported(name) &&
@@ -728,7 +734,7 @@ class MainActivity : Activity() {
         while (true) {
             val message = listOfNotNull(refused, getString(R.string.theme_copy_body, from)).joinToString("\n\n")
             typed = askText(getString(R.string.theme_copy_title), message, typed, getString(R.string.action_copy))?.trim() ?: return null
-            Themes.nameOf(typed)?.let { return it }
+            container.themes.nameOf(typed)?.let { return it }
             refused = getString(R.string.theme_copy_refused, typed)
         }
     }
