@@ -28,14 +28,21 @@ whole diff (`git diff HEAD`, plus every new file) before going on.
 
 ## 2. Personal information
 
-Run `check.sh` (next to this file) from the repo root. It prints every added line (tracked
-changes and new files) that matches, with its file and what it matched. Before running it, read
-`~/private/skiff.md` and put every value there (addresses, MagicDNS names, pairing names) into
-`PRIVATE`, `|`-separated with dots escaped — **in the command only, never in a file in the repo.**
+Run `check.sh` (next to this file) from the repo root. It prints every added line that matches,
+with its file and what it matched: tracked changes against `HEAD` whether staged or not, new files,
+and — read whole — any file git shows no lines for (a binary, or one `.gitattributes` calls binary),
+which it reports to be opened when it is not text. The private values (addresses, MagicDNS names,
+pairing names) it reads itself from `~/private/skiff.values`, one per line; **a value added to
+`~/private/skiff.md` goes into that file too, and never into a file in the repo.**
 
 ```bash
-PRIVATE='<values from ~/private/skiff.md>' .claude/skills/commit/check.sh changes
+.claude/skills/commit/check.sh changes
 ```
+
+**Only a run whose last line is `--- checked to the end` counts.** The script fails closed: a
+missing values file, a git command that failed or a file it could not read stops it with exit 2
+and a `check FAILED` line, and that is a check that did not happen, not one that came back clean.
+After changing a rule, run `check.test.sh` beside it; every case has to pass.
 
 The patterns are in the script, not here, because a skill's text has its positional references
 replaced by the arguments it was invoked with — awk's and perl's own ones came out as the user's
@@ -72,7 +79,7 @@ category the diff does not touch, rather than skipping it.
 ## 4. Report, then commit or ask
 
 **Clean** means all of these: step 1 found nothing unclear about what belongs in the commit, step 2
-printed `none` for every check (or its hits were fixed at the source and the rerun came back
+ran to `--- checked to the end` and printed `none` for every check (or its hits were fixed at the source and the rerun came back
 `none`), step 3 found nothing in any category, and nothing was left unchecked — no binary, image or
 log went in unopened. Anything else is not clean.
 
@@ -103,8 +110,12 @@ push** — a commit, whether it asked or not, is not a yes to push. Before a pus
 against the commits being pushed, messages included:
 
 ```bash
-PRIVATE='<values from ~/private/skiff.md>' .claude/skills/commit/check.sh pushed
+.claude/skills/commit/check.sh pushed
 ```
+
+That reads the commits ahead of the upstream — their diffs, merges included, their messages, and
+their authors and committers. A branch with no upstream stops the check rather than passing it:
+name what it is compared against (`check.sh pushed origin/main`).
 
 Then the same rule as a commit: when that check prints `none`, `git push` and report in Korean which
 commits went up (`git log --oneline` of them) and to where; when it finds something, say what and
