@@ -1,19 +1,21 @@
 // Where the command palette goes: the button, the open input, the results, and back.
 import { describe, expect, test } from 'vitest'
-import { MODES, MOST_RECENT, type PaletteMode, createPalette } from '../src/palette'
+import { MODES, MOST_RECENT, type PaletteItem, type PaletteMode, createPalette, isList } from '../src/palette'
 
 /** What each mode offers. Only the command mode has anything until the later items. */
 const ITEMS: Record<PaletteMode, string[]> = {
   command: ['Toggle Layer', 'Reset Zoom', 'Toggle Sidebar'],
   file: ['notes.md'],
   symbol: [],
+  theme: [],
+  download: [],
 }
 
 /** A palette over those names, and a record of which of them were run. */
 function palette() {
   const ran: string[] = []
   const machine = createPalette({
-    items: (mode) => ITEMS[mode].map((name) => ({ name, run: () => ran.push(name) })),
+    items: (mode) => ITEMS[mode].map((name) => ({ name, run: () => void ran.push(name) })),
   })
   return { machine, ran }
 }
@@ -259,5 +261,184 @@ describe('a source that searches by the query itself', () => {
     machine.open()
     machine.type('gr')
     expect(names(machine.results)).toEqual(['Greeter.hello', 'grow', 'greet'])
+  })
+})
+
+describe('the lists a command opens', () => {
+  /** A promise and what settles it, for a download that has not answered yet. */
+  function pending() {
+    let settle: (ok: boolean) => void = () => {}
+    const promise = new Promise<void>((resolve, reject) => (settle = (ok) => (ok ? resolve() : reject(new Error('failed')))))
+    return { promise, settle }
+  }
+
+  /** A palette whose theme list is [themes] and whose download list is what [download] says now. */
+  function lists() {
+    const ran: string[] = []
+    const downloads: { name: string; settle: (ok: boolean) => void }[] = []
+    let changed = 0
+    let download: PaletteItem[] = [{ name: 'Loading themes…', inert: true, run: () => void ran.push('loading') }]
+    const themes: PaletteItem[] = ['System', 'Light', 'Dark', 'ocean'].map((name) => ({ name, run: () => void ran.push(name) }))
+    const machine = createPalette({
+      items: (mode) => (mode === 'theme' ? themes : mode === 'download' ? download : ITEMS[mode].map((name) => ({ name, run: () => void ran.push(name) }))),
+      changed: () => void changed++,
+    })
+    const listed = (names: [string, string][]) => {
+      download = names.map(([name, detail]) => ({
+        name,
+        detail,
+        run: () => {
+          const { promise, settle } = pending()
+          downloads.push({ name, settle })
+          return promise
+        },
+      }))
+      machine.refresh()
+    }
+    return { machine, ran, downloads, listed, changed: () => changed }
+  }
+
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  test('are not modes a swipe reaches', () => {
+    expect(MODES.some(isList)).toBe(false)
+    const { machine } = palette()
+    machine.open()
+    const seen = new Set<PaletteMode>()
+    for (let i = 0; i < 6; i++) {
+      machine.cycleMode(1)
+      seen.add(machine.mode)
+      machine.cycleMode(-3)
+      seen.add(machine.mode)
+    }
+    expect([...seen].some(isList)).toBe(false)
+  })
+
+  test('open onto everything in them, before anything is typed', () => {
+    const { machine } = lists()
+    machine.enter('theme')
+    expect(machine.mode).toBe('theme')
+    expect(machine.stage).toBe('input')
+    expect(names(machine.results)).toEqual(['System', 'Light', 'Dark', 'ocean'])
+  })
+
+  test('can be entered from a command run, which closes the palette first', () => {
+    const { machine } = lists()
+    const enter: PaletteItem = { name: 'Theme...', run: () => machine.enter('theme') }
+    const outer = createPalette({ items: () => [enter] })
+    outer.open()
+    outer.type('theme')
+    outer.run()
+    expect(machine.mode).toBe('theme')
+    expect(machine.stage).toBe('input')
+  })
+
+  test('go back to > once a theme is picked, and do not remember it', () => {
+    const { machine, ran } = lists()
+    machine.enter('theme')
+    machine.select(3)
+    machine.run()
+    expect(ran).toEqual(['ocean'])
+    expect(machine.stage).toBe('button')
+    expect(machine.mode).toBe('command')
+    machine.open()
+    expect(machine.results).toEqual([])
+    machine.enter('theme')
+    expect(names(machine.results)).toEqual(['System', 'Light', 'Dark', 'ocean'])
+  })
+
+  test('go back to > when cancelled', () => {
+    const { machine } = lists()
+    machine.enter('theme')
+    machine.type('oc')
+    machine.cancel()
+    expect(machine.stage).toBe('button')
+    expect(machine.mode).toBe('command')
+  })
+
+  test('search by the name and the collection', () => {
+    const { machine, listed } = lists()
+    machine.enter('download')
+    listed([['Catppuccin Mocha', 'Catppuccin'], ['Gruvbox Dark Soft', 'Gruvbox'], ['Gruvbox Light Hard', 'Gruvbox'], ['Ayu Mirage', 'Ayu']])
+    machine.type('mocha')
+    expect(names(machine.results)).toEqual(['Catppuccin Mocha'])
+    machine.type('gruv soft')
+    expect(names(machine.results)[0]).toBe('Gruvbox Dark Soft')
+    machine.type('Ayu')
+    expect(names(machine.results)).toEqual(['Ayu Mirage'])
+  })
+
+  test('keep the loading line whatever is typed, and run nothing from it', () => {
+    const { machine, ran } = lists()
+    machine.enter('download')
+    expect(names(machine.results)).toEqual(['Loading themes…'])
+    machine.type('mocha')
+    expect(names(machine.results)).toEqual(['Loading themes…'])
+    machine.run()
+    expect(ran).toEqual([])
+    expect(machine.stage).toBe('results')
+    expect(machine.mode).toBe('download')
+  })
+
+  test('show what came once it comes, under what is already typed', () => {
+    const { machine, listed } = lists()
+    machine.enter('download')
+    machine.type('mocha')
+    listed([['Catppuccin Mocha', 'Catppuccin'], ['Ayu Mirage', 'Ayu']])
+    expect(names(machine.results)).toEqual(['Catppuccin Mocha'])
+  })
+
+  test('stay open on a download until it answers, then go back to > and say so', async () => {
+    const { machine, downloads, listed, changed } = lists()
+    machine.enter('download')
+    listed([['Catppuccin Mocha', 'Catppuccin'], ['Ayu Mirage', 'Ayu']])
+    machine.run()
+    expect(machine.stage).toBe('input')
+    expect(machine.busy?.name).toBe('Catppuccin Mocha')
+    machine.move(1)
+    machine.run()
+    machine.cycleMode(1)
+    expect(downloads.map((it) => it.name)).toEqual(['Catppuccin Mocha'])
+    expect(machine.mode).toBe('download')
+
+    downloads[0].settle(true)
+    await settled()
+    expect(machine.stage).toBe('button')
+    expect(machine.mode).toBe('command')
+    expect(machine.busy).toBeNull()
+    expect(changed()).toBe(1)
+  })
+
+  test('go back to > when a download fails, too', async () => {
+    const { machine, downloads, listed } = lists()
+    machine.enter('download')
+    listed([['Ayu Mirage', 'Ayu']])
+    machine.run()
+    downloads[0].settle(false)
+    await settled()
+    expect(machine.stage).toBe('button')
+    expect(machine.mode).toBe('command')
+  })
+
+  test('leave a palette opened since alone when a download given up on answers', async () => {
+    const { machine, downloads, listed, changed } = lists()
+    machine.enter('download')
+    listed([['Ayu Mirage', 'Ayu']])
+    machine.run()
+    machine.cancel()
+    expect(machine.busy).toBeNull()
+    machine.enter('theme')
+    downloads[0].settle(true)
+    await settled()
+    expect(machine.mode).toBe('theme')
+    expect(machine.stage).toBe('input')
+    expect(changed()).toBe(0)
+  })
+
+  test('swipe round from >, where closing them would have left the palette', () => {
+    const { machine } = lists()
+    machine.enter('theme')
+    machine.cycleMode(1)
+    expect(machine.mode).toBe('file')
   })
 })

@@ -29,10 +29,10 @@ export interface CommandSource {
   toggleSidebar(): void
   /** Opens `settings.toml`, which saving applies. */
   openSettings(): void
-  /** What `settings.toml`'s `theme` may say, from Kotlin: `system`, the bundled themes, then the imported ones. */
-  themes(): ThemeEntry[]
-  /** Writes `theme` into `settings.toml`, which applies it. */
-  setTheme(name: string): void
+  /** Opens the palette onto the installed themes, [themeItems]. */
+  chooseTheme(): void
+  /** Opens the palette onto the themes the repository has, [catalogItems], and asks Kotlin for them. */
+  downloadTheme(): void
   /** Each through the system's file picker; what came of it arrives later, on the banner. */
   importSettings(): void
   exportSettings(): void
@@ -96,7 +96,8 @@ export function commands(source: CommandSource): PaletteItem[] {
     { name: 'Open Settings', run: () => source.openSettings() },
     { name: 'Import Settings', run: () => source.importSettings() },
     { name: 'Export Settings', run: () => source.exportSettings() },
-    ...source.themes().map((theme) => ({ name: `Theme: ${theme.title}`, run: () => source.setTheme(theme.id) })),
+    { name: 'Theme...', run: () => source.chooseTheme() },
+    { name: 'Download Theme...', run: () => source.downloadTheme() },
     { name: 'Import Theme', run: () => source.importTheme() },
     { name: 'Export Theme', run: () => source.exportTheme() },
     { name: 'Copy Theme', run: () => source.copyTheme() },
@@ -112,4 +113,56 @@ export function commands(source: CommandSource): PaletteItem[] {
     )
   }
   return items
+}
+
+/** What marks the theme `settings.toml` names, in `Theme...`'s list. */
+export const CURRENT = 'current'
+
+/** What marks a theme of the repository's that is already one of the person's own. */
+export const INSTALLED = 'installed'
+
+/** What the download list says until Kotlin has answered. */
+export const LOADING = 'Loading themes…'
+
+/**
+ * `Theme...`'s list: every theme installed, in Kotlin's order — `System`, `Light`, `Dark`, then the
+ * person's own — each drawn by its colors, [chosen] marked. Picking one writes it to `settings.toml`
+ * with [choose], which applies it.
+ */
+export function themeItems(themes: ThemeEntry[], chosen: string, choose: (id: string) => void): PaletteItem[] {
+  return themes.map((theme) => ({
+    name: theme.title,
+    swatch: theme.swatch,
+    mark: theme.id === chosen ? CURRENT : undefined,
+    run: () => choose(theme.id),
+  }))
+}
+
+/** A theme of the repository's, as Kotlin's `themeCatalog` lists it. */
+export interface CatalogTheme {
+  id: string
+  title: string
+  family: string
+  dark: boolean
+  swatch: string[]
+}
+
+/** The download list: still being asked for, or what came, with which of it is installed. */
+export type Catalog = { loading: true } | { loading: false; themes: CatalogTheme[]; installed: string[] }
+
+/**
+ * `Download Theme...`'s list, in Kotlin's order — by the name each shows — searched by that name and
+ * the collection. Picking one asks Kotlin with [download] to download it, keep it and put it on the
+ * screen, and the palette stays open on that line until it answers.
+ */
+export function catalogItems(catalog: Catalog, download: (id: string) => Promise<unknown>): PaletteItem[] {
+  if (catalog.loading) return [{ name: LOADING, inert: true, run: () => {} }]
+  const installed = new Set(catalog.installed)
+  return catalog.themes.map((theme) => ({
+    name: theme.title,
+    detail: theme.family,
+    swatch: theme.swatch,
+    mark: installed.has(theme.id) ? INSTALLED : undefined,
+    run: () => download(theme.id),
+  }))
 }

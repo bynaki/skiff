@@ -13,12 +13,13 @@ import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type OpenFilesLabels, createOpenFiles } from './chrome/openfiles'
 import { type SidebarLabels, createSidebar } from './chrome/sidebar'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
-import { type CommandSource, commands } from './commands'
+import { type Catalog, type CatalogTheme, type CommandSource, catalogItems, commands, themeItems } from './commands'
 import { createFolder, files } from './files'
 import { type Jump, createJumps } from './jumps'
 import { createLoadingView } from './chrome/loading'
 import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
+import type { PaletteItem, PaletteMode } from './palette'
 import { type DocSymbol, createProjectSearch, outlineOf, projectItems, symbols } from './symbols'
 import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
@@ -95,8 +96,14 @@ let labels: Labels | null = null
 let chosenFontSize = DEFAULT_FONT_SIZE
 /** How many files off the screen keep their buffer, as `settings.toml` says. */
 let keptBuffers = RETAINED_BUFFERS
-/** The palette's Theme commands; none until Kotlin says which themes there are, which it does at once. */
+/** `Theme...`'s list; empty until Kotlin says which themes there are, which it does at once. */
 let themes: ThemeEntry[] = []
+/** What `settings.toml`'s `theme` says, which that list marks. */
+let chosenTheme = 'system'
+/** `Download Theme...`'s list, asked for again each time it opens. */
+let catalog: Catalog = { loading: true }
+/** Which asking the list is on, so an answer to one given up on is let go of. */
+let catalogAsked = 0
 /** Whether the theme on the screen is the person's own; until Kotlin says, it is a bundled one. */
 let ownTheme = false
 /**
@@ -266,8 +273,8 @@ const palette: CommandSource = {
   resetZoom,
   toggleSidebar,
   openSettings: () => void rpc('openSettings').catch((error) => console.log(`openSettings: ${error}`)),
-  themes: () => themes,
-  setTheme: (name) => void rpc('setTheme', { name }).catch((error) => console.log(`setTheme: ${error}`)),
+  chooseTheme: () => paletteView.enter('theme'),
+  downloadTheme,
   importSettings: () => void rpc('importSettings').catch((error) => console.log(`importSettings: ${error}`)),
   exportSettings: () => void rpc('exportSettings').catch((error) => console.log(`exportSettings: ${error}`)),
   importTheme: () => void rpc('importTheme').catch((error) => console.log(`importTheme: ${error}`)),
@@ -355,10 +362,56 @@ function symbolItems(query: string) {
   ]
 }
 
+/** Writes `theme` into `settings.toml`, which applies it. */
+function setTheme(name: string): void {
+  void rpc('setTheme', { name }).catch((error) => console.log(`setTheme: ${error}`))
+}
+
+/**
+ * Opens the download list and asks Kotlin for it, which reads the repository's `index.json` each
+ * time. When it cannot, the banner says why and the palette goes back to `>`.
+ */
+function downloadTheme(): void {
+  const asked = ++catalogAsked
+  catalog = { loading: true }
+  paletteView.enter('download')
+  rpc<{ themes: CatalogTheme[]; installed: string[] } | { error: string }>('themeCatalog')
+    .then((answer) => {
+      if (asked !== catalogAsked) return
+      if ('error' in answer) {
+        banner.tell(answer.error)
+        if (paletteView.mode() === 'download') paletteView.hide()
+        return
+      }
+      catalog = { loading: false, themes: answer.themes, installed: answer.installed }
+      paletteView.refresh()
+    })
+    .catch((error) => {
+      console.log(`themeCatalog: ${error}`)
+      if (asked === catalogAsked && paletteView.mode() === 'download') paletteView.hide()
+    })
+}
+
+/** Downloads the theme [id], keeps it and puts it on the screen; Kotlin's banner says how it went. */
+function download(id: string): Promise<unknown> {
+  return rpc('downloadTheme', { id }).catch((error) => console.log(`downloadTheme: ${error}`))
+}
+
+/** What each mode of the palette offers. */
+function paletteItems(mode: PaletteMode, query: string): PaletteItem[] {
+  switch (mode) {
+    case 'command': return commands(palette)
+    case 'file': return fileItems()
+    case 'symbol': return symbolItems(query)
+    case 'theme': return themeItems(themes, chosenTheme, setTheme)
+    case 'download': return catalogItems(catalog, download)
+  }
+}
+
 // The open files menu goes away when the palette opens: both are ways to another file, and one at a
 // time is the one being used.
 const paletteView = createPaletteView(
-  (mode, query) => (mode === 'command' ? commands(palette) : mode === 'file' ? fileItems() : symbolItems(query)),
+  paletteItems,
   () => {
     openFiles.hide()
     moreMenu.hide()
@@ -647,6 +700,7 @@ function applySettings(settings: Settings, first: boolean): void {
   keptBuffers = settings.keptBuffers
   setLspTimeout(settings.lspTimeoutMs)
   themes = settings.themes
+  chosenTheme = settings.chosenTheme
   ownTheme = settings.ownTheme
   showSettings(settings)
   pane?.settingsChanged()

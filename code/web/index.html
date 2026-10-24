@@ -170,6 +170,14 @@
     #palette .results li.selected { background: var(--ui-subtle); }
     #palette .results li.none { color: var(--ui-muted); }
     #palette .results .elsewhere { float: right; margin-left: 12px; color: var(--ui-muted); font-size: 13px; }
+    /* A theme's line: its background as a little ground with five of its colors on it, before the
+       name, and the collection it comes from after. */
+    #palette .results .swatch {
+      display: inline-flex; gap: 3px; margin-right: 10px; padding: 4px 5px; vertical-align: -4px;
+      border-radius: 4px; box-shadow: 0 0 0 1px var(--ui-border);
+    }
+    #palette .results .swatch span { width: 10px; height: 10px; border-radius: 2px; }
+    #palette .results .detail { margin-left: 8px; color: var(--ui-muted); font-size: 13px; }
     /* Transparent on purpose: what is being searched for is usually in the document behind it. */
     #palette-scrim { position: fixed; inset: 0; z-index: 15; }
     #palette-scrim:not(.open) { display: none; }

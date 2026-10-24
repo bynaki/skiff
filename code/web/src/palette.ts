@@ -8,15 +8,25 @@
 //
 // The modes are here so that they can survive that return. Which of them the palette is in is the
 // input button's own: a swipe up or down it goes round [MODES], and the view turns that into the
-// glyph the button wears.
+// glyph the button wears. The two lists — the themes, and the themes to download — are modes a
+// command enters rather than ones a swipe reaches, and the palette leaves them for `>` when it
+// closes (docs/skiffcode.spec/community-themes.md).
 import { rank } from './fuzzy'
 import { readRecents, writeRecents } from './recents'
 
-/** `>` commands, 🔍 files, `@` symbols. */
-export type PaletteMode = 'command' | 'file' | 'symbol'
+/** `>` commands, 🔍 files, `@` symbols, and the two lists `Theme...` and `Download Theme...` open. */
+export type PaletteMode = 'command' | 'file' | 'symbol' | 'theme' | 'download'
 
 /** The order a swipe goes round, which is the order the plan lists them in. */
 export const MODES: readonly PaletteMode[] = ['command', 'file', 'symbol']
+
+/**
+ * The modes that are a list a command opened: everything in it shows before anything is typed,
+ * nothing run from it is remembered, and closing it — by running or cancelling — leaves `>`.
+ */
+export function isList(mode: PaletteMode): boolean {
+  return mode === 'theme' || mode === 'download'
+}
 
 /**
  * How many of the last things run are offered before anything is typed, per mode. `recents.ts`
@@ -35,7 +45,19 @@ export interface PaletteItem {
    * after everything that is here, however well it fits.
    */
   elsewhere?: string
-  run(): void
+  /** A second thing it is known by, shown after the name and searched with it: a theme's collection. */
+  detail?: string
+  /** Colors drawn beside the name, the first as the ground the rest sit on: a theme's. */
+  swatch?: string[]
+  /** A word at the end of the line: the theme on the screen, one already downloaded. */
+  mark?: string
+  /** A line that says something rather than being something to run: the list is still coming. */
+  inert?: boolean
+  /**
+   * What it does. One that answers with a promise keeps the palette open, on [Palette.busy], until it
+   * settles: a theme downloading.
+   */
+  run(): void | Promise<unknown>
 }
 
 export interface Palette {
@@ -46,8 +68,12 @@ export interface Palette {
   readonly results: PaletteItem[]
   /** Which result is on Enter, an index into [results]. */
   readonly selected: number
+  /** What is running and has not finished, which the palette stays open for. */
+  readonly busy: PaletteItem | null
   /** A → B. */
   open(): void
+  /** Open in [mode], whatever it was in: how a command enters one of the lists. */
+  enter(mode: PaletteMode): void
   /** What is in the input now. Empty is B again, so backspacing all the way is not a dead end. */
   type(query: string): void
   /** Round [MODES] by [by] places, which a swipe up or down the button asks for. */
@@ -73,13 +99,17 @@ function here(items: PaletteItem[]): PaletteItem[] {
   return [...items.filter((item) => !item.elsewhere), ...items.filter((item) => item.elsewhere)]
 }
 
-/** [query] is what is typed, trimmed, for a source that searches by it itself: a language server. */
-export function createPalette(sources: { items(mode: PaletteMode, query: string): PaletteItem[] }): Palette {
+/**
+ * [query] is what is typed, trimmed, for a source that searches by it itself: a language server.
+ * [changed] is told when the palette moves on its own, which is when something [busy] settles.
+ */
+export function createPalette(sources: { items(mode: PaletteMode, query: string): PaletteItem[]; changed?(): void }): Palette {
   let stage: PaletteStage = 'button'
   let mode: PaletteMode = 'command'
   let query = ''
   let results: PaletteItem[] = []
   let selected = 0
+  let busy: PaletteItem | null = null
   /** The names of the last things run, newest first, one list per mode, from the last page too. */
   const recent = readRecents()
 
@@ -96,10 +126,15 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
     const needle = query.trim()
     const offered = sources.items(mode, needle)
     stage = query === '' ? 'input' : 'results'
+    // A line that only says the list is coming stays, whatever is typed: it is not what is searched.
+    const said = offered.filter((item) => item.inert)
+    const runnable = offered.filter((item) => !item.inert)
     results = needle === ''
-      // By name, because the items are made fresh each time and the one remembered may be gone.
-      ? (recent.get(mode) ?? []).map((name) => offered.find((item) => item.name === name)).filter((item): item is PaletteItem => item !== undefined)
-      : here(rank(needle, offered, (item) => item.name))
+      ? isList(mode)
+        ? offered
+        // By name, because the items are made fresh each time and the one remembered may be gone.
+        : (recent.get(mode) ?? []).map((name) => offered.find((item) => item.name === name)).filter((item): item is PaletteItem => item !== undefined)
+      : [...said, ...here(rank(needle, runnable, (item) => (item.detail ? `${item.name} ${item.detail}` : item.name)))]
     selected = 0
   }
 
@@ -115,6 +150,8 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
     query = ''
     results = []
     selected = 0
+    busy = null
+    if (isList(mode)) mode = 'command'
   }
 
   return {
@@ -123,9 +160,16 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
     get query() { return query },
     get results() { return results },
     get selected() { return selected },
+    get busy() { return busy },
     open() {
       if (stage !== 'button') return
       close()
+      stage = 'input'
+      search()
+    },
+    enter(next) {
+      close()
+      mode = next
       stage = 'input'
       search()
     },
@@ -135,7 +179,9 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
       search()
     },
     cycleMode(by) {
-      const place = MODES.indexOf(mode) + by
+      if (busy) return
+      // Out of a list, round from `>`, which is where closing it would have left the palette.
+      const place = Math.max(MODES.indexOf(mode), 0) + by
       mode = MODES[((place % MODES.length) + MODES.length) % MODES.length]
       if (stage !== 'button') search()
     },
@@ -149,7 +195,21 @@ export function createPalette(sources: { items(mode: PaletteMode, query: string)
     },
     run() {
       const item = results[selected]
-      if (!item) return
+      if (!item || item.inert || busy) return
+      if (isList(mode)) {
+        const running = item.run()
+        if (!(running instanceof Promise)) return close()
+        busy = item
+        // Closed only if it is still the palette that is waiting: one cancelled, or opened onto
+        // something else since, is not this one's to close.
+        const settled = () => {
+          if (busy !== item) return
+          close()
+          sources.changed?.()
+        }
+        running.then(settled, settled)
+        return
+      }
       remember(item)
       // Closed before it runs: a command that opens the palette itself would otherwise be undone
       // by the close that followed it.

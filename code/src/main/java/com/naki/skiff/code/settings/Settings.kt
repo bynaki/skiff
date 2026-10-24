@@ -254,7 +254,7 @@ object SettingsToml {
     private val UNKNOWN_KEY = Regex("Unknown key received: <([^>]*)> in scope <([^>]*)>")
 
     /**
-     * [text] with `[editor]`'s `theme` set to [name], for the palette's Theme commands. Only that
+     * [text] with `[editor]`'s `theme` set to [name], for the palette's Theme... list. Only that
      * line changes, so the person's comments and the rest of their values stay as they wrote them.
      * Where the line is commented out, as [TEMPLATE] has it, it is the one written; a file without
      * either gets it at the top of `[editor]`, and one without that table gets both at the end.
@@ -321,7 +321,8 @@ object SettingsToml {
             "editor", "theme", "\"$SYSTEM_THEME\"",
             listOf(
                 "\"system\" follows the device's dark mode; \"light\" and \"dark\" stay put. A theme brought in",
-                "with Import Theme goes by its file's name. The palette's Theme commands write this line.",
+                "with Import Theme goes by its file's name, one from Download Theme... by its id. The palette's",
+                "Theme... writes this line.",
             ),
         ),
         Key("editor", "diff_alpha", "30", listOf("${DIFF_ALPHAS.first} to ${DIFF_ALPHAS.last}. How strongly the diff layer tints added and deleted lines, in percent.")),

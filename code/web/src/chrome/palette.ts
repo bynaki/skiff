@@ -21,13 +21,22 @@ const GLYPH: Record<PaletteMode, string> = {
   file: svg('<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8L20 20"/>'),
   // The `@`, drawn: the inner circle and the stroke that curls around it and stops.
   symbol: svg('<circle cx="12" cy="12" r="3.6"/><path d="M15.6 8.4v5a2.9 2.9 0 0 0 5.8 0v-1.4a9.4 9.4 0 1 0-3.7 7.5"/>'),
+  // A circle split down the middle: light and dark, which is what a theme first is.
+  theme: svg('<circle cx="12" cy="12" r="8"/><path d="M12 4v16"/>'),
+  // An arrow down onto a line.
+  download: svg('<path d="M12 4v11"/><path d="M7 10.5l5 4.5 5-4.5"/><path d="M5 20h14"/>'),
 }
 
 const PLACEHOLDER: Record<PaletteMode, string> = {
   command: 'Run a command',
   file: 'Go to a file',
   symbol: 'Go to a symbol',
+  theme: 'Choose a theme',
+  download: 'Download a theme',
 }
+
+/** What the line being run says while it runs. */
+const BUSY = 'Downloading…'
 
 const NO_MATCHES = 'No matches'
 
@@ -45,6 +54,10 @@ export interface PaletteView {
   isOpen(): boolean
   /** As a tap beside it does: back to the button, nothing run. */
   hide(): void
+  /** Opens it in [mode], which is how `Theme...` and `Download Theme...` show their lists. */
+  enter(mode: PaletteMode): void
+  /** The mode it is in, open or not. */
+  mode(): PaletteMode
 }
 
 /**
@@ -55,7 +68,13 @@ export interface PaletteView {
  * asked.
  */
 export function createPaletteView(items: (mode: PaletteMode, query: string) => PaletteItem[], opened: () => void): PaletteView {
-  const machine: Palette = createPalette({ items })
+  const machine: Palette = createPalette({
+    items,
+    changed: () => {
+      if (machine.stage === 'button') input.blur()
+      render()
+    },
+  })
 
   // Covers the screen while the palette is open so that a tap anywhere else cancels it, which is
   // the way out the plan asks for ("빈 곳을 누르는 등으로 취소하면 A로 돌아간다"). It is not dimmed:
@@ -126,8 +145,13 @@ export function createPaletteView(items: (mode: PaletteMode, query: string) => P
       const entry = document.createElement('li')
       entry.textContent = item.name
       // Before the name, so that it floats to the right of the name's first line rather than below it.
-      if (item.elsewhere) entry.prepend(Object.assign(document.createElement('span'), { className: 'elsewhere', textContent: item.elsewhere }))
-      if (index === machine.selected) entry.className = 'selected'
+      const aside = item === machine.busy ? BUSY : item.mark ?? item.elsewhere
+      if (aside) entry.prepend(Object.assign(document.createElement('span'), { className: 'elsewhere', textContent: aside }))
+      if (item.swatch) entry.prepend(swatchOf(item.swatch))
+      if (item.detail) entry.append(Object.assign(document.createElement('span'), { className: 'detail', textContent: item.detail }))
+      entry.classList.toggle('selected', index === machine.selected && !item.inert)
+      entry.classList.toggle('none', item.inert === true)
+      if (item.inert) return entry
       entry.addEventListener('pointerdown', keepFocus)
       entry.addEventListener('click', () => {
         machine.select(index)
@@ -140,6 +164,13 @@ export function createPaletteView(items: (mode: PaletteMode, query: string) => P
   function open(): void {
     opened()
     machine.open()
+    render()
+    input.focus()
+  }
+
+  function enter(mode: PaletteMode): void {
+    opened()
+    machine.enter(mode)
     render()
     input.focus()
   }
@@ -211,6 +242,8 @@ export function createPaletteView(items: (mode: PaletteMode, query: string) => P
   return {
     isOpen: () => machine.stage !== 'button',
     hide: cancel,
+    enter,
+    mode: () => machine.mode,
     refresh() {
       machine.refresh()
       render()
@@ -220,4 +253,22 @@ export function createPaletteView(items: (mode: PaletteMode, query: string) => P
       render()
     },
   }
+}
+
+/**
+ * A theme's colors as the list draws them: the first, its background, as the ground, and the rest as
+ * squares on it, so that the line shows how the theme looks before it is chosen.
+ */
+function swatchOf(colors: string[]): HTMLElement {
+  const strip = document.createElement('span')
+  strip.className = 'swatch'
+  strip.setAttribute('aria-hidden', 'true')
+  const [ground, ...rest] = colors
+  if (ground) strip.style.backgroundColor = ground
+  strip.append(...rest.map((color) => {
+    const square = document.createElement('span')
+    square.style.backgroundColor = color
+    return square
+  }))
+  return strip
 }

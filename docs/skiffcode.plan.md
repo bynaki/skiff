@@ -40,7 +40,7 @@
 앱:
 
 - ✅ JVM: 번들은 `light`·`dark`뿐이고 예약어는 `system`/`light`/`dark`다. 목록 받기: `index.json`을 읽고(`format`, 줄마다의 검사), 높은 `format`은 거부한다. 테마 받기: 크기 상한, 길이·sha256 불일치, `ThemeToml` 문제가 있으면 저장하지 않는다. 받은 것은 사용자 테마로 저장되고 같은 이름은 확인 뒤 덮어쓴다 — 가짜 HTTP로. `:code` 린트에 새 경고가 없다. (2026-10-24, `ThemeCatalogTest` 12 + `HttpFetchTest` 4, 검사를 하나씩 빼면 테스트가 실패하는 것을 일곱 곳에서 확인)
-- ⬜ vitest: 커맨드: `Theme: …`가 없고 `Theme...`·`Download Theme...`가 있다. 테마 목록: 설치된 것만, 차례·표시·띠·퍼지 검색, 고르면 `setTheme`과 `>`로 닫힘. 받을 목록: 받는 중 줄, 실패 배너와 `>`, installed 표시, 퍼지 검색, 고르면 받기 요청과 `>` — 확인: `commands.test.ts`, `palette.test.ts`.
+- ✅ vitest: 커맨드: `Theme: …`가 없고 `Theme...`·`Download Theme...`가 있다. 테마 목록: 설치된 것만, 차례·표시·띠·퍼지 검색, 고르면 `setTheme`과 `>`로 닫힘. 받을 목록: 받는 중 줄, 실패 배너와 `>`, installed 표시, 퍼지 검색, 고르면 받기 요청과 `>` — 확인: `commands.test.ts`, `palette.test.ts`. (2026-10-24, `commands.test.ts` +6, `palette.test.ts` +12)
 - ⬜ 탭: `Download Theme...`에 45줄이 색 띠와 함께 보이고 `mocha`를 치면 좁혀진다. 고르면 받아서 메뉴·사이드바·팔레트·viewer·editor·diff·렌더된 마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다. `Theme...`에 그 테마가 표시와 함께 있다. 비행기 모드에서 `Download Theme...`은 배너를 내고 `>`로 돌아온다.
 - ⬜ 탭, 사용자 확인: 45개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을 사용자가 원본 테마와 견주어 보고 괜찮다고 한다. 모음은 스크립트가 테마를 차례로 받아 바꾸며 `screencap`으로 만들고, 끝나면 받은 테마를 지우고 `settings.toml`을 md5로 되돌린다.
 - ⬜ 폴드8 커버 화면(글꼴 배율 1.5): 두 목록의 이름과 띠가 잘리지 않고 목록이 스크롤된다. 사용자 기기라 받기·바꾸기는 사용자에게 묻고, 끝나면 되돌린다.
@@ -99,11 +99,15 @@
   - 한 것: `ThemeCatalog`(`list`, `install`)와 주입하는 `Fetch`, 진짜 HTTP는 `HttpFetch`(`WebLoader`와 같은 시간 제한 15초·30초, 캐시 없음, 2xx만, 길이를 먼저 알리든 아니든 상한+1바이트에서 멈춤). 실패는 `CatalogError`(`Unreachable`, `Status`, `TooLarge`, `TooNew`, `Malformed`, `Mismatch`, `Invalid`). 목록은 보이는 이름 순으로 돌려주고, 받기는 마지막 목록의 id만 된다(크기·해시를 페이지가 주지 않는다). spec에 더한 검사: `size`는 1~64KB, `sha256`은 소문자 64자, 같은 id는 앞의 것만, 받은 파일이 UTF-8이고 `base`가 목록과 같음. 같은 이름은 대소문자 없이 보고(`Themes.ownNamed`), 다른 대소문자의 것은 지우고 id로 저장한다. 내려받은 뒤에 묻는다(받기가 실패하면 묻지 않는다).
   - 브리지: `themeCatalog` → `{ themes: [{ id, title, family, dark, swatch }], installed: [id] }` 또는 `{ error: "<배너 문구>" }`. `downloadTheme { id }` → `{ result: "installed" | "declined" | "failed" }`. 실패는 Kotlin이 배너로 알리고, 저장하면 `setTheme`과 같은 길(`settingsChanged`)과 "받았습니다" 배너. 문구는 `strings.xml`(영어·한국어) 10개.
   - 테스트: `ThemeCatalogTest` 12(주소와 상한, http 거부, 규칙을 어긴 줄 20가지, 높은 `format`, 읽히지 않는 목록 10가지, 저장, 마지막 목록 밖의 id, 길이·해시·`base` 불일치, 파서 문제 넷, 같은 이름 묻기와 아니요, 다른 대소문자, 처음 받기), `HttpFetchTest` 4(그대로 읽기, 상한 둘, 404, 닿지 않음과 시간 초과). JVM 353(건너뜀 1), lint 경고 11(새 경고 없음).
-- [ ] 페이지: `Theme...`와 `Download Theme...`
+- [x] 페이지: `Theme...`와 `Download Theme...`
   - `Theme: …` 명령을 지우고 `Theme...`·`Download Theme...`를 더한다. `PaletteMode`에 `theme`·`download`를 더하되 스와이프 순환에는 넣지 않는다.
   - 테마 목록: 설치된 것만, 차례, 지금 테마 표시, 색 띠, 퍼지 검색, 고르면 `setTheme` 후 `>`로 A.
   - 받을 목록: 받는 중 줄, 실패 배너와 `>`, 줄마다 이름·묶음·띠·installed, 퍼지 검색(이름과 묶음), 고르면 받기 요청 후 `>`로 A.
   - vitest: `commands.test.ts`, `palette.test.ts`. `Settings.kt`의 `theme` 키 설명 주석(받은 테마도 이름으로 적는다)을 고친다.
+  - 한 것: `palette.ts`에 `theme`·`download` 모드와 `isList`, `enter(mode)`, `busy`를 더했다. 목록 모드는 아무것도 치기 전에 전부 보이고(최근 목록 아님), 실행한 것을 기억하지 않으며, 실행·취소로 닫히면 `>`다. 스와이프는 목록 모드에서도 `>` 자리에서 돈다. 줄의 `run()`이 promise를 돌려주면(받기) 팔레트가 그 줄에 `Downloading…`을 달고 열려 있다가, 끝나면(실패해도) A와 `>`로 닫힌다 — 그 사이 취소했거나 다른 모드로 열었으면 건드리지 않는다. `inert` 줄(`Loading themes…`)은 무엇을 쳐도 남고 실행되지 않는다. 퍼지 검색은 이름과 `detail`(묶음)을 이어 본다.
+  - 줄 모양: 색 띠(배경 위에 다섯 칸), 이름, 묶음(받을 목록만), 오른쪽 끝에 `current`/`installed`. 버튼 그림은 반쪽 원(테마)과 아래 화살표(받기). 목록 항목은 `commands.ts`의 `themeItems`·`catalogItems`가 만든다. `CommandSource`의 `themes()`·`setTheme`을 `chooseTheme`·`downloadTheme`로 바꿨다.
+  - `main.ts`: `Download Theme...`은 열 때마다 `themeCatalog`를 부르고, 늦게 온 옛 답은 버린다. `error`면 배너와 `>`. 받기는 `downloadTheme`의 답을 기다린다(배너는 Kotlin이 낸다). `settings` 답에 `chosenTheme`(`settings.toml`의 `theme` 그대로)을 더했다 — 지금 테마 표시에 쓴다.
+  - 테스트: `commands.test.ts` +6(`Theme: …` 없음과 두 명령, 테마 목록의 차례·띠·표시·id, 받을 목록의 받는 중 줄·이름·묶음·installed·id로 청함), `palette.test.ts` +12(스와이프로 못 감, 전부 보임, 명령에서 들어감, 고르면 `>`이고 기억 안 함, 취소도 `>`, 이름·묶음 검색, 받는 중 줄, 받는 중 열림과 끝나면 `>`, 실패도 `>`, 취소한 뒤 온 답, 목록에서 스와이프). JVM 353(건너뜀 1), vitest 226, lint 경고 11(새 경고 없음).
 - [ ] 확인: 탭, 견본 모음, 폴드8
   - 성공 조건의 탭 세 항목과 폴드8 항목. 견본 모음은 테마를 차례로 받아 바꾸며 찍는 스크립트로 만들어 사용자에게 보낸다. 끝나면 받은 테마를 지우고 두 기기의 `settings.toml`을 md5로 되돌린다.
 

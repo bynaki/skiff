@@ -446,7 +446,7 @@ class MainActivity : Activity() {
         }
         bridge.method("hardwareKeyboard") { hardwareKeyboard() }
         bridge.method("settings") { pageSettings(container.settings.current()) }
-        // The palette's Theme commands. Writing the file is what applies it, the same as saving it.
+        // The palette's Theme... list. Writing the file is what applies it, the same as saving it.
         bridge.method("setTheme") { params ->
             val name = params.getString("name")
             require(name in container.themes.names) { "no theme called $name" }
@@ -664,6 +664,7 @@ class MainActivity : Activity() {
             .put("keptBuffers", files.keptBuffers)
             .put("lspTimeoutMs", lsp.timeoutSeconds * 1000)
             .put("theme", JSONObject().put("dark", theme.dark).put("colors", JSONObject(theme.colors)))
+            .put("chosenTheme", editor.theme)
             .put("themes", JSONArray(themes.map { it.toJson() }))
             .put("ownTheme", container.themes.isImported(container.themes.nameIn(editor.theme, night)))
     }

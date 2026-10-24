@@ -213,6 +213,7 @@
     붙는다. 차례는 보이는 이름 순이고, 치면 보이는 이름과 묶음으로 퍼지 검색한다(`mocha`, `gruv soft`).
   - 탭하거나 Enter면 그 테마를 받아 **사용자 테마로 저장하고 그 테마로 바꾼다** — 파일에서 `Import Theme`한 것과 같다(2026-10-22
     사용자 결정). 같은 이름이 있으면 `Import Theme`처럼 덮어쓸지 묻는다. 받는 동안 그 줄에 표시가 붙고, 끝나면 A로 닫힌다.
+    실패해도 A로 닫힌다(까닭은 배너). 받는 동안 빈 곳을 탭해 닫아도 받기는 Kotlin에서 끝까지 가고, 저장되면 그 테마로 바뀐다.
 - **받는 것의 검사.** 주소는 앱에 박힌 하나(`https://raw.githubusercontent.com/bynaki/skiffcode-themes/main/`)이고 https만 쓴다.
   - 크기 상한: `index.json` 256KB, 테마 64KB. 연결·읽기 시간 제한이 있다.
   - `index.json`: `format`이 정수이고 앱이 아는 값 이하, 테마마다 id가 `^[a-z][a-z0-9-]{0,63}$`이고 `Themes.nameOf`를 통과하며,
@@ -296,7 +297,7 @@ M13의 변환 방법을 다른 테마에도 쓰게 스킬로 만든다(2026-10-2
 - ✅ JVM: 번들은 `light`·`dark`뿐이고 예약어는 `system`/`light`/`dark`다. 목록 받기: `index.json`을 읽고(`format`, 줄마다의 검사),
   높은 `format`은 거부한다. 테마 받기: 크기 상한, 길이·sha256 불일치, `ThemeToml` 문제가 있으면 저장하지 않는다. 받은 것은 사용자
   테마로 저장되고 같은 이름은 확인 뒤 덮어쓴다 — 가짜 HTTP로. `:code` 린트에 새 경고가 없다.
-- ⬜ vitest: 커맨드: `Theme: …`가 없고 `Theme...`·`Download Theme...`가 있다. 테마 목록: 설치된 것만, 차례·표시·띠·퍼지 검색,
+- ✅ vitest: 커맨드: `Theme: …`가 없고 `Theme...`·`Download Theme...`가 있다. 테마 목록: 설치된 것만, 차례·표시·띠·퍼지 검색,
   고르면 `setTheme`과 `>`로 닫힘. 받을 목록: 받는 중 줄, 실패 배너와 `>`, installed 표시, 퍼지 검색, 고르면 받기 요청과 `>` —
   확인: `commands.test.ts`, `palette.test.ts`.
 - ⬜ 탭: `Download Theme...`에 45줄이 색 띠와 함께 보이고 `mocha`를 치면 좁혀진다. 고르면 받아서 메뉴·사이드바·팔레트·viewer·

@@ -46,6 +46,8 @@ export interface Settings {
   lspTimeoutMs: number
   /** Already the one for the device's dark mode, where `settings.toml` says to follow it. */
   theme: Theme
+  /** What `settings.toml`'s `theme` says — `system` or a theme's id — which `Theme...` marks. */
+  chosenTheme: string
   /** Every theme `theme` may name, the person's own included, in the palette's order. */
   themes: ThemeEntry[]
   /** Whether the theme on the screen is the person's own, which the palette can delete. */
