@@ -61,6 +61,8 @@ import com.naki.skiff.code.project.previousText
 import com.naki.skiff.code.settings.SettingsProblem
 import com.naki.skiff.code.settings.SettingsRead
 import com.naki.skiff.code.settings.SettingsToml
+import com.naki.skiff.code.settings.CatalogError
+import com.naki.skiff.code.settings.CatalogTheme
 import com.naki.skiff.code.settings.Theme
 import com.naki.skiff.code.settings.ThemeEntry
 import com.naki.skiff.code.settings.Themes
@@ -86,6 +88,7 @@ import okio.buffer
 import okio.source
 import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
+import java.io.IOException
 import java.text.DecimalFormat
 
 private const val TAG = "SkiffCode"
@@ -461,6 +464,22 @@ class MainActivity : Activity() {
             startActivityForResult(picker(Intent.ACTION_OPEN_DOCUMENT), REQUEST_IMPORT_THEME)
             JSONObject()
         }
+        // The palette's Download Theme...: the repository's list, then one theme of it. Each answers
+        // with what the page shows: the list, or why there is none, and whether a theme was kept.
+        bridge.method("themeCatalog") {
+            try {
+                val listed = container.catalog.list()
+                val installed = withContext(Dispatchers.IO) { listed.filter { container.themes.ownNamed(it.id) != null } }
+                JSONObject()
+                    .put("themes", JSONArray(listed.map { it.toJson() }))
+                    .put("installed", JSONArray(installed.map { it.id }))
+            } catch (e: IOException) {
+                JSONObject().put("error", catalogFailure(e))
+            }
+        }
+        bridge.method("downloadTheme") { params ->
+            JSONObject().put("result", downloadTheme(params.getString("id")))
+        }
         bridge.method("exportSettings") {
             startActivityForResult(picker(Intent.ACTION_CREATE_DOCUMENT, "settings.toml"), REQUEST_EXPORT_SETTINGS)
             JSONObject()
@@ -652,6 +671,9 @@ class MainActivity : Activity() {
     private fun ThemeEntry.toJson() =
         JSONObject().put("id", id).put("title", title).put("dark", dark).put("swatch", JSONArray(swatch))
 
+    private fun CatalogTheme.toJson() = JSONObject()
+        .put("id", id).put("title", title).put("family", family).put("dark", dark).put("swatch", JSONArray(swatch))
+
     /** The theme on the screen by name: the one chosen, or for `system` the bundled one it follows now. */
     private suspend fun shownTheme() = container.themes.nameIn(container.settings.current().settings.editor.theme, night)
 
@@ -710,6 +732,38 @@ class MainActivity : Activity() {
         val problems = withContext(Dispatchers.IO) { container.themes.import(name, text) }
         bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(name)))
         notice(getString(R.string.import_theme_done, name), describe(problems, theme = true))
+    }
+
+    /**
+     * Downloads the theme [id] of the list the page shows, keeps it as one of the person's own and puts
+     * it on the screen, the way [importTheme] does with a file: a name already theirs is asked about
+     * first. Says what came of it — `installed`, `declined` or `failed` — what failed said on the banner.
+     */
+    private suspend fun downloadTheme(id: String): String {
+        val installed = try {
+            container.catalog.install(id) { existing ->
+                confirm(getString(R.string.theme_replace_title), getString(R.string.theme_download_replace, existing, id), getString(R.string.action_replace))
+            }
+        } catch (e: IOException) {
+            notice(catalogFailure(e), lasting = true)
+            return "failed"
+        }
+        if (!installed) return "declined"
+        bridge.notify("settingsChanged", pageSettings(container.settings.setTheme(id)))
+        notice(getString(R.string.download_theme_done, id), lasting = false)
+        return "installed"
+    }
+
+    /** Why the theme list or a theme of it did not come, as the banner says it. */
+    private fun catalogFailure(e: IOException): String = when (e) {
+        is CatalogError.Unreachable -> getString(R.string.catalog_unreachable)
+        is CatalogError.Status -> getString(R.string.catalog_status, e.status)
+        is CatalogError.TooLarge -> getString(R.string.catalog_too_large, e.limit / 1024)
+        is CatalogError.TooNew -> getString(R.string.catalog_too_new, e.format)
+        is CatalogError.Malformed -> getString(R.string.catalog_malformed)
+        is CatalogError.Mismatch -> getString(R.string.theme_download_mismatch, e.id)
+        is CatalogError.Invalid -> getString(R.string.theme_download_invalid, e.id, describe(e.problems, theme = true).orEmpty())
+        else -> getString(R.string.catalog_failed, e.message ?: e.javaClass.simpleName)
     }
 
     /**

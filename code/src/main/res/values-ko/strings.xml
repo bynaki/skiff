@@ -108,6 +108,16 @@
     <string name="theme_name_refused">테마 이름은 파일 이름에서 옵니다. \"%1$s\" 은(는) 쓸 수 없습니다 — 글자, 숫자, 공백, _, -, 괄호만 되고 system, light, dark는 안 됩니다.</string>
     <string name="theme_replace_title">테마를 바꿀까요?</string>
     <string name="theme_replace">%1$s 테마가 이미 있습니다. 이 파일로 바꿀까요?</string>
+    <string name="theme_download_replace">%1$s 테마가 이미 있습니다. 받은 %2$s 로 바꿀까요?</string>
+    <string name="download_theme_done">테마 %1$s 을(를) 받았습니다.</string>
+    <string name="catalog_unreachable">테마 목록에 닿지 못했습니다. 연결을 확인하고 다시 해 보세요.</string>
+    <string name="catalog_status">테마 목록이 HTTP %1$d 로 답했습니다.</string>
+    <string name="catalog_too_large">받은 것이 %1$d KB보다 커서 읽지 않았습니다.</string>
+    <string name="catalog_too_new">테마 목록이 더 새 Skiff Code용입니다(format %1$d). 테마를 받으려면 앱을 업데이트하세요.</string>
+    <string name="catalog_malformed">테마 목록을 읽지 못했습니다.</string>
+    <string name="catalog_failed">테마 목록이나 테마를 받지 못했습니다: %1$s</string>
+    <string name="theme_download_mismatch">%1$s 이(가) 테마 목록이 말하는 것과 다르게 와서 저장하지 않았습니다.</string>
+    <string name="theme_download_invalid">%1$s 은(는) 이 앱이 문제없이 읽는 테마가 아니라 저장하지 않았습니다. %2$s</string>
 
     <string name="action_copy">복사</string>
     <string name="action_delete">삭제</string>

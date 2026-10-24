@@ -7,6 +7,7 @@ import com.naki.skiff.code.project.ProjectSessions
 import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.session.RemoteSessions
 import com.naki.skiff.code.settings.SettingsFile
+import com.naki.skiff.code.settings.ThemeCatalog
 import com.naki.skiff.code.settings.Themes
 import com.naki.skiff.fs.sftp.HostKeyGate
 import com.naki.skiff.fs.sftp.HostKeyPrompter
@@ -51,6 +52,8 @@ class SkiffCodeContainer(app: Application) {
     )
 
     val themes = Themes(app.assets::open, File(app.filesDir, "themes"))
+
+    val catalog = ThemeCatalog(themes)
 
     val settings = SettingsFile(File(app.filesDir, "settings.toml")) { themes.names }
 }

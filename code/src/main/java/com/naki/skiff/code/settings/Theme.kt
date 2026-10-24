@@ -46,7 +46,7 @@ object ThemeToml {
     )
 
     /** What CSS reads as a color without asking anything else: no names, no functions. */
-    private val COLOR = Regex("#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")
+    internal val COLOR = Regex("#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")
 
     @Serializable
     private data class ThemeFile(
@@ -201,6 +201,9 @@ class Themes(private val open: (path: String) -> InputStream, private val dir: F
      * be edited and deleted. Not `system`, which names a bundled theme.
      */
     fun isImported(name: String): Boolean = name in own
+
+    /** The theme of the person's own that [name] is in any case — the one a download of [name] replaces. */
+    fun ownNamed(name: String): String? = own.firstOrNull { it.equals(name, ignoreCase = true) }
 
     /**
      * The theme a file called [fileName] comes in as, by Import Theme or Copy Theme: its name without

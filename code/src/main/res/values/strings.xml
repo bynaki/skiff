@@ -109,6 +109,16 @@
     <string name="theme_name_refused">A theme is named after its file, and \"%1$s\" cannot be one: use letters, digits, spaces, _, - and parentheses, and not system, light or dark.</string>
     <string name="theme_replace_title">Replace theme?</string>
     <string name="theme_replace">There is already a theme called %1$s. Replace it with this file?</string>
+    <string name="theme_download_replace">There is already a theme called %1$s. Replace it with the downloaded %2$s?</string>
+    <string name="download_theme_done">Theme %1$s downloaded.</string>
+    <string name="catalog_unreachable">The theme list could not be reached. Check the connection and try again.</string>
+    <string name="catalog_status">The theme list answered with HTTP %1$d.</string>
+    <string name="catalog_too_large">What came back was larger than %1$d KB, so it was not read.</string>
+    <string name="catalog_too_new">The theme list is for a newer Skiff Code (format %1$d). Update the app to download themes.</string>
+    <string name="catalog_malformed">The theme list could not be read.</string>
+    <string name="catalog_failed">The theme list or theme could not be downloaded: %1$s</string>
+    <string name="theme_download_mismatch">%1$s did not arrive as the theme list describes it, so it was not kept.</string>
+    <string name="theme_download_invalid">%1$s is not a theme this app reads without problems, so it was not kept. %2$s</string>
 
     <string name="action_copy">Copy</string>
     <string name="action_delete">Delete</string>
