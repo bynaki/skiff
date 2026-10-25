@@ -46,15 +46,18 @@ class ThemeTomlTest {
     /**
      * The theme repository's files, which the app downloads, read by the app's own parser
      * (docs/skiffcode.spec/community-themes.md): run with `SKIFF_THEMES_DIR` naming a checkout of
-     * it before pushing there. Skipped without one.
+     * it before pushing there. Skipped without one. Its `user-themes/`, where `/theme-convert` writes a
+     * theme for one person to import, is read too when there is one.
      */
     @Test
     fun `every theme of the theme repository reads without a problem and has every color`() {
         val dir = System.getenv("SKIFF_THEMES_DIR")
         assumeTrue("SKIFF_THEMES_DIR names no checkout of skiffcode-themes", !dir.isNullOrBlank())
-        val files = File(dir, "themes").listFiles { file -> file.name.endsWith(".toml") }.orEmpty().sortedBy { it.name }
-        assertTrue("no themes in $dir/themes", files.isNotEmpty())
-        for (file in files) {
+        val toml = { at: String -> File(dir, at).listFiles { file -> file.name.endsWith(".toml") }.orEmpty().sortedBy { it.name } }
+        val listed = toml("themes")
+        assertTrue("no themes in $dir/themes", listed.isNotEmpty())
+        val own = toml("user-themes")
+        for (file in listed + own) {
             val text = file.readText()
             val read = ThemeToml.read(text, fallback)
             assertEquals(file.name, emptyList<SettingsProblem>(), read.problems)
@@ -67,7 +70,7 @@ class ThemeTomlTest {
             }
             assertEquals(file.name, ThemeToml.KEYS, written)
         }
-        println("read ${files.size} themes from $dir")
+        println("read ${listed.size} themes and ${own.size} in user-themes from $dir")
     }
 
     @Test

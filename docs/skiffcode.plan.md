@@ -126,15 +126,18 @@ M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-
 
 **성공 조건**
 
-- ⬜ vitest(테마 저장소): 한 파일 모드가 같은 데이터에 목록 모드와 똑같은 toml을 쓰고, `index.json`·`NOTICE.md`·`themes/`를 건드리지 않는다. 잘못된 데이터(빠진 필수 키, 색이 아닌 값)는 파일을 쓰지 않고 실패한다 — 확인: `npm test`.
+- ✅ vitest(테마 저장소): 한 파일 모드가 같은 데이터에 목록 모드와 똑같은 toml을 쓰고(라이선스가 있는 곳만 다르다 — 머리 주석의 두 줄과 끝의 전문), `index.json`·`NOTICE.md`·`themes/`를 건드리지 않는다. 잘못된 데이터(빠진 필수 키, 색이 아닌 값)는 파일을 쓰지 않고 실패한다 — 확인: `npm test`(2026-10-25, 41개).
 - ⬜ 앱의 파서: 그 견본 toml이 `SKIFF_THEMES_DIR` 테스트처럼 `ThemeToml`로 문제없이 읽힌다.
 - ⬜ 스킬: 목록에 없는 테마 둘로 `/theme-convert`를 끝까지 돌린다 — VS Code 원본 하나, Neovim 원본 하나(어느 것으로 할지 그때 사용자에게 묻는다). 한 번 돌릴 때마다 저장소에서 바뀐 것은 `user-themes/`의 새 파일 하나뿐이고(커밋되지 않음), 머리 주석에 원본·커밋·라이선스가 있다. `system`/`light`/`dark`와 겹치는 이름을 주면 다른 이름을 제안한다.
 - ⬜ 탭, 사용자 확인: 그 두 파일을 `Import Theme`으로 들이면 경고 배너 없이 들어오고, 견본을 찍은 화면을 사용자가 원본과 견주어 보고 괜찮다고 한다. 확인용으로는 adb로 탭의 `Download/`에 넣어 들인다.
 - ⬜ 스킬의 프런트매터에 `disable-model-invocation: true`가 있고, 스킬 목록에 명령으로 보인다.
 
-- [ ] 생성 스크립트의 한 파일 모드
+- [x] 생성 스크립트의 한 파일 모드
   - 테마 저장소에서 `npm run themes -- --one <데이터> --out <경로>`. 목록 모드와 같은 함수로 toml을 쓰고, 목록·NOTICE는 쓰지 않는다. 필수 키가 빠졌거나 색이 아니면 쓰지 않고 실패한다. 대비 표는 같이 낸다.
   - 테스트: 테마 저장소의 `themes.test.ts`에 한 파일 모드. 앱 레포의 `SKIFF_THEMES_DIR` 테스트가 `user-themes/`도 읽게 한다.
+  - 한 것: `generate.ts`의 `writeOne`(CLI는 `mainOne`)과 `single`. 머리 주석과 색 줄은 목록 모드와 같은 함수(`header`, 새로 나눈 `body`)가 쓴다. 다른 것은 머리 주석의 라이선스 두 줄뿐이다 — NOTICE.md가 없으니 "The full text is at the end of this file"이고, **라이선스 전문은 파일 끝에 주석으로** 붙는다(머리에 두면 Apache-2.0 전문 200줄이 색 위에 온다). 전문이 없는 원본은 "The source has no license text."
+  - 데이터는 `scripts/data/`와 같은 `Bundle` 모양에 테마가 꼭 하나다. 쓰기 전에 거부하는 것: 빠진 필드, 40자가 아닌 커밋, `light`/`dark`가 아닌 `base`와 배경 밝기에 어긋난 `base`, `resolve`가 거부하는 것(빠진 필수 키, 색이 아닌 값, 모르는 키), 이유 없는 4.5:1 미만, `Import Theme`이 거부할 이름(`nameOf`를 옮긴 것 — `.toml`, 64자, 글자·숫자·` _()-`, `system`/`light`/`dark`, 앞뒤 공백), 이미 있는 파일, 목록 안의 자리(`themes/`, `scripts/data/`, `index.json`, `NOTICE.md`). 이름이 목록의 id와 같으면 쓰고 알린다. 부모 디렉터리는 만든다.
+  - 테스트: `themes.test.ts` +9(목록 모드와 같은 줄과 끝의 전문, 목록을 건드리지 않음, 전문 없음, 잘못된 데이터 9가지에 파일 없음, `lowContrast`, 거부되는 이름 9가지·이미 있는 파일·목록 안, 받는 이름, 목록 id 알림, CLI). `ThemeTomlTest`가 `user-themes/`도 읽는다 — 견본 둘(Tokyo Night의 Apache-2.0 전문, 이름 `장미 견본`)로 돌려 45+2개가 문제없이 읽히는 것을 보고 지웠다. 테마 저장소 vitest 41, JVM 353(건너뜀 0, `SKIFF_THEMES_DIR`를 줌), lint 경고 11(그대로). `npm run themes`로 다시 쓴 목록은 바이트까지 같다.
 - [ ] 스킬 쓰기
   - 테마 저장소의 `.claude/skills/theme-convert/SKILL.md`: 프런트매터(`disable-model-invocation: true`, 인자 `<저장소 URL> [변형]`). 단계는 원본 고르기 → 원본 파일과 커밋 SHA → scratchpad에 묶음 데이터 → 한 파일 모드 → 대비 표 보기 → 이름 정하기(`nameOf` 규칙, `system`/`light`/`dark` 피하기, 목록 id와 겹치면 알림) → `user-themes/<이름>.toml`에 쓰기(커밋하지 않음). 대응표는 `community-themes.md`를 가리키고 옮겨 적지 않는다. 라이선스가 허용 라이선스가 아니면 알린다.
   - 묶음 데이터의 모양은 `scripts/data/`의 파일 하나를 예로 가리킨다.
