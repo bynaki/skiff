@@ -14,29 +14,23 @@
 
 ---
 
-## 마지막 세션 (2026-10-22 ~ 10-24)
+## 마지막 세션 (2026-10-25)
 
 ### 지금 상태
-- M13 "받기 (Kotlin)"와 "페이지: `Theme...`와 `Download Theme...`"를 끝냈다. 남은 것은 "확인: 탭, 견본 모음, 폴드8" 하나다.
-- Kotlin: `settings/ThemeCatalog.kt`(`ThemeCatalog`, `Fetch`, `HttpFetch`, `CatalogError`), 브리지 `themeCatalog`·`downloadTheme`,
-  `settings` 답의 `chosenTheme`.
-- 페이지: `palette.ts`의 `theme`·`download` 모드(`isList`, `enter`, `busy`), `chrome/palette.ts`의 색 띠·묶음·표시 그리기,
-  `commands.ts`의 `themeItems`·`catalogItems`, `main.ts`의 `downloadTheme`. 모양은 plan의 두 항목 "한 것"에 있다.
-- **아직 기기에서 본 적이 없다.** 줄 모양(색 띠 크기, 오른쪽 표시, 묶음 글씨)과 버튼 그림 둘은 탭에서 처음 보게 된다 — 어색하면
-  다음 항목에서 고친다.
-- JVM 353(건너뜀 1 — `SKIFF_THEMES_DIR` 없을 때), vitest 226, lint 경고 11(그대로).
-- 커밋 점검 스크립트(`.claude/skills/commit/check.sh`)는 민감 값을 `~/private/skiff.values`에서 직접 읽고, 끝까지 돈 실행만
-  `--- checked to the end`로 끝난다. 규칙을 바꾸면 `check.test.sh`(64개)를 돌린다.
-- 옛 HANDOFF에 이 맥의 호스트 이름이 들어간 커밋 둘이 이미 공개돼 있다. 사용자는 역사를 다시 쓰지 않고 그대로 두기로 했다.
-- `code/web`의 남은 high 권고는 `patch-package`가 끌어오는 `braces` 하나다(고치려면 `patch-package`를 6.0.7로 내려야 해서 두었다).
-
-- "확인" 항목을 마쳤다(plan의 그 항목). 견본 모음의 TypeScript viewer는 사용자가 빼기로 했고, 폴드8 목록 스크롤은 사용자가 확인했다.
-  두 기기 모두 `settings.toml`을 md5로 되돌리고 받은 테마를 지웠다.
-  탭의 앱에는 견본 경로가 최근 파일에, 견본 저장소가 사이드바 프로젝트로 남았고 팔레트 최근 명령이 바뀌었다(사용자가 그대로 두기로 했다).
-- 견본 저장소는 이 맥의 홈 아래 `skiff-theme-sample`에 있다(Python·TypeScript·마크다운 하나씩, 두 파일에 git 변경). 탭에서는 이 맥의
-  프로필 호스트(테일스케일 별칭, 로컬 메모)로 링크를 만들어야 등록된 서버로 열린다(`docs/devices.md`).
+- M14 `/theme-convert`의 앞 두 항목을 끝냈다. 남은 것은 "확인: 두 테마로 끝까지, 탭에 들이기" 하나다.
+- 테마 저장소(`~/projects/skiffcode-themes`): `scripts/generate.ts`의 한 파일 모드(`writeOne`, `single`, `nameOf`,
+  CLI `npm run themes -- --one <데이터> --out <이름>.toml`)와 `.claude/skills/theme-convert/SKILL.md`, `AGENTS.md`의 명령 한 줄과
+  "One theme for one person" 절. vitest 41.
+- 앱: `ThemeTomlTest`가 테마 저장소의 `user-themes/`도 읽는다(있을 때). JVM 353(`SKIFF_THEMES_DIR`를 주면 건너뜀 0), lint 경고 11(그대로).
+- 라이선스 전문은 머리 주석이 아니라 **파일 끝에 주석으로** 붙인다(Apache-2.0 전문이 색 위에 200줄 오지 않게). spec과 성공 조건을
+  그렇게 고쳤다 — 사용자가 아직 이 선택에 답하지 않았다. 머리 쪽을 원하면 `single`만 바꾸면 된다.
+- 테마 저장소의 `user-themes/`는 지금 비어 있다(없다). 견본 둘로 앱 파서를 확인한 뒤 지웠다.
 
 ### 다음 세션이 할 일
-1. `AGENTS.md`를 읽는다.
-2. plan의 첫 `- [ ]`, M14 `/theme-convert` 스킬로 간다.
-3. 커밋도 푸시도 사용자가 말할 때만 한다.
+1. **스킬은 `~/projects/skiffcode-themes`에서 연 세션에서만 보인다**(프로젝트 스킬은 세션 디렉토리의 `.claude/skills/`에서 읽힌다).
+   그 세션에서: 스킬 목록에 `/theme-convert`가 명령으로 보이는지 보고, VS Code 원본 하나·Neovim 원본 하나로 끝까지 돌린다
+   (어느 것으로 할지 사용자에게 묻는다, 후보는 Nord와 Nightfox). 돌릴 때마다 `git status --short`가 그대로인지, 예약어 이름을 주면
+   다른 이름을 제안하는지 본다. 그 세션은 이 파일과 plan을 읽지 않으므로, 할 일은 사용자가 건네는 프롬프트에 있다.
+2. 이 저장소로 돌아와 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest`로 두 파일이 읽히는지 보고,
+   adb로 탭의 `Download/`에 넣어 `Import Theme`으로 들인다(경고 배너 없음). 견본을 찍어 사용자가 원본과 견주게 한다.
+3. plan의 M14 성공 조건을 채우고, 다 ✅면 M14를 `plan.done.md`로 옮긴다. 커밋도 푸시도 사용자가 말할 때만 한다.

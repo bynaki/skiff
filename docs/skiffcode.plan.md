@@ -138,11 +138,12 @@ M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-
   - 한 것: `generate.ts`의 `writeOne`(CLI는 `mainOne`)과 `single`. 머리 주석과 색 줄은 목록 모드와 같은 함수(`header`, 새로 나눈 `body`)가 쓴다. 다른 것은 머리 주석의 라이선스 두 줄뿐이다 — NOTICE.md가 없으니 "The full text is at the end of this file"이고, **라이선스 전문은 파일 끝에 주석으로** 붙는다(머리에 두면 Apache-2.0 전문 200줄이 색 위에 온다). 전문이 없는 원본은 "The source has no license text."
   - 데이터는 `scripts/data/`와 같은 `Bundle` 모양에 테마가 꼭 하나다. 쓰기 전에 거부하는 것: 빠진 필드, 40자가 아닌 커밋, `light`/`dark`가 아닌 `base`와 배경 밝기에 어긋난 `base`, `resolve`가 거부하는 것(빠진 필수 키, 색이 아닌 값, 모르는 키), 이유 없는 4.5:1 미만, `Import Theme`이 거부할 이름(`nameOf`를 옮긴 것 — `.toml`, 64자, 글자·숫자·` _()-`, `system`/`light`/`dark`, 앞뒤 공백), 이미 있는 파일, 목록 안의 자리(`themes/`, `scripts/data/`, `index.json`, `NOTICE.md`). 이름이 목록의 id와 같으면 쓰고 알린다. 부모 디렉터리는 만든다.
   - 테스트: `themes.test.ts` +9(목록 모드와 같은 줄과 끝의 전문, 목록을 건드리지 않음, 전문 없음, 잘못된 데이터 9가지에 파일 없음, `lowContrast`, 거부되는 이름 9가지·이미 있는 파일·목록 안, 받는 이름, 목록 id 알림, CLI). `ThemeTomlTest`가 `user-themes/`도 읽는다 — 견본 둘(Tokyo Night의 Apache-2.0 전문, 이름 `장미 견본`)로 돌려 45+2개가 문제없이 읽히는 것을 보고 지웠다. 테마 저장소 vitest 41, JVM 353(건너뜀 0, `SKIFF_THEMES_DIR`를 줌), lint 경고 11(그대로). `npm run themes`로 다시 쓴 목록은 바이트까지 같다.
-- [ ] 스킬 쓰기
+- [x] 스킬 쓰기
   - 테마 저장소의 `.claude/skills/theme-convert/SKILL.md`: 프런트매터(`disable-model-invocation: true`, 인자 `<저장소 URL> [변형]`). 단계는 원본 고르기 → 원본 파일과 커밋 SHA → scratchpad에 묶음 데이터 → 한 파일 모드 → 대비 표 보기 → 이름 정하기(`nameOf` 규칙, `system`/`light`/`dark` 피하기, 목록 id와 겹치면 알림) → `user-themes/<이름>.toml`에 쓰기(커밋하지 않음). 대응표는 `community-themes.md`를 가리키고 옮겨 적지 않는다. 라이선스가 허용 라이선스가 아니면 알린다.
   - 묶음 데이터의 모양은 `scripts/data/`의 파일 하나를 예로 가리킨다.
   - `user-themes/`는 `.gitignore`에 들고, 무엇을 두는 곳인지는 테마 저장소의 `AGENTS.md`에 적는다.
   - 테마 저장소의 `AGENTS.md`에 스킬 한 줄(무엇을 하고, 목록에 더하는 것은 아니라는 것).
+  - 한 것: `SKILL.md`(영어, 앱의 commit 스킬처럼). 프런트매터는 `disable-model-invocation: true`와 `argument-hint`. 단계는 원본 고르기(③ helix·zed는 읽는 스크립트가 없어 사용자가 동의할 때만 손으로) → 라이선스(없거나 허용 라이선스가 아니면 막지 않고 보고에) → scratchpad의 묶음 데이터(테마 하나, `vesper.json`을 예로) → 이름(`nameOf`, 예약어면 다른 이름 제안, 이미 있는 파일은 물음, 목록 id와 같으면 알림) → 한 파일 모드(4.5:1 미만은 사용자에게 묻고 `lowContrast`) → `git status` 확인 → 보고. spec은 앱의 `main`에 아직 없어서 GitHub 주소 대신 "옆에 있는 Skiff Code 체크아웃의 `docs/skiffcode.spec/community-themes.md`"를 읽게 했다. `.gitignore`의 `user-themes/`는 M13 때 이미 있었다. 테마 저장소 `AGENTS.md`에 명령 한 줄과 "One theme for one person" 절.
 - [ ] 확인: 두 테마로 끝까지, 탭에 들이기
   - 성공 조건의 스킬·탭 항목. 고를 테마는 사용자에게 묻는다(후보: VS Code 원본 Nord, Neovim 원본 Nightfox).
 
