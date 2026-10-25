@@ -140,6 +140,25 @@ export function nextLayer(layer: LayerName, comparable: boolean, readOnly = fals
   return layer === 'editor' && comparable ? 'diff' : 'viewer'
 }
 
+/**
+ * What a pane does when what the diff layer compares with may have changed: [text] is that now,
+ * undefined while it has not been heard yet; [compared] is what the layer was built with; [waiting]
+ * says the diff layer was asked for before [text] arrived. A file back from the background can be on
+ * the diff layer already while it waits — its bundle was rebuilt without the text — so what it waited
+ * for redraws the layer there rather than entering it.
+ */
+export function compareStep(
+  layer: LayerName,
+  waiting: boolean,
+  text: string | null | undefined,
+  compared: string | null,
+): 'enter' | 'redraw' | 'leave' | null {
+  if (text === undefined) return null
+  if (layer !== 'diff') return waiting ? 'enter' : null
+  if (text === null) return 'leave'
+  return text === compared ? null : 'redraw'
+}
+
 /** What a file leaves behind when it goes to the background, and comes back to the screen with. */
 export interface PaneMemory {
   /** The buffer with its undo history, its selection and whether it has been typed in. */
@@ -477,11 +496,15 @@ export function openPane(
    * yet changes nothing: it is on its way.
    */
   function compareChanged(): void {
-    if (wantDiff && original() !== undefined) return setLayer('diff')
-    if (layer !== 'diff' || !view) return
     const text = original()
-    if (text === undefined || text === compared) return
-    if (text === null) return setLayer('viewer')
+    const step = compareStep(layer, wantDiff, text, compared)
+    // Heard now, so the wait is over whichever layer it ends on: left on, a later answer would pull a
+    // file the user has since taken to the viewer back into the diff layer.
+    if (text !== undefined) wantDiff = false
+    if (step === 'enter') return setLayer('diff')
+    if (!view) return
+    if (step === 'leave') return setLayer('viewer')
+    if (step !== 'redraw') return
     const line = topLine()
     view.dispatch({ effects: layerBundle.reconfigure(bundleFor('diff')) })
     scrollViewToLine(view, line)

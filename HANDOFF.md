@@ -17,20 +17,18 @@
 ## 마지막 세션 (2026-10-25)
 
 ### 지금 상태
-- M14 `/theme-convert`는 탭 확인 하나만 남았다. 테마 저장소에서 연 세션이 Nord(VS Code 원본)와 Dawnfox(Neovim 원본, 이름
-  `Light (Dawnfox)`)를 끝까지 돌렸고, 이 저장소의 `SKIFF_THEMES_DIR` 테스트로 두 파일이 읽히는 것까지 봤다(plan의 M14).
-  그 두 파일은 테마 저장소의 `user-themes/`에 있다(커밋되지 않음).
-- `code/build.gradle.kts`: 테스트 입력에 `user-themes/*.toml`을 더했다. 전에는 빠져 있어 새 파일이 생겨도 테스트가 up to date로 남았다.
+- **M14 `/theme-convert`를 닫고 `plan.done.md`로 옮겼다.** 테마 저장소에서 연 세션이 Nord(VS Code 원본)와 Dawnfox(Neovim
+  원본, 이름 `Light (Dawnfox)`)를 끝까지 돌렸고, 이 저장소의 `SKIFF_THEMES_DIR` 테스트로 두 파일을 읽었으며, 탭에서
+  `Import Theme`으로 들여 견본을 찍었다. 사용자가 견본을 보고 괜찮다고 했다. 탭은 되돌렸다(받은 두 테마와 `Download/`의
+  두 파일을 지우고 `settings.toml`을 md5로). 두 파일은 테마 저장소의 `user-themes/`에 남아 있다(커밋되지 않음).
+- 탭 확인 중에 찾은 diff 레이어 버그를 고쳤다(`layers/pane.ts`의 `compareStep`, 자세한 것은 `plan.done.md`의 M14).
+  새 빌드를 탭에 깔아 두 재현 순서로 확인했다. web 230, JVM 353, lint 경고 11(그대로).
+- `code/build.gradle.kts`: 테스트 입력에 `user-themes/*.toml`을 더했다(앞 커밋 `fd35e84`).
 - 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로 돌렸다.
-- 테마 저장소(`~/projects/skiffcode-themes`): `scripts/generate.ts`의 한 파일 모드(`writeOne`, `single`, `nameOf`,
-  CLI `npm run themes -- --one <데이터> --out <이름>.toml`)와 `.claude/skills/theme-convert/SKILL.md`, `AGENTS.md`의 명령 한 줄과
-  "One theme for one person" 절. vitest 41.
-- 앱: `ThemeTomlTest`가 테마 저장소의 `user-themes/`도 읽는다(있을 때). JVM 353(`SKIFF_THEMES_DIR`를 주면 건너뜀 0), lint 경고 11(그대로).
-- 라이선스 전문은 머리 주석이 아니라 **파일 끝에 주석으로** 붙인다(Apache-2.0 전문이 색 위에 200줄 오지 않게). spec과 성공 조건을
-  그렇게 고쳤다 — 사용자가 아직 이 선택에 답하지 않았다. 머리 쪽을 원하면 `single`만 바꾸면 된다.
+- 한 파일 모드의 라이선스 전문은 **파일 끝에 주석으로** 붙이는 것으로 사용자가 정했다(2026-10-25, spec에 적음).
+- **M13도 닫아 옮겼다.** plan의 성공 조건 셋(탭, 견본 모음, 폴드8 커버)이 spec과 달리 ⬜로 남아 있던 것을, 확인 항목의 기록과
+  사용자의 마무리 결정(2026-10-25)을 가리켜 ✅로 고쳤다(사용자 확인). 이제 plan의 "할 일"은 비어 있다.
 
 ### 다음 세션이 할 일
-1. 테마 저장소의 `user-themes/Nord.toml`과 `user-themes/Light (Dawnfox).toml`을 adb로 탭의 `Download/`에 넣고
-   `Import Theme`으로 들인다(경고 배너 없음). 견본을 찍어 사용자가 원본과 견주게 한다. Nord는 강조색(`#3b4252`)이 거의
-   안 보일 수 있는데, 원본이 그렇게 정한 색이다(plan의 M14 "한 것").
-2. 그 성공 조건이 ✅이면 확인 항목에 체크하고 M14를 `plan.done.md`로 옮긴다. 커밋도 푸시도 사용자가 말할 때만 한다.
+1. plan의 "할 일"이 비어 있다. 다음 마일스톤은 사용자에게 묻는다(원래 요구사항은 `docs/my.next.spec.md`, 남은 확인은 plan의
+   "아직 확인하지 않은 것"). 커밋도 푸시도 사용자가 말할 때만 한다.

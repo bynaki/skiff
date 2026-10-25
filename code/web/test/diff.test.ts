@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { getChunks } from '@codemirror/merge'
 import { lineDiffConfig, unifiedDiff } from '../src/diff'
-import { nextLayer } from '../src/layers/pane'
+import { compareStep, nextLayer } from '../src/layers/pane'
 
 /** The chunks as line ranges, original then buffer, which is how a person reads a diff. */
 function chunks(state: EditorState, original: string): Array<[number, number, number, number]> {
@@ -30,6 +30,29 @@ describe('③', () => {
     expect(nextLayer('editor', false)).toBe('viewer')
     // Left with nothing to compare with while it was showing.
     expect(nextLayer('diff', false)).toBe('viewer')
+  })
+})
+
+describe('what the diff layer compares with arriving', () => {
+  test('waits for it, then enters the diff layer a link asked for', () => {
+    expect(compareStep('viewer', true, undefined, null)).toBe(null)
+    expect(compareStep('viewer', true, 'a\n', null)).toBe('enter')
+  })
+
+  test('redraws a file back from the background on the diff layer, when a link asked for it again', () => {
+    // hello.py left on the diff layer, app.ts, then hello.py?layer=diff: the layer stayed bare (2026-10-25, tab).
+    expect(compareStep('diff', true, 'a\n', null)).toBe('redraw')
+    expect(compareStep('diff', false, 'a\n', null)).toBe('redraw')
+  })
+
+  test('leaves the diff layer when there is nothing left to compare with', () => {
+    expect(compareStep('diff', false, null, 'a\n')).toBe('leave')
+    expect(compareStep('diff', true, null, null)).toBe('leave')
+  })
+
+  test('changes nothing for the same text, or off the diff layer when it was not asked for', () => {
+    expect(compareStep('diff', false, 'a\n', 'a\n')).toBe(null)
+    expect(compareStep('editor', false, 'a\n', null)).toBe(null)
   })
 })
 
