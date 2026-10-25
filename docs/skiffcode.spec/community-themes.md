@@ -300,7 +300,7 @@ M13의 변환 방법을 다른 테마에도 쓰게 스킬로 만든다(2026-10-2
 - ✅ vitest: 커맨드: `Theme: …`가 없고 `Theme...`·`Download Theme...`가 있다. 테마 목록: 설치된 것만, 차례·표시·띠·퍼지 검색,
   고르면 `setTheme`과 `>`로 닫힘. 받을 목록: 받는 중 줄, 실패 배너와 `>`, installed 표시, 퍼지 검색, 고르면 받기 요청과 `>` —
   확인: `commands.test.ts`, `palette.test.ts`.
-- ⬜ 탭: `Download Theme...`에 45줄이 색 띠와 함께 보이고 `mocha`를 치면 좁혀진다. 고르면 받아서 메뉴·사이드바·팔레트·viewer·
+- ✅ 탭: `Download Theme...`에 45줄이 색 띠와 함께 보이고 `mocha`를 치면 좁혀진다. 고르면 받아서 메뉴·사이드바·팔레트·viewer·
   editor·diff·렌더된 마크다운·상태바 아이콘이 한 번에 바뀌고, `settings.toml`에 `theme = "<id>"`가 적히며, 앱을 다시 켜도 남는다.
   `Theme...`에 그 테마가 표시와 함께 있다. 비행기 모드에서 `Download Theme...`은 배너를 내고 `>`로 돌아온다.
 - ⬜ 탭, 사용자 확인: 45개 테마로 같은 견본(Python·TypeScript 파일의 viewer, git 변경이 있는 diff, 렌더된 마크다운)을 찍은 모음을

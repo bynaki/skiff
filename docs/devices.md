@@ -98,6 +98,14 @@
 - **adb `input swipe`가 시스템의 뒤로 가기 제스처로 받아진다**(2026-10-12, 제스처 내비게이션). 오른쪽 가장자리
   `input swipe 2302 700 1700 700 300`, 왼쪽 `input swipe 2 700 600 700 300`. 페이지는 그 첫 터치를 `pointerdown` →
   `pointercancel`로 받는다. 앱이 콜백을 걸었는지는 `dumpsys activity activities | grep topResumedActivity`로 본다(안 걸었으면 홈).
+- **이 맥으로 가는 서버 프로필**(2026-10-25 사용자가 등록, 키 인증)은 호스트가 이 맥의 테일스케일 별칭(`<이 맥의 테일스케일 별칭>`,
+  로컬 메모)이다. 링크는 프로필의 호스트를 글자 그대로 맞춰 보므로(`OpenRequest.findProfile`) **링크도 그 별칭으로 만든다** —
+  테일스케일 주소로 만들면 "등록되지 않은 서버"가 비밀번호를 묻는다. git이 있는 화면(diff 레이어, ④의 비교)은 프로젝트에서만
+  나오고, 프로젝트는 홈 아래 저장소에만 생긴다(open-flow 3단계). **견본 저장소는 홈 아래에 둔다**: scratchpad(`/private/tmp`)에
+  두면 단일 파일로 열려 ④의 항목이 흐리게 나온다.
+- **비행기 모드**는 `cmd connectivity airplane-mode enable`/`disable`로 바꾼다. 켜기 전에 `settings get global airplane_mode_on`과
+  `cmd wifi status`를 읽어 두고, 끄고 나서 맞춰 본다.
+- **앱은 연 파일을 기억한다**(`files/datastore/skiffcode.json`의 `recentFiles`). 시험용으로 연 파일은 지워도 그 목록에 남는다.
 - 확인용 파일이 `/sdcard/Download/skiffcode-test/`에 있다(`hello.py` 32KB, `readme.md` 17KB,
   `Makefile` 20B, `old.txt` 30B, 2MB 바로 아래인 `big.ts`(56677줄), 상한 초과용 3MB `huge.txt`,
   인코딩용 `enc`, `bad.txt`, `image.txt`). **여기에 임시 파일을 만들었으면 끝나고 지운다.**
@@ -112,7 +120,7 @@
   `state reset`(기기에 돌려줌) — **`reset` 단독은 "Unknown command"다**).
 - **접기/펴기는 액티비티를 재생성하지 않는다**(`configChanges`의 `screenLayout|smallestScreenSize|
   screenSize|density`). 사이드바를 꺼낸 채 접어도 열린 채 넘어간다.
-- **커버 화면의 WebView는 `screencap`으로 못 찍는다.** 좌표를 얻는 법은 `AGENTS.md`의 On-device.
+- **커버 화면의 WebView는 `screencap`으로 못 찍는다.** 좌표를 얻는 법은 `AGENTS.md`의 On-device. 사진은 CDP `Page.captureScreenshot`으로 얻는다(2026-10-24) — 새 프레임이 없으면 답하지 않으니, 요청을 보낸 뒤 150ms마다 `document.body.style.opacity`를 `1`과 `0.999` 사이로 바꿔 다시 그리게 한다.
 - 내부 화면 상단 메뉴: ② `tap 2162 180`, ③ `tap 2266 180`. 확인 대화상자 열기 `tap 1453 1680`.
 - 시스템 글꼴 배율이 1.5라 에디터 기본 14px이 21px로 나온다.
 - **화면은 10분 뒤 꺼진다**(기본값 600000). 올렸으면 그 값으로 되돌린다.

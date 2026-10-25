@@ -110,6 +110,11 @@
   - 테스트: `commands.test.ts` +6(`Theme: …` 없음과 두 명령, 테마 목록의 차례·띠·표시·id, 받을 목록의 받는 중 줄·이름·묶음·installed·id로 청함), `palette.test.ts` +12(스와이프로 못 감, 전부 보임, 명령에서 들어감, 고르면 `>`이고 기억 안 함, 취소도 `>`, 이름·묶음 검색, 받는 중 줄, 받는 중 열림과 끝나면 `>`, 실패도 `>`, 취소한 뒤 온 답, 목록에서 스와이프). JVM 353(건너뜀 1), vitest 226, lint 경고 11(새 경고 없음).
 - [ ] 확인: 탭, 견본 모음, 폴드8
   - 성공 조건의 탭 세 항목과 폴드8 항목. 견본 모음은 테마를 차례로 받아 바꾸며 찍는 스크립트로 만들어 사용자에게 보낸다. 끝나면 받은 테마를 지우고 두 기기의 `settings.toml`을 md5로 되돌린다.
+  - 확인한 것(2026-10-24, 탭): `Download Theme...`에 45줄이 모두 색 띠(다섯 칸)와 함께 오고, `mocha`를 치면 한 줄로 좁혀진다. 고르면 `Downloading…` 뒤 닫히고 "받았습니다" 배너가 뜬다. 받은 파일의 sha256이 `index.json`과 같고 `settings.toml`에 `theme = "catppuccin-mocha"`가 적힌다. 메뉴·사이드바·팔레트·viewer·editor·렌더된 마크다운·상태 표시줄 아이콘이 Mocha로 바뀌고, 앱을 다시 켜도 남는다. `Theme...`에 `catppuccin-mocha`가 `current` 표시와 함께 있다. 비행기 모드에서 `Download Theme...`은 0.2초 만에 "테마 목록에 닿지 못했습니다" 배너를 내고 `>`로 닫힌다. 끝나고 탭의 `settings.toml`을 md5로 되돌리고 받은 테마를 지웠다.
+  - 확인한 것(2026-10-25, 탭 diff): 사용자가 탭에 이 맥을 서버로 등록(키 인증)한 뒤, 홈 아래 견본 저장소의 `hello.py`를 프로젝트로 열어 ④ "HEAD와 비교"로 diff 레이어를 봤다. 지운 줄·더한 줄 배경, 기호 칸, git 거터가 테마 색으로 나온다.
+  - 한 것: 견본 모음 — 탭에서 45개 테마를 차례로 받아 바꾸며 테마마다 `hello.py` diff와 `README.md` 읽기 레이어를 찍어 한 페이지로 묶어 사용자에게 보냈다(스크립트는 CDP로 Download Theme... 줄을 고르고 `settings.toml`의 `theme`이 바뀌길 기다려 `screencap`). 끝나고 받은 45개를 지우고 탭의 `settings.toml`을 md5로 되돌렸다. 견본 저장소는 레포 밖에 두었다.
+  - 확인한 것(2026-10-24, 폴드8 커버, 글꼴 배율 1.5): `Download Theme...`의 45줄이 475px 폭에 넘침 없이 들어가고(줄 높이 59px, 색 띠 72x18px), `mocha`로 좁혀 받으면 배너가 뜨고 바탕이 Mocha로 바뀐다. `Theme...`에 `current` 표시가 있다. 색 띠가 이름보다 몇 px 아래에, `current`가 이름보다 위에 앉는다 — 어긋남은 작아 고치지 않았다. 커버 화면은 `screencap` 대신 CDP `Page.captureScreenshot`으로 찍었다(찍는 동안 다시 그리게 해야 답한다). 끝나고 `settings.toml`을 md5로 되돌리고 받은 테마를 지웠다.
+  - 남은 것: 견본 모음에 TypeScript 파일(`app.ts`)의 viewer가 빠졌다(성공 조건은 Python·TypeScript viewer, diff, 마크다운). 모음에 대한 사용자의 판단. 폴드8에서 목록이 스크롤되는지는 재지 않았다.
 
 ### M14. 테마 변환 스킬 `/theme-convert`
 
