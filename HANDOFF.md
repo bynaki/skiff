@@ -17,20 +17,20 @@
 ## 마지막 세션 (2026-10-25)
 
 ### 지금 상태
-- M14 `/theme-convert`의 앞 두 항목을 끝냈다. 남은 것은 "확인: 두 테마로 끝까지, 탭에 들이기" 하나다.
+- M14 `/theme-convert`는 탭 확인 하나만 남았다. 테마 저장소에서 연 세션이 Nord(VS Code 원본)와 Dawnfox(Neovim 원본, 이름
+  `Light (Dawnfox)`)를 끝까지 돌렸고, 이 저장소의 `SKIFF_THEMES_DIR` 테스트로 두 파일이 읽히는 것까지 봤다(plan의 M14).
+  그 두 파일은 테마 저장소의 `user-themes/`에 있다(커밋되지 않음).
+- `code/build.gradle.kts`: 테스트 입력에 `user-themes/*.toml`을 더했다. 전에는 빠져 있어 새 파일이 생겨도 테스트가 up to date로 남았다.
+- 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로 돌렸다.
 - 테마 저장소(`~/projects/skiffcode-themes`): `scripts/generate.ts`의 한 파일 모드(`writeOne`, `single`, `nameOf`,
   CLI `npm run themes -- --one <데이터> --out <이름>.toml`)와 `.claude/skills/theme-convert/SKILL.md`, `AGENTS.md`의 명령 한 줄과
   "One theme for one person" 절. vitest 41.
 - 앱: `ThemeTomlTest`가 테마 저장소의 `user-themes/`도 읽는다(있을 때). JVM 353(`SKIFF_THEMES_DIR`를 주면 건너뜀 0), lint 경고 11(그대로).
 - 라이선스 전문은 머리 주석이 아니라 **파일 끝에 주석으로** 붙인다(Apache-2.0 전문이 색 위에 200줄 오지 않게). spec과 성공 조건을
   그렇게 고쳤다 — 사용자가 아직 이 선택에 답하지 않았다. 머리 쪽을 원하면 `single`만 바꾸면 된다.
-- 테마 저장소의 `user-themes/`는 지금 비어 있다(없다). 견본 둘로 앱 파서를 확인한 뒤 지웠다.
 
 ### 다음 세션이 할 일
-1. **스킬은 `~/projects/skiffcode-themes`에서 연 세션에서만 보인다**(프로젝트 스킬은 세션 디렉토리의 `.claude/skills/`에서 읽힌다).
-   그 세션에서: 스킬 목록에 `/theme-convert`가 명령으로 보이는지 보고, VS Code 원본 하나·Neovim 원본 하나로 끝까지 돌린다
-   (어느 것으로 할지 사용자에게 묻는다, 후보는 Nord와 Nightfox). 돌릴 때마다 `git status --short`가 그대로인지, 예약어 이름을 주면
-   다른 이름을 제안하는지 본다. 그 세션은 이 파일과 plan을 읽지 않으므로, 할 일은 사용자가 건네는 프롬프트에 있다.
-2. 이 저장소로 돌아와 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest`로 두 파일이 읽히는지 보고,
-   adb로 탭의 `Download/`에 넣어 `Import Theme`으로 들인다(경고 배너 없음). 견본을 찍어 사용자가 원본과 견주게 한다.
-3. plan의 M14 성공 조건을 채우고, 다 ✅면 M14를 `plan.done.md`로 옮긴다. 커밋도 푸시도 사용자가 말할 때만 한다.
+1. 테마 저장소의 `user-themes/Nord.toml`과 `user-themes/Light (Dawnfox).toml`을 adb로 탭의 `Download/`에 넣고
+   `Import Theme`으로 들인다(경고 배너 없음). 견본을 찍어 사용자가 원본과 견주게 한다. Nord는 강조색(`#3b4252`)이 거의
+   안 보일 수 있는데, 원본이 그렇게 정한 색이다(plan의 M14 "한 것").
+2. 그 성공 조건이 ✅이면 확인 항목에 체크하고 M14를 `plan.done.md`로 옮긴다. 커밋도 푸시도 사용자가 말할 때만 한다.

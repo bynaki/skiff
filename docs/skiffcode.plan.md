@@ -127,10 +127,10 @@ M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-
 **성공 조건**
 
 - ✅ vitest(테마 저장소): 한 파일 모드가 같은 데이터에 목록 모드와 똑같은 toml을 쓰고(라이선스가 있는 곳만 다르다 — 머리 주석의 두 줄과 끝의 전문), `index.json`·`NOTICE.md`·`themes/`를 건드리지 않는다. 잘못된 데이터(빠진 필수 키, 색이 아닌 값)는 파일을 쓰지 않고 실패한다 — 확인: `npm test`(2026-10-25, 41개).
-- ⬜ 앱의 파서: 그 견본 toml이 `SKIFF_THEMES_DIR` 테스트처럼 `ThemeToml`로 문제없이 읽힌다.
-- ⬜ 스킬: 목록에 없는 테마 둘로 `/theme-convert`를 끝까지 돌린다 — VS Code 원본 하나, Neovim 원본 하나(어느 것으로 할지 그때 사용자에게 묻는다). 한 번 돌릴 때마다 저장소에서 바뀐 것은 `user-themes/`의 새 파일 하나뿐이고(커밋되지 않음), 머리 주석에 원본·커밋·라이선스가 있다. `system`/`light`/`dark`와 겹치는 이름을 주면 다른 이름을 제안한다.
+- ✅ 앱의 파서: 그 견본 toml이 `SKIFF_THEMES_DIR` 테스트처럼 `ThemeToml`로 문제없이 읽힌다 — 확인: `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`(2026-10-25, "read 45 themes and 2 in user-themes", JVM 353 건너뜀 0).
+- ✅ 스킬: 목록에 없는 테마 둘로 `/theme-convert`를 끝까지 돌린다 — VS Code 원본 하나, Neovim 원본 하나(어느 것으로 할지 그때 사용자에게 묻는다). 한 번 돌릴 때마다 저장소에서 바뀐 것은 `user-themes/`의 새 파일 하나뿐이고(커밋되지 않음), 머리 주석에 원본·커밋·라이선스가 있다. `system`/`light`/`dark`와 겹치는 이름을 주면 다른 이름을 제안한다 — 확인(2026-10-25, 테마 저장소에서 연 세션): Nord(`nordtheme/visual-studio-code`, MIT)와 Nightfox의 Dawnfox(`EdenEast/nightfox.nvim`, MIT, Neovim 0.12.4)를 사용자가 골랐다. 두 번 다 `git status --short`가 비어 있는 그대로였다(`--ignored`로 `user-themes/`뿐). "Light"를 주자 `Light (Dawnfox)`를 제안해 사용자가 골랐고, 스크립트도 `--out user-themes/Light.toml`을 쓰지 않고 거부한다.
 - ⬜ 탭, 사용자 확인: 그 두 파일을 `Import Theme`으로 들이면 경고 배너 없이 들어오고, 견본을 찍은 화면을 사용자가 원본과 견주어 보고 괜찮다고 한다. 확인용으로는 adb로 탭의 `Download/`에 넣어 들인다.
-- ⬜ 스킬의 프런트매터에 `disable-model-invocation: true`가 있고, 스킬 목록에 명령으로 보인다.
+- ✅ 스킬의 프런트매터에 `disable-model-invocation: true`가 있고, 스킬 목록에 명령으로 보인다 — 확인(2026-10-25): 모델이 부를 수 있는 목록에는 없고, 사용자가 `/theme-convert <URL> [변형]`으로 두 번 불러 돌았다.
 
 - [x] 생성 스크립트의 한 파일 모드
   - 테마 저장소에서 `npm run themes -- --one <데이터> --out <경로>`. 목록 모드와 같은 함수로 toml을 쓰고, 목록·NOTICE는 쓰지 않는다. 필수 키가 빠졌거나 색이 아니면 쓰지 않고 실패한다. 대비 표는 같이 낸다.
@@ -146,6 +146,7 @@ M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-
   - 한 것: `SKILL.md`(영어, 앱의 commit 스킬처럼). 프런트매터는 `disable-model-invocation: true`와 `argument-hint`. 단계는 원본 고르기(③ helix·zed는 읽는 스크립트가 없어 사용자가 동의할 때만 손으로) → 라이선스(없거나 허용 라이선스가 아니면 막지 않고 보고에) → scratchpad의 묶음 데이터(테마 하나, `vesper.json`을 예로) → 이름(`nameOf`, 예약어면 다른 이름 제안, 이미 있는 파일은 물음, 목록 id와 같으면 알림) → 한 파일 모드(4.5:1 미만은 사용자에게 묻고 `lowContrast`) → `git status` 확인 → 보고. spec은 앱의 `main`에 아직 없어서 GitHub 주소 대신 "옆에 있는 Skiff Code 체크아웃의 `docs/skiffcode.spec/community-themes.md`"를 읽게 했다. `.gitignore`의 `user-themes/`는 M13 때 이미 있었다. 테마 저장소 `AGENTS.md`에 명령 한 줄과 "One theme for one person" 절.
 - [ ] 확인: 두 테마로 끝까지, 탭에 들이기
   - 성공 조건의 스킬·탭 항목. 고를 테마는 사용자에게 묻는다(후보: VS Code 원본 Nord, Neovim 원본 Nightfox).
+  - 한 것(탭만 남음): 테마 저장소의 `user-themes/Nord.toml`(`8ead098`, `themes/nord-color-theme.json`)과 `user-themes/Light (Dawnfox).toml`(`4dacd3f`, `:colorscheme dawnfox`, `background=light`). 스크립트는 경고 없이 썼다. 3:1 아래 문법 색은 Nord의 주석(2.4)과 Dawnfox의 주석(2.7)·타입(2.1)·숫자(2.6)이고, 원본 그대로라 보고만 한다. Nord는 원본의 `focusBorder` `#3b4252`가 그대로 `ui.accent`가 되어 강조가 거의 안 보일 수 있고, `editorGroup.border`는 `#3b425201`(알파 `01`)이라 사실상 보이지 않는다 — 탭에서 견줄 때 볼 곳이다. `code/build.gradle.kts`의 테스트 입력에 `user-themes/*.toml`이 빠져 있어, 새 파일을 만들어도 테스트가 up to date로 건너뛰었다. 이것을 입력에 더했다.
 
 ## 아직 확인하지 않은 것
 
