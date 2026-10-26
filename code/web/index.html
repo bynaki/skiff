@@ -204,6 +204,12 @@
     }
     #sidebar header button { width: 40px; height: 40px; padding: 8px; color: var(--ui-foreground); background: none; border: 0; }
     #sidebar header svg { display: block; width: 22px; height: 22px; }
+    /* The two tabs beside ① (outline.md): the one on show is filled in, an outline with nothing to
+       show is faded and does not answer. */
+    #sidebar header .tabs { display: flex; gap: 4px; margin-left: 8px; }
+    #sidebar header .tabs button { border-radius: 6px; color: var(--ui-muted); }
+    #sidebar header .tabs button.on { color: var(--ui-foreground); background: var(--ui-subtle); }
+    #sidebar header .tabs button:disabled { opacity: 0.35; }
     #sidebar .empty { margin: 0; padding: 16px; color: var(--ui-muted); font-size: 14px; }
     /* overscroll-behavior so a drag past the end stays in the tree rather than moving the document
        behind. Lines are not selectable: holding a project down asks to remove it, and a selection
@@ -235,6 +241,19 @@
       padding: 6px 12px 6px calc(26px + var(--depth) * 16px); color: var(--ui-muted); font-size: 13px;
       overflow-wrap: anywhere;
     }
+    /* The outline of the file on the screen: one line per heading, indented a tree step per level,
+       the one the top of the screen is in marked like the tree's current file. */
+    #sidebar .outline {
+      flex: 1; min-height: 0; margin: 0; padding: 4px 0 16px; list-style: none; overflow: auto;
+      overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    }
+    #sidebar .outline button {
+      width: 100%; display: block; box-sizing: border-box; padding: 7px 12px 7px calc(12px + var(--depth) * 16px);
+      color: inherit; font: inherit; font-size: 14px; text-align: left; background: none; border: 0;
+    }
+    #sidebar .outline .name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sidebar .outline li.current { background: var(--ui-subtle); }
+    #sidebar .outline .note { padding: 6px 12px; color: var(--ui-muted); font-size: 13px; }
     /* The files that are open, dropped down from behind the menu when the file's name is tapped.
        Under the menu (z-index 10) so it comes out from behind it, and closed it waits above the
        screen by its own height and the menu's too: the menu slides away with the scroll, and a menu

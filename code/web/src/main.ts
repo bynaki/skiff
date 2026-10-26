@@ -125,6 +125,14 @@ const sidebar = createSidebar({
   changes: (project) => rpc<{ changes: Change[] | null }>('projectChanges', { project }).then((answer) => answer.changes),
   open: (project, path) => void rpc('openFromProject', { project, path }).catch((error) => console.log(`openFromProject: ${error}`)),
   remove: (project) => void rpc('removeProject', { project }).catch((error) => console.log(`removeProject: ${error}`)),
+  // The outline tab reads the buffer as it is, typed in or not. A file Kotlin refused has no pane, and so no outline.
+  showing: () => {
+    const name = openList.find((file) => file.id === activeId)?.name
+    if (activeId === null || !pane || !name) return null
+    return { file: { id: String(activeId), name, text: pane.text }, layer: pane.layer }
+  },
+  topLine: () => pane?.topLine() ?? 1,
+  goTo: (line) => moveTo(line),
 })
 
 const openFiles = createOpenFiles({
