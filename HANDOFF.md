@@ -14,21 +14,30 @@
 
 ---
 
-## 마지막 세션 (2026-10-25)
+## 마지막 세션 (2026-10-26)
 
 ### 지금 상태
-- **M14 `/theme-convert`를 닫고 `plan.done.md`로 옮겼다.** 테마 저장소에서 연 세션이 Nord(VS Code 원본)와 Dawnfox(Neovim
-  원본, 이름 `Light (Dawnfox)`)를 끝까지 돌렸고, 이 저장소의 `SKIFF_THEMES_DIR` 테스트로 두 파일을 읽었으며, 탭에서
-  `Import Theme`으로 들여 견본을 찍었다. 사용자가 견본을 보고 괜찮다고 했다. 탭은 되돌렸다(받은 두 테마와 `Download/`의
-  두 파일을 지우고 `settings.toml`을 md5로). 두 파일은 테마 저장소의 `user-themes/`에 남아 있다(커밋되지 않음).
-- 탭 확인 중에 찾은 diff 레이어 버그를 고쳤다(`layers/pane.ts`의 `compareStep`, 자세한 것은 `plan.done.md`의 M14).
-  새 빌드를 탭에 깔아 두 재현 순서로 확인했다. web 230, JVM 353, lint 경고 11(그대로).
-- `code/build.gradle.kts`: 테스트 입력에 `user-themes/*.toml`을 더했다(앞 커밋 `fd35e84`).
-- 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로 돌렸다.
-- 한 파일 모드의 라이선스 전문은 **파일 끝에 주석으로** 붙이는 것으로 사용자가 정했다(2026-10-25, spec에 적음).
-- **M13도 닫아 옮겼다.** plan의 성공 조건 셋(탭, 견본 모음, 폴드8 커버)이 spec과 달리 ⬜로 남아 있던 것을, 확인 항목의 기록과
-  사용자의 마무리 결정(2026-10-25)을 가리켜 ✅로 고쳤다(사용자 확인). 이제 plan의 "할 일"은 비어 있다.
+- **M15 "사이드바 트리에서 바뀐 파일 강조"를 끝내고 `plan.done.md`로 옮겼다.** 성공 조건 여섯 개가 모두 ✅다. 탭(라이트·다크·
+  `tokyonight-night`)과 폴드8 커버 화면은 사용자가 스크린샷을 보고 괜찮다고 했다. plan의 "할 일"은 다시 비어 있다.
+  - 앱: `GitService.status()`(`--no-optional-locks`), `ProjectSession.changes`, 브리지 `projectChanges`, `tree.ts`의 색 표시를
+    만들었다. 테마 키 `ui.git_modified`·`ui.git_untracked`를 더하고 `ThemeCatalog.FORMAT`을 2로 올렸다.
+  - 테마 저장소(`~/projects/skiffcode-themes`): 원본 17개를 기록된 커밋에서 다시 읽어 두 키를 넣었다(Neovim 원본은 사용자가 플러그인
+    코드 실행을 허락). `FORMAT`은 2다. Nord와 Nightfox 7개를 목록에 더해 53개가 됐다(사용자 요청). `user-themes/`의 두 파일은
+    사용자 요청으로 지웠다. `/theme-convert` 스킬과 그 저장소의 `AGENTS.md`도 고쳤다.
+  - `AGENTS.md`("Themes live outside the app too")에 테마 키를 바꿀 때 테마 저장소와 스킬에서 볼 것을 더했다.
+- **테마 저장소는 push하면 안 된다. 먼저 `FORMAT` 2를 아는 앱이 릴리스돼야 한다.** 그 전에 push하면 깔려 있는 앱이 목록을 못 읽는다.
+  push는 그때 사용자에게 묻는다.
+- 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로
+  돌렸다. npm은 `~/.local/share/fnm/aliases/default/bin`을 PATH에 더해 썼다.
+- 탭과 폴드8이 둘 다 adb에 붙어 있으면 `-s <serial>` 없이 부른 adb는 "more than one device"로 실패한다. 탭의 화면은 밀어서
+  열리지만 폴드8은 PIN이 있어 사용자가 풀어야 한다.
+
+### 정리가 덜 된 것
+- **폴드8에 확인용 프로젝트 `skiff-m15-sample`이 남아 있다.** 폴드8이 PIN으로 잠겨 지우지 못했다. 잠금이 풀리면 사이드바에서
+  프로젝트 줄을 길게 눌러 지운다. 그다음 이 맥의 홈 아래 확인용 저장소 `skiff-m15-sample`을 지운다. 탭은 이미 되돌렸다(프로젝트
+  지움, `settings.toml` md5 같음, 넣은 테마 파일 지움).
 
 ### 다음 세션이 할 일
-1. plan의 "할 일"이 비어 있다. 다음 마일스톤은 사용자에게 묻는다(원래 요구사항은 `docs/my.next.spec.md`, 남은 확인은 plan의
-   "아직 확인하지 않은 것"). 커밋도 푸시도 사용자가 말할 때만 한다.
+1. 위의 폴드8 정리.
+2. 다음 마일스톤은 사용자에게 묻는다(원래 요구사항은 `docs/my.next.spec.md`, 남은 확인은 plan의 "아직 확인하지 않은 것",
+   M15에서 생긴 대비 문제는 plan의 "알려진 문제" 마지막 항목). 커밋도 푸시도 사용자가 말할 때만 한다.
