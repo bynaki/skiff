@@ -13,7 +13,10 @@
 ## 무엇을 모으나
 
 - **요구사항의 15개 저장소의 모든 변형이다**(2026-10-22 사용자 결정). 대비 단계(hard·medium·soft)도 각각 하나의 테마다. 이탤릭을
-  끈 변형(winteriscoming의 `no-italics`)은 넣지 않는다 — Skiff 테마에 글꼴 모양 키가 없어 색이 같은 두 벌이 된다. 합쳐 **45개**다.
+  끈 변형(winteriscoming의 `no-italics`)은 넣지 않는다 — Skiff 테마에 글꼴 모양 키가 없어 색이 같은 두 벌이 된다. 합쳐 **45개**였다.
+  **M15에서 Nord와 Nightfox의 모든 변형을 더해 17개 저장소, 53개가 됐다**(2026-10-26 사용자 요청). 둘은 M14에서 `/theme-convert`로
+  `user-themes/`에 만들어 확인했던 것이고, 같은 커밋에서 읽어 목록에 넣었다. 그때의 두 파일은 지웠다. Nord와 Dawnfox는 그 파일들과
+  색이 같다. Dawnfox는 그때 `background=light`를 주고 읽었는데, 주지 않고 읽어도 같았다.
 
   | 묶음 | 저장소 | 라이선스 | 변형(id) | 개수 |
   |---|---|---|---|---|
@@ -32,6 +35,8 @@
   | Flexoki | `kepano/flexoki` | MIT | `flexoki-dark`, `-light` | 2 |
   | Vesper | `raunofreiberg/vesper` | MIT | `vesper` | 1 |
   | Ayu | `ayu-theme/ayu-colors`(읽은 곳은 `ayu-theme/vscode-ayu`) | MIT | `ayu-light`, `-mirage`, `-dark` | 3 |
+  | Nord | `nordtheme/nord`(읽은 곳은 `nordtheme/visual-studio-code`) | MIT | `nord` | 1 |
+  | Nightfox | `EdenEast/nightfox.nvim` | MIT | `nightfox`, `dayfox`, `dawnfox`, `duskfox`, `nordfox`, `terafox`, `carbonfox` | 7 |
 
   라이선스는 2026-10-22에 GitHub API로 봤다. 변형 이름은 저장소가 부르는 이름을 따랐다.
   `cyberdream-muted`는 구현 때 저장소에서 찾은 세 번째 변형이다(`colors/cyberdream-muted.lua`, README의 `variant = "muted"`).
@@ -59,7 +64,7 @@
   LICENSE              저장소의 스크립트(MIT). 테마 파일은 각 원본의 라이선스를 따른다고 README와 NOTICE.md에 적는다
   NOTICE.md            묶음마다 원본·커밋·라이선스 전문
   index.json           앱이 받는 목록
-  themes/<id>.toml     45개
+  themes/<id>.toml     53개(M15 전에는 45개)
   scripts/             generate.ts, vscode.ts, neovim.ts, data/<묶음>.json
   test/themes.test.ts
   reference/light.toml 앱의 번들 light.toml 사본: 키 목록과 차례의 기준
@@ -269,6 +274,11 @@ M13의 변환 방법을 다른 테마에도 쓰게 스킬로 만든다(2026-10-2
   64자)에 맞추고, `system`/`light`/`dark`와 겹치면 다른 이름을 제안한다(가져오기에서 거부되므로). 저장소 목록의 id와 겹치면 알린다
   (나중에 그것을 받으면 덮어쓸지 묻게 된다).
 - **라이선스:** 개인이 들여 쓰는 것이라 막지 않지만, 라이선스가 없거나 MIT·Apache 같은 허용 라이선스가 아니면 결과와 함께 알린다.
+- **보고에 더한 두 가지**(M15, 2026-10-26):
+  - 대비 표에서 사이드바의 `git_modified`/`git_untracked`가 `ui.background`에 대고 4.5:1 아래면 짚는다. 원본 색이라 고치지는 않는다.
+  - 그 파일을 들일 수 있는 앱을 말한다. `Import Theme`은 파일 하나를 받을 때 `format`을 거치지 않는다. 그래서 키를 모르는 예전 앱에
+    들이면 모르는 키로 보고 테마 전체를 번들 색으로 그린다.
+- **대응표는 키를 모두 덮는 체크아웃에서 읽는다.** 키가 바뀐 뒤 앱이 릴리스되기 전까지는 `main`의 대응표에 새 키의 줄이 없다.
 - **테마 저장소의 `user-themes/`(`.gitignore`에 든다)에 `<이름>.toml`을 만드는 것까지다**(2026-10-22 사용자 결정의 "레포의
   `user-themes/`"를 테마 저장소로). 공개 저장소라 커밋되지 않게 한다. 기기로 건네는 것은 스킬의 일이 아니다.
 

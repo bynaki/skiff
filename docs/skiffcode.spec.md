@@ -34,7 +34,7 @@
 | [`margins.md`](skiffcode.spec/margins.md) | — | 문서 여백과 scrolloff: 세 코드 레이어에 아래 N줄(scrolloff)과, 줄바꿈이 꺼졌을 때 오른쪽 N글자(sidescrolloff), 마크다운 viewer는 예외 |
 | [`nav-bar.md`](skiffcode.spec/nav-bar.md) | — | 오른쪽 가는 막대: 문서 전체의 git 변경과 LSP 진단, 보이는 구간 상자, 터치 없음, 마크다운 viewer는 예외, `nav_bar` 기본 끔 |
 | [`settings-theme.md`](skiffcode.spec/settings-theme.md) | 설정과 테마 | `settings.toml`의 키와 잘못된 값, 테마 고르기·가져오기·복사·편집·지우기 |
-| [`community-themes.md`](skiffcode.spec/community-themes.md) | — | 커뮤니티 테마 45개(15개 저장소의 모든 변형)를 모은 공개 저장소 `bynaki/skiffcode-themes`와 앱의 `Download Theme...` 받기, 원본 배치를 따르는 대응표와 생성 스크립트, 라이선스, 팔레트의 `Theme...` 목록, 다른 테마를 가져올 toml로 바꾸는 `/theme-convert` 스킬 |
+| [`community-themes.md`](skiffcode.spec/community-themes.md) | — | 커뮤니티 테마 53개(17개 저장소의 모든 변형, M15에서 Nord·Nightfox를 더함)를 모은 공개 저장소 `bynaki/skiffcode-themes`와 앱의 `Download Theme...` 받기, 원본 배치를 따르는 대응표와 생성 스크립트, 라이선스, 팔레트의 `Theme...` 목록, 다른 테마를 가져올 toml로 바꾸는 `/theme-convert` 스킬 |
 | [`git.md`](skiffcode.spec/git.md) | git과 LSP(앞쪽) | `RemoteExec`, `GitService`, git 거터와 기준을 다시 묻는 때 |
 | [`lsp.md`](skiffcode.spec/lsp.md) | git과 LSP(뒤쪽) | `LspProcess`, `LspManager`, 다시 띄우기, 페이지 쪽 LSP, 두 번 탭 hover, 정의로 이동 |
 | [`security.md`](skiffcode.spec/security.md) | 보안 규칙 | 브리지, 원격 내용 렌더링과 sanitize, exec, ProfileProvider — 커밋 전 두 번째 읽기 대상 |

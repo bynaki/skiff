@@ -51,7 +51,12 @@
 - ✅ JVM: `GitService.status()`가 실제 git(MINA)에서 수정(작업 트리, 스테이징), 새 파일(추적 안 함, 스테이징한 추가, 이름 바꾼 새 경로), 추적 안 하는 폴더(`dir/`), 충돌을 가른다. 공백·한글·줄바꿈이 든 이름을 그대로 돌려준다. 돌린 뒤 `.git/index`가 바이트까지 같다. exec가 안 되거나 git이 없는 프로젝트는 예외 없이 "없음"이다 — 확인: `GitServiceTest`, `GitChangeTest`. 브리지가 부르는 `ProjectSession.changes`는 `ProjectChangesTest`로 확인했다(2026-10-26, JVM 369, 건너뜀 1 — `SKIFF_THEMES_DIR` 테스트).
 - ✅ vitest `tree.test.ts`: 파일 줄은 자기 상태를 받는다. 폴더 줄은 아래에 수정이 하나라도 있으면 수정, 새 파일만 있으면 새 파일이다. 추적 안 하는 폴더 아래는 전부 새 파일이다. 루트가 접힌 프로젝트는 묻지 않는다. 다시 묻는 동안은 전 색을 둔다. 답이 "없음"이거나 실패면 색이 없다 — 확인: vitest `tree.test.ts` +6(2026-10-26, web 236).
 - ✅ 테마: 두 키가 `ThemeToml.KEYS`, 번들 `light.toml`·`dark.toml`, 페이지의 CSS 변수, `settings-theme.md`에 있다. 두 키가 없는 예전 파일은 문제 없이 번들 값을 받는다 — 확인: `ThemeTomlTest`, vitest `theme.test.ts`(2026-10-26, JVM 370).
-- ⬜ 테마 저장소: 45개와 `user-themes/` 둘에 두 키가 있다. `FORMAT`이 2다. 저장소 `npm test`가 통과한다. 이 저장소에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`이 45+2개를 문제없이 읽는다. 대비 표가 두 키를 `ui.background`에 대고 재고, 4.5:1 아래인 테마는 보고한다. `/theme-convert`가 고쳐져 있고(위 세 가지), `user-themes/`의 두 파일을 그 스킬로 다시 만들었을 때 보고에 두 키의 대비와 앱 버전 경고가 나온다.
+- ✅ 테마 저장소: 45개와 `user-themes/` 둘에 두 키가 있다. `FORMAT`이 2다. 저장소 `npm test`가 통과한다. 이 저장소에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`이 45+2개를 문제없이 읽는다. 대비 표가 두 키를 `ui.background`에 대고 재고, 4.5:1 아래인 테마는 보고한다. `/theme-convert`가 고쳐져 있고(위 세 가지), `user-themes/`의 두 파일을 그 스킬로 다시 만들었을 때 보고에 두 키의 대비와 앱 버전 경고가 나온다.
+  - 사용자가 바꾼 것(2026-10-26): `user-themes/`의 두 파일을 다시 만들지 않는다. 대신 Nord와 Nightfox 전 변형을 목록에 넣고, 두 파일은 지운다. 그래서 확인한 것은 이렇다(2026-10-26).
+    - 목록 53개에 두 키가 있고 `FORMAT`이 2다. 저장소 vitest 43이 통과한다.
+    - `SKIFF_THEMES_DIR` 테스트가 "read 53 themes and 0 in user-themes"이고, JVM 370은 건너뜀 0이다.
+    - 대비 표가 두 키를 `ui.background`에 대고 잰다. 4.5:1 아래인 테마는 아래 항목에 적었다.
+    - 스킬은 고쳤지만 이번에 돌리지는 않았다. 보고에 두 키의 대비와 앱 버전 경고가 나오는지는 다음에 스킬을 쓸 때 보게 된다.
 - ⬜ 탭, 사용자 확인: 이 맥의 원격 로그인으로 연 프로젝트에서 수정한 파일, 새 파일, 둘을 품은 접힌 폴더가 두 색으로 보인다. 파일을 저장하고 사이드바를 다시 열면 색이 따라 바뀐다. 라이트, 다크, 커뮤니티 테마 하나에서 사용자가 보고 읽힌다고 한다.
 - ⬜ 폴드8 커버 화면에서 같은 트리가 색과 함께 읽힌다(사용자 확인).
 
@@ -82,11 +87,35 @@
   - 대비(재 봤다): 사이드바 배경에서 라이트 4.87·5.08, 다크 6.86·6.82다. **지금 파일 줄의 배경(`ui.subtle`) 위에서는 라이트가 4.30·4.49로 4.5에 조금 못 미친다**(다크 5.56·5.53). 정한 값을 그대로 두고 사용자에게 알렸다.
   - 테스트: vitest `tree.test.ts` +6(web 236), `ThemeTomlTest` +1(JVM 370, 건너뜀 1), `npm run build`(tsc) 통과, lint 경고 11(그대로).
   - **`SKIFF_THEMES_DIR`를 주면 `ThemeTomlTest`가 테마 저장소의 파일에서 깨진다.** 그 파일들에는 아직 두 키가 없다. 다음 항목에서 다시 만들면 풀린다.
-- [ ] 테마 저장소: 두 키로 다시 만들기
+- [x] 테마 저장소: 두 키로 다시 만들기
   - 위 "테마 키 제안"의 테마 저장소, 대비 표, `/theme-convert` 줄대로 한다. Neovim 그룹이 덤프에 있는지 보고 `SOURCES`를 확정한다. 대비 표를 사용자에게 보인다.
   - 스킬을 고친 뒤 그 스킬로 `user-themes/`의 두 파일을 다시 만든다. 스킬은 `disable-model-invocation`이라 사용자가 `/theme-convert`로 부른다. 테마 저장소에서 연 세션에서 부를 수도 있다.
   - 테마 저장소의 `AGENTS.md`에 두 키와 `FORMAT` 2를 적는다. 스킬 한 줄이 가리키는 것이 바뀌었으면 그것도 고친다.
   - 두 저장소가 함께 바뀐다. 앱 → 테마 저장소 → 이 저장소의 `SKIFF_THEMES_DIR` 테스트 순서다. 테마 저장소의 커밋과 push는 각각 사용자에게 묻는다. push는 앱 릴리스 뒤에 한다.
+  - 한 것(2026-10-26, 테마 저장소에서 커밋하지 않음):
+    - 스크립트: `reference/light.toml`을 다시 옮기고, `FALLBACK`(`diff.changed`/`diff.added`), 두 읽기 스크립트의 `SOURCES`, `FORMAT = 2`를 고쳤다.
+    - `vscode.ts`의 `DEFAULTS`: 두 색의 기본값은 VS Code 코어의 `registerColor`가 아니라 내장 git 확장의 `package.json`에 있다. 같은 커밋(`3a12a6ee`)에서 읽었다. 수정은 `#895503`/`#e2c08d`, 새 파일은 `#007100`/`#73c991`이다.
+    - `generate.ts`: 두 키는 불투명하지 않으면 `ui.background` 위에 섞는다. 대비 표는 두 키를 `ui.background`에 대고 잰다.
+    - 원본 다시 읽기: 데이터 파일이 적은 커밋에서 15개 원본을 scratchpad로 받았다. **VS Code 원본 18개 테마**(Ayu, Catppuccin, Dracula/Alucard, Flexoki, Rosé Pine, Vesper, Winter is Coming)만 다시 읽어 두 키를 데이터에 넣었다. 다시 읽은 다른 색은 모두 기록과 같았다(같은 읽기라는 확인). Alucard는 `dracula.json`에 이미 적힌 짝대로 바꿨다(`#8be9fd → #036a96`, `#50fa7b → #14710a`). Flexoki와 Vesper는 원본에 없어 VS Code 기본값을 받았다.
+    - 테마 저장소 `AGENTS.md`의 키 규칙에 다시 읽기, 대비 표, 스킬 점검, `FORMAT` 2를 더했다. 스킬의 보고에 두 키의 대비와 앱 버전 경고를 넣고, 대응표를 읽는 체크아웃 조건을 넣었다. `community-themes.md`의 스킬 절에도 적었다.
+    - 테스트: 테마 저장소 vitest 43(+2: 폴백·섞기, `ui.background` 대비). `SKIFF_THEMES_DIR` 테스트는 목록의 45개를 통과했다. `user-themes/`의 두 예전 파일에는 키가 없어서 그 둘에서 실패한다.
+    - **Neovim 원본 27개 테마**는 사용자가 플러그인 코드 실행을 허락해(2026-10-26) 같은 커밋에서 Neovim v0.12.4로 다시 읽었다. 다른 색은 모두 기록과 같았다. 읽기 스크립트가 XDG 폴더를 임시 폴더로 돌리므로, kanagawa-paper가 쓴 캐시도 거기에 갔다가 지워졌다. 찾은 그룹은 다음과 같다.
+      - nvim-tree 그룹: Kanagawa, Kanagawa Paper, Tokyo Night.
+      - neo-tree 그룹: Everforest. **새 파일이 `Fg`로 이어져 보통 글자와 같은 색이다** — 원본이 새 파일을 칠하지 않는다.
+      - Vague: 새 파일만 있다(`#d8647e`). 수정은 폴백이다.
+      - Cyberdream, Gruvbox, Oxocarbon: 그룹이 없어 둘 다 폴백(diff 색)이다.
+    - 대비 표에서 두 키 가운데 하나라도 4.5:1 아래인 것(원본 색이라 보고만 한다):
+      - VS Code 원본: ayu-light(3.4/2.2), catppuccin-latte(2.2/2.7), alucard(3.7/3.8), rose-pine-dawn(2.6/2.1), winter-is-coming-light(새 파일 3.3).
+      - Neovim 원본: cyberdream-light(3.2/4.5), everforest-dark-medium·soft, everforest-light 셋, gruvbox-light 셋, kanagawa-paper-ink·canvas, kanagawa-lotus(1.5/2.2), oxocarbon-light(3.2/2.2), tokyonight-night·storm·day.
+    - 테마 저장소 vitest 43. `SKIFF_THEMES_DIR` 테스트는 목록의 45개를 통과하고, `user-themes/`의 두 예전 파일에서만 실패한다.
+  - Nord와 Nightfox(2026-10-26 사용자 요청): `/theme-convert`로 다시 만드는 대신 목록에 넣었다.
+    - M14와 같은 커밋(Nord `8ead098`, Nightfox `4dacd3f`)에서 읽어 `scripts/data/nord.json`(1개)과 `nightfox.json`(7개)을 만들었다.
+    - Nightfox 7개는 모두 nvim-tree의 git 그룹이 있다. Nord는 원본의 `gitDecoration` 색을 받았다.
+    - Nord와 Dawnfox는 M14의 `user-themes/` 파일과 두 키 말고는 색이 같다.
+    - README에 두 절을 더하고 "53 themes from 17 projects"로 고쳤다. `community-themes.md`의 표와 개수, 목차도 고쳤다.
+    - `user-themes/`의 두 파일은 지웠다. 폴더는 스킬의 자리라 남겼다.
+    - 대비 4.5:1 아래: dayfox(수정 3.8), dawnfox(1.8/3.2).
+  - 테마 저장소는 아직 커밋하지 않았다. 커밋과, 앱 릴리스 뒤의 push는 사용자에게 묻는다.
 - [ ] 확인: 탭과 폴드8
   - 성공 조건의 탭·폴드8 항목. 프로젝트는 이 맥의 원격 로그인으로 연다. 비밀번호 입력은 사용자가 한다. 서버 쪽 변경(파일 수정, 새 파일, 추적 안 하는 폴더)은 확인용 저장소에서 만들고 끝나면 되돌린다. 커뮤니티 테마 하나를 받아 확인했으면 지우고, `settings.toml`은 md5로 되돌린다.
 
