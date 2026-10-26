@@ -31,6 +31,7 @@
 | [`reset-data.md`](skiffcode.spec/reset-data.md) | 데이터 초기화 | 팔레트의 `Reset Data…` 체크리스트 |
 | [`jumps.md`](skiffcode.spec/jumps.md) | 전 화면, 앞 화면 (점프 목록) | 점프 목록, 시스템 뒤로 가기 제스처의 가장자리, 적는 때 |
 | [`markdown-links.md`](skiffcode.spec/markdown-links.md) | — | 렌더된 마크다운의 링크: 상대 경로는 묻지 않고 열기, `#제목`, https `.md`는 읽기 전용 웹 문서, GitHub blob → raw |
+| [`outline.md`](skiffcode.spec/outline.md) | — | 사이드바 개요 탭: 머리의 두 번째 탭, 마지막에 보던 탭 기억, 공급원과 목록을 나눈 모양, 지금은 마크다운 목차(viewer·editor, lezer 제목, 수준별 들여쓰기, 화면 맨 위 줄로 고르는 지금 위치, 누르면 그 줄로 가고 점프 목록에 적음), 나중의 소스 코드 심볼 자리 |
 | [`margins.md`](skiffcode.spec/margins.md) | — | 문서 여백과 scrolloff: 세 코드 레이어에 아래 N줄(scrolloff)과, 줄바꿈이 꺼졌을 때 오른쪽 N글자(sidescrolloff), 마크다운 viewer는 예외 |
 | [`nav-bar.md`](skiffcode.spec/nav-bar.md) | — | 오른쪽 가는 막대: 문서 전체의 git 변경과 LSP 진단, 보이는 구간 상자, 터치 없음, 마크다운 viewer는 예외, `nav_bar` 기본 끔 |
 | [`settings-theme.md`](skiffcode.spec/settings-theme.md) | 설정과 테마 | `settings.toml`의 키와 잘못된 값, 테마 고르기·가져오기·복사·편집·지우기 |
