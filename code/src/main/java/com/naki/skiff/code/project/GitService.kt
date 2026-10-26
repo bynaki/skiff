@@ -90,6 +90,17 @@ class GitService(
     suspend fun files(): List<String> =
         git("ls-files", "-co", "--exclude-standard", "-z").decodeToString().split('\u0000').filter { it.isNotEmpty() }
 
+    /**
+     * What the working tree has that HEAD does not, for the sidebar's colors
+     * (docs/skiffcode.spec/git.md). Not kept, like [files]. Without `--no-optional-locks`, `status`
+     * refreshes the index's stat data when it can — a write, holding `index.lock` against whatever
+     * git the user runs on the server at the same moment. `-unormal` is said rather than left to the
+     * user's `status.showUntrackedFiles`: it lists a folder git does not track as one line, not
+     * every file in it.
+     */
+    suspend fun status(): List<GitChange> =
+        GitChange.parse(git("--no-optional-locks", "status", "--porcelain=v1", "-z", "-unormal").decodeToString())
+
     /** Stops the running `cat-file`. Writes to the socket, so not on the main thread. */
     fun close() {
         scope.cancel()
@@ -254,6 +265,57 @@ private suspend fun GitService.textAt(commit: String, path: String, format: Text
         null
     } ?: return null
     return loader.decodeLike(bytes, format)
+}
+
+/**
+ * A path in the working tree that is not as HEAD has it, relative to the repository's top. A
+ * [directory] is a folder git does not track at all, everything under it with it.
+ */
+data class GitChange(val path: String, val kind: Kind, val directory: Boolean = false) {
+
+    enum class Kind {
+        /** HEAD has the path, and it changed: in the working tree, in the index, or in a conflict. */
+        Modified,
+
+        /** HEAD does not have the path: untracked, added, or the new name of a rename or a copy. */
+        Untracked,
+    }
+
+    companion object {
+
+        /**
+         * `git status --porcelain=v1 -z`: one `XY path` per NUL, the path as it is, and after a
+         * rename's or a copy's the old path, which is not in the tree any more. A path that is not in
+         * the working tree is left out — the sidebar has no line for it.
+         */
+        fun parse(out: String): List<GitChange> {
+            val records = out.split('\u0000')
+            val changes = ArrayList<GitChange>()
+            var i = 0
+            while (i < records.size) {
+                val record = records[i++]
+                if (record.length < 4) continue
+                val x = record[0]
+                val y = record[1]
+                if (x == 'R' || x == 'C') i++
+                val kind = kindOf(x, y) ?: continue
+                val path = record.substring(3)
+                val directory = path.endsWith('/')
+                changes += GitChange(path.trimEnd('/'), kind, directory)
+            }
+            return changes
+        }
+
+        private fun kindOf(x: Char, y: Char): Kind? = when {
+            x == 'D' && y == 'D' -> null
+            // A conflict leaves its file in the tree, even one side's deletion (`UD`, `DU`).
+            x == 'U' || y == 'U' || (x == 'A' && y == 'A') -> Kind.Modified
+            y == 'D' || (x == 'D' && y == ' ') -> null
+            x == '?' || x in "ARC" || y in "ARC" -> Kind.Untracked
+            x == '!' -> null
+            else -> Kind.Modified
+        }
+    }
 }
 
 /** git ran and said no: [exitStatus] (null from `cat-file`, which answers in its output) and its words. */

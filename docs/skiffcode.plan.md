@@ -48,17 +48,26 @@
 
 **성공 조건**
 
-- ⬜ JVM: `GitService.status()`가 실제 git(MINA)에서 수정(작업 트리, 스테이징), 새 파일(추적 안 함, 스테이징한 추가, 이름 바꾼 새 경로), 추적 안 하는 폴더(`dir/`), 충돌을 가른다. 공백·한글·줄바꿈이 든 이름을 그대로 돌려준다. 돌린 뒤 `.git/index`가 바이트까지 같다. exec가 안 되거나 git이 없는 프로젝트는 예외 없이 "없음"이다 — 확인: `GitServiceTest`, 브리지 쪽은 `MainActivity`가 아니라 떼어 낸 함수의 테스트.
+- ✅ JVM: `GitService.status()`가 실제 git(MINA)에서 수정(작업 트리, 스테이징), 새 파일(추적 안 함, 스테이징한 추가, 이름 바꾼 새 경로), 추적 안 하는 폴더(`dir/`), 충돌을 가른다. 공백·한글·줄바꿈이 든 이름을 그대로 돌려준다. 돌린 뒤 `.git/index`가 바이트까지 같다. exec가 안 되거나 git이 없는 프로젝트는 예외 없이 "없음"이다 — 확인: `GitServiceTest`, `GitChangeTest`. 브리지가 부르는 `ProjectSession.changes`는 `ProjectChangesTest`로 확인했다(2026-10-26, JVM 369, 건너뜀 1 — `SKIFF_THEMES_DIR` 테스트).
 - ⬜ vitest `tree.test.ts`: 파일 줄은 자기 상태를 받는다. 폴더 줄은 아래에 수정이 하나라도 있으면 수정, 새 파일만 있으면 새 파일이다. 추적 안 하는 폴더 아래는 전부 새 파일이다. 루트가 접힌 프로젝트는 묻지 않는다. 다시 묻는 동안은 전 색을 둔다. 답이 "없음"이거나 실패면 색이 없다.
 - ⬜ 테마: 두 키가 `ThemeToml.KEYS`, 번들 `light.toml`·`dark.toml`, 페이지의 CSS 변수, `settings-theme.md`에 있다. 두 키가 없는 예전 파일은 문제 없이 번들 값을 받는다 — 확인: `ThemeTomlTest`, vitest `theme.test.ts`.
 - ⬜ 테마 저장소: 45개와 `user-themes/` 둘에 두 키가 있다. `FORMAT`이 2다. 저장소 `npm test`가 통과한다. 이 저장소에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`이 45+2개를 문제없이 읽는다. 대비 표가 두 키를 `ui.background`에 대고 재고, 4.5:1 아래인 테마는 보고한다. `/theme-convert`가 고쳐져 있고(위 세 가지), `user-themes/`의 두 파일을 그 스킬로 다시 만들었을 때 보고에 두 키의 대비와 앱 버전 경고가 나온다.
 - ⬜ 탭, 사용자 확인: 이 맥의 원격 로그인으로 연 프로젝트에서 수정한 파일, 새 파일, 둘을 품은 접힌 폴더가 두 색으로 보인다. 파일을 저장하고 사이드바를 다시 열면 색이 따라 바뀐다. 라이트, 다크, 커뮤니티 테마 하나에서 사용자가 보고 읽힌다고 한다.
 - ⬜ 폴드8 커버 화면에서 같은 트리가 색과 함께 읽힌다(사용자 확인).
 
-- [ ] `GitService.status()`와 브리지
+- [x] `GitService.status()`와 브리지
   - `git --no-optional-locks status --porcelain=v1 -z`를 `git()`로 돌린다. 캐시하지 않는다. 파서는 순수 함수로 떼어 낸다(`GitStatus.parse`). 상태 XY를 가르는 규칙은 `git.md`에 있다.
   - 브리지 `projectChanges(project)` → `{ changes: [{ path, kind: 'modified' | 'untracked', directory }] }`이다. git을 물을 수 없으면 `{ changes: null }`이다(`baseline`이 `GitService`를 얻는 길을 그대로 쓴다). 실패는 `logFailure`하고 `null`로 답한다. 트리에 이유를 쓰지 않는다. `CancellationException`은 다시 던진다.
   - 테스트: `GitServiceTest`에 위 성공 조건의 경우들(MINA + 실제 git)과 `.git/index` 바이트 비교를 넣는다. 파서 단위 테스트에는 NUL 구분, `R`의 두 경로, `dir/`, 충돌을 넣는다.
+  - 한 것: `GitService.status()`는 `git --no-optional-locks status --porcelain=v1 -z -unormal`이다. `-unormal`은 사용자의 `status.showUntrackedFiles` 설정에 맡기지 않으려고 넣었다. 파서는 `GitChange.parse`로 뗐다.
+    - 충돌 가운데 한쪽이 지운 것(`UD`, `DU`)도 파일이 트리에 남으므로 수정으로 친다. 버리는 충돌은 `DD`뿐이다. 이 순서를 `git.md`에 고쳐 적었다.
+    - "없음"으로 답하는 판단은 `ProjectSession.changes`로 뗐다. git이 없거나 exec가 안 되면 `null`이고, 실패하면 `failed`로 알린 뒤 `null`이다. 브리지 `projectChanges`가 이것을 부르고, 실패는 `Log.w`로 남긴다. 프로필이 지워진 프로젝트도 `null`이다.
+    - 이 맥에서 md5로 확인했다. 플래그 없는 `status`는 stat이 바뀐 파일이 있으면 `.git/index`를 다시 쓴다. 플래그를 붙이면 그대로다. 그래서 인덱스 바이트 비교 테스트가 실제로 잡는 것이 있다.
+  - 테스트:
+    - `GitServiceTest` +4: 수정, 새 파일, 이름 바꾸기, 추적 안 하는 폴더, 줄바꿈이 든 이름, 무시한 파일, 지운 파일을 한 저장소에서. 충돌. 인덱스 바이트. 첫 커밋 전. 저장소가 아닌 폴더에서 `status`도 `GitFailed`인지 더했다.
+    - `GitChangeTest` 8.
+    - `ProjectChangesTest` 4: 가짜 `git` 스크립트, 실패하는 git, git 없음, exec 안 됨.
+  - 결과: JVM 369(건너뜀 1), web 230, lint 경고 11(그대로).
 - [ ] 페이지의 색과 앱의 테마 키
   - `tree.ts`: `createTree`가 `changes(project)` 출처를 하나 더 받는다. `set`/`refresh`가 루트가 펼쳐진 프로젝트마다 묻는다. 답은 프로젝트마다 들고, 다시 묻는 동안은 전 것을 둔다. `file`·`directory` 줄에 `change?: 'modified' | 'untracked'`가 붙는다. 폴더의 상태는 경로 앞부분으로 얻는다(수정이 이긴다). `dir/` 아래는 모두 새 파일이다.
   - `chrome/sidebar.ts`: `li`에 `modified`/`untracked` 클래스를 단다. `index.html`에서 `.name`의 색을 `--ui-git-modified`/`--ui-git-untracked`로 칠한다. `current`의 배경은 그대로 겹친다.

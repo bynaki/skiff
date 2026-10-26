@@ -55,6 +55,7 @@ import com.naki.skiff.code.lsp.LspUri
 import com.naki.skiff.code.project.Project
 import com.naki.skiff.code.project.ProjectStore
 import com.naki.skiff.code.project.ProjectTree
+import com.naki.skiff.code.project.GitChange
 import com.naki.skiff.code.project.GitService
 import com.naki.skiff.code.project.headText
 import com.naki.skiff.code.project.previousText
@@ -331,6 +332,24 @@ class MainActivity : Activity() {
                 Log.w(TAG, "${project.name}/$path not listed", e)
                 JSONObject().put("failed", openFlow().describe(e))
             }
+        }
+        // What the project's working tree has that HEAD does not, for the tree's colors
+        // (docs/skiffcode.spec/top-menu.md). Null where git cannot be asked — no git, an account that
+        // runs no commands, or a failure, which is not the tree's to explain: it is drawn as before.
+        bridge.method("projectChanges") { params ->
+            val project = projectOf(params)
+            val profile = container.store.profiles.first().firstOrNull { it.id == project.profileId }
+            // Off the main thread: a profile that changed replaces its session, which disconnects the old one.
+            val session = profile?.let { withContext(Dispatchers.IO) { container.projectSessions.get(project, it) } }
+            val changes = session?.changes { Log.w(TAG, "no git status for ${project.name}", it) }
+            JSONObject().put("changes", changes?.let { list ->
+                JSONArray(list.map { change ->
+                    JSONObject()
+                        .put("path", change.path)
+                        .put("kind", if (change.kind == GitChange.Kind.Modified) "modified" else "untracked")
+                        .put("directory", change.directory)
+                })
+            } ?: JSONObject.NULL)
         }
         // A file tapped in a project's tree. Like the palette's file mode, the user picked it in this
         // app, so its path is not confirmed the way a link's is — and the page can name only a path

@@ -224,6 +224,76 @@ class GitServiceTest {
     }
 
     @Test
+    fun `status tells a changed path from one HEAD does not have`() = runBlocking {
+        write(".gitignore", "build/\n")
+        write("src/main.kt", "x\n")
+        write("src/staged.kt", "x\n")
+        write("old name.md", "x\n")
+        write("gone.txt", "x\n")
+        write("same.txt", "x\n")
+        commit("first")
+        write("src/main.kt", "edited\n")
+        write("src/staged.kt", "edited\n")
+        git("add", "src/staged.kt")
+        git("mv", "old name.md", "새 이름.md")
+        write("added.txt", "x\n")
+        git("add", "added.txt")
+        write("notes/a.md", "x\n")
+        write("notes/deeper/b.md", "x\n")
+        write("line\nbreak.txt", "x\n")
+        write("build/out.txt", "x\n")
+        File(repo, "gone.txt").delete()
+
+        assertEquals(
+            setOf(
+                GitChange("src/main.kt", GitChange.Kind.Modified),
+                GitChange("src/staged.kt", GitChange.Kind.Modified),
+                GitChange("새 이름.md", GitChange.Kind.Untracked),
+                GitChange("added.txt", GitChange.Kind.Untracked),
+                GitChange("notes", GitChange.Kind.Untracked, directory = true),
+                GitChange("line\nbreak.txt", GitChange.Kind.Untracked),
+            ),
+            service().status().toSet(),
+        )
+    }
+
+    @Test
+    fun `a conflict is a change`() = runBlocking {
+        write("a.txt", "base\n")
+        commit("base")
+        git("checkout", "-q", "-b", "other")
+        write("a.txt", "other\n")
+        commit("other")
+        git("checkout", "-q", "main")
+        write("a.txt", "main\n")
+        commit("main")
+        runCatching { git("merge", "-q", "other") }
+
+        assertEquals(listOf(GitChange("a.txt", GitChange.Kind.Modified)), service().status())
+    }
+
+    @Test
+    fun `status leaves the index as it was`() = runBlocking {
+        repeat(5) { write("f$it.txt", "x\n") }
+        commit("first")
+        // Same contents, newer stat data: what a plain `status` would write back into the index.
+        repeat(5) { File(repo, "f$it.txt").setLastModified(System.currentTimeMillis() + 60_000) }
+        val index = File(repo, ".git/index")
+        val before = index.readBytes()
+
+        assertEquals(emptyList<GitChange>(), service().status())
+        assertArrayEquals(before, index.readBytes())
+        assertTrue(!File(repo, ".git/index.lock").exists())
+    }
+
+    @Test
+    fun `status is empty before the first commit only when there is nothing`() = runBlocking {
+        assertEquals(emptyList<GitChange>(), service().status())
+        write("a.txt", "x\n")
+        assertEquals(listOf(GitChange("a.txt", GitChange.Kind.Untracked)), service().status())
+    }
+
+    @Test
     fun `HEAD's text is read the way the working file was`() = runBlocking {
         File(repo, "euc.txt").writeBytes("가\r\n나\r\n".toByteArray(charset("EUC-KR")))
         write("big.txt", "x".repeat(100) + "\n")
@@ -273,6 +343,8 @@ class GitServiceTest {
         assertNotNull((headFailed as GitFailed).stderr.takeIf { "not a git repository" in it })
         val filesFailed = runCatching { service.files() }.exceptionOrNull()
         assertTrue("$filesFailed", filesFailed is GitFailed)
+        val statusFailed = runCatching { service.status() }.exceptionOrNull()
+        assertTrue("$statusFailed", statusFailed is GitFailed)
     }
 
     private companion object {

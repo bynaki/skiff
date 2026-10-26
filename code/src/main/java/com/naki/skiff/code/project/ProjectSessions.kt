@@ -5,6 +5,7 @@ import com.naki.skiff.code.lsp.LspManager
 import com.naki.skiff.code.session.RemoteExec
 import com.naki.skiff.code.session.decryptedPassword
 import com.naki.skiff.data.store.ServerProfile
+import kotlinx.coroutines.CancellationException
 import net.schmizz.sshj.transport.verification.HostKeyVerifier
 
 /** What a project's server lets it run, as far as git goes. */
@@ -46,6 +47,20 @@ class ProjectSession(
 
     /** The repository's answers, or null where [checkGit] finds no git to ask. */
     suspend fun gitService(): GitService? = if (checkGit() == GitState.Available) repository.value else null
+
+    /**
+     * What the working tree has that HEAD does not, for the sidebar's colors, or null when git cannot
+     * be asked: no git, an account that runs no commands, or a failure — told to [failed], since the
+     * tree is drawn without colors rather than with a reason (docs/skiffcode.spec/top-menu.md).
+     */
+    suspend fun changes(failed: (Exception) -> Unit): List<GitChange>? = try {
+        gitService()?.status()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        failed(e)
+        null
+    }
 
     private val languageServers = lazy { LspManager(exec, project.root, commands = languageCommands) }
 
