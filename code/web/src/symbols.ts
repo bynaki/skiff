@@ -18,6 +18,8 @@ export interface DocSymbol {
   line: number
   /** What is inside it: a class's methods. */
   children: DocSymbol[]
+  /** A Markdown heading's level, 1 for `#` to 6, which the sidebar's outline indents by. */
+  level?: number
 }
 
 /** How one language's tree is read. [at] makes a symbol out of the node that holds its name. */
@@ -128,7 +130,12 @@ export async function outlineOf(fileName: string, text: string): Promise<DocSymb
     return (name + text.slice(from, node.to)).trim()
   }
 
-  return read(tree.topNode, (node, kind, inside = []) => ({ name: nameOf(node), kind, line: lineOf(node.from), children: inside }))
+  return read(tree.topNode, (node, kind, inside = []) => {
+    const symbol: DocSymbol = { name: nameOf(node), kind, line: lineOf(node.from), children: inside }
+    const level = /Heading(\d)$/.exec(node.name)
+    if (level) symbol.level = Number(level[1])
+    return symbol
+  })
 }
 
 /**
