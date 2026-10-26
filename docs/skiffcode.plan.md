@@ -19,6 +19,59 @@
 
 ## 할 일
 
+### M15. 사이드바 트리에서 바뀐 파일 강조
+
+읽을 spec: [`top-menu.md`](skiffcode.spec/top-menu.md)의 사이드바 항목, [`git.md`](skiffcode.spec/git.md)의 `GitService`. 테마 키를 고치는 항목은 [`settings-theme.md`](skiffcode.spec/settings-theme.md)의 테마 키 목록과 [`community-themes.md`](skiffcode.spec/community-themes.md)의 "바꾸는 방법"(대응표)도 읽는다.
+
+원래 요구사항은 `my.next.spec.md`의 "사이드바 프로젝트 파일 목록에 변경된 파일 강조"다. 사용자 결정(2026-10-26): 기준은 **작업 트리의 변경**(`git status`)이다. 색은 **수정과 새 파일 둘**이다. **접힌 폴더도 칠한다.** 테마에는 **키를 새로 둔다**.
+
+지금: 트리(`tree.ts`, `chrome/sidebar.ts`)는 디렉토리를 펼칠 때 `projectDir`로 SFTP 목록만 읽는다. git은 `GitService`(HEAD 내용, 이력, `ls-files`)로만 묻고, `status`를 묻는 곳은 없다. 테마 키는 `ThemeToml.KEYS`의 36개, 테마 저장소의 목록 `FORMAT`은 1이다.
+
+**테마 키 제안**(AGENTS.md "Themes live outside the app too"에 따른 것이다. 사용자가 "새 키 추가"를 골랐다. 아래 값과 폴백은 이 제안대로 간다.)
+
+| 키 | 그리는 곳 | light | dark | 뜻 |
+|---|---|---|---|---|
+| `ui.git_modified` | 사이드바 트리의 이름 글자 | `#9a6700` | `#d29922` | HEAD에 있던 경로가 바뀜 |
+| `ui.git_untracked` | 같음 | `#1a7f37` | `#3fb950` | HEAD에 없던 경로(추적 안 함, 추가, 이름 바꾼 새 경로) |
+
+- 값은 번들 테마가 따르는 GitHub Primer의 attention/success 글자색이다. 흰 배경(`#fff`)과 다크의 `ui.background`(`#151b23`)에서 4.5:1을 넘는지 구현할 때 잰다. VS Code처럼 수정은 노랑, 새 파일은 초록이다. 거터의 `diff.changed`(파랑)와는 일부러 다르게 했다. 거터는 줄의 막대이고, 이것은 파일 이름의 글자다.
+- `[diff]`가 아니라 `[ui]`에 둔다. 그리는 곳이 사이드바(`ui.background` 위)이기 때문이다.
+- **이미 퍼진 파일:** 두 키가 없는 파일은 지금 규칙대로 같은 `base`인 번들 테마의 값을 받는다. 경고는 나오지 않는다. 사용자가 만든 다크 테마에 Primer 색이 섞이는 셈이지만, 같은 base라 읽히기는 한다. 따로 폴백(그 파일의 `diff.changed`/`diff.added`)을 두지 않는다. 그 색은 막대용이라 글자로 쓰면 대비가 약하다.
+- **테마 저장소:** `reference/light.toml`에 두 키를 넣는다. `generate.ts`의 `FALLBACK`은 `ui.git_modified → diff.changed`, `ui.git_untracked → diff.added`로 둔다. 원본에 없을 때만 쓰고, 그때는 diff 색이 이미 배경에 합성된 불투명 색이다. `vscode.ts`의 `SOURCES`는 `ui:gitDecoration.modifiedResourceForeground`, `ui:gitDecoration.untrackedResourceForeground`이고, `DEFAULTS`에 VS Code `registerColor`의 기본값을 같은 커밋에서 옮긴다. `neovim.ts`의 `SOURCES`는 `NvimTreeGitDirty fg`, `NeoTreeGitModified fg` / `NvimTreeGitNew fg`, `NeoTreeGitUntracked fg`이다. 이 그룹이 원본들의 덤프에 실제로 있는지는 그때 보고, 없는 것은 뺀다. 45개를 모두 다시 만든다. `user-themes/`의 두 파일(Nord, Light (Dawnfox))은 `/theme-convert`를 다시 돌려 새로 만든다.
+- **대비 표:** `generate.ts`의 대비 표(`MEASURED`)는 지금 모든 키를 `editor.background`에 대고 잰다. 두 키는 사이드바 글자라서 `ui.background`에 대고 재게 한다. 목록 모드와 한 파일 모드에 똑같이 적용한다.
+- **`/theme-convert` 스킬**(`.claude/skills/theme-convert/SKILL.md`): 대응표, 읽기 스크립트, 폴백은 스킬 밖에 있어서 두 키가 저절로 따라온다. 고칠 것은 셋이다.
+  - 6단계 보고: 두 키가 `ui.background`에 대고 4.5:1 아래면 짚는다. 지금은 3:1 아래의 문법 색만 짚는다.
+  - 6단계 보고: 이 파일을 들이려면 두 키를 아는 앱 버전 이상이 필요하다고 알린다. `Import Theme`은 파일 하나를 받을 때 `FORMAT`을 거치지 않는다. 그래서 예전 앱에 들이면 모르는 키로 보고 테마 전체가 번들 색으로 그려진다.
+  - 대응표를 읽는 곳: "옆의 Skiff Code 체크아웃" 가운데 **대응표가 `reference/light.toml`의 키를 모두 덮는 것**을 읽는다. 앱이 릴리스되기 전에는 `main` 체크아웃에 두 키의 줄이 없다.
+- **`FORMAT` 1 → 2.** 두 키를 모르는 앱은 새 파일을 모르는 키(`UnknownKey`)로 보고, **테마 전체를 같은 base의 번들 색으로** 그린다(`ThemeToml.read`). 그래서 올려야 한다. 앱의 `ThemeCatalog.FORMAT`도 2로 올린다. **테마 저장소의 push는 이 앱이 릴리스된 뒤에, 사용자에게 물어서 한다.** 그 전에 push하면 깔려 있는 앱이 목록을 아예 못 읽는다.
+- **spec:** `settings-theme.md`의 키 목록과 `community-themes.md`의 대응표에 두 줄씩 더한다. `community-themes.md`의 "변환 스킬" 절에는 보고에 더한 두 가지(두 키의 대비, 앱 버전 경고)를 적는다.
+
+**성공 조건**
+
+- ⬜ JVM: `GitService.status()`가 실제 git(MINA)에서 수정(작업 트리, 스테이징), 새 파일(추적 안 함, 스테이징한 추가, 이름 바꾼 새 경로), 추적 안 하는 폴더(`dir/`), 충돌을 가른다. 공백·한글·줄바꿈이 든 이름을 그대로 돌려준다. 돌린 뒤 `.git/index`가 바이트까지 같다. exec가 안 되거나 git이 없는 프로젝트는 예외 없이 "없음"이다 — 확인: `GitServiceTest`, 브리지 쪽은 `MainActivity`가 아니라 떼어 낸 함수의 테스트.
+- ⬜ vitest `tree.test.ts`: 파일 줄은 자기 상태를 받는다. 폴더 줄은 아래에 수정이 하나라도 있으면 수정, 새 파일만 있으면 새 파일이다. 추적 안 하는 폴더 아래는 전부 새 파일이다. 루트가 접힌 프로젝트는 묻지 않는다. 다시 묻는 동안은 전 색을 둔다. 답이 "없음"이거나 실패면 색이 없다.
+- ⬜ 테마: 두 키가 `ThemeToml.KEYS`, 번들 `light.toml`·`dark.toml`, 페이지의 CSS 변수, `settings-theme.md`에 있다. 두 키가 없는 예전 파일은 문제 없이 번들 값을 받는다 — 확인: `ThemeTomlTest`, vitest `theme.test.ts`.
+- ⬜ 테마 저장소: 45개와 `user-themes/` 둘에 두 키가 있다. `FORMAT`이 2다. 저장소 `npm test`가 통과한다. 이 저장소에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`이 45+2개를 문제없이 읽는다. 대비 표가 두 키를 `ui.background`에 대고 재고, 4.5:1 아래인 테마는 보고한다. `/theme-convert`가 고쳐져 있고(위 세 가지), `user-themes/`의 두 파일을 그 스킬로 다시 만들었을 때 보고에 두 키의 대비와 앱 버전 경고가 나온다.
+- ⬜ 탭, 사용자 확인: 이 맥의 원격 로그인으로 연 프로젝트에서 수정한 파일, 새 파일, 둘을 품은 접힌 폴더가 두 색으로 보인다. 파일을 저장하고 사이드바를 다시 열면 색이 따라 바뀐다. 라이트, 다크, 커뮤니티 테마 하나에서 사용자가 보고 읽힌다고 한다.
+- ⬜ 폴드8 커버 화면에서 같은 트리가 색과 함께 읽힌다(사용자 확인).
+
+- [ ] `GitService.status()`와 브리지
+  - `git --no-optional-locks status --porcelain=v1 -z`를 `git()`로 돌린다. 캐시하지 않는다. 파서는 순수 함수로 떼어 낸다(`GitStatus.parse`). 상태 XY를 가르는 규칙은 `git.md`에 있다.
+  - 브리지 `projectChanges(project)` → `{ changes: [{ path, kind: 'modified' | 'untracked', directory }] }`이다. git을 물을 수 없으면 `{ changes: null }`이다(`baseline`이 `GitService`를 얻는 길을 그대로 쓴다). 실패는 `logFailure`하고 `null`로 답한다. 트리에 이유를 쓰지 않는다. `CancellationException`은 다시 던진다.
+  - 테스트: `GitServiceTest`에 위 성공 조건의 경우들(MINA + 실제 git)과 `.git/index` 바이트 비교를 넣는다. 파서 단위 테스트에는 NUL 구분, `R`의 두 경로, `dir/`, 충돌을 넣는다.
+- [ ] 페이지의 색과 앱의 테마 키
+  - `tree.ts`: `createTree`가 `changes(project)` 출처를 하나 더 받는다. `set`/`refresh`가 루트가 펼쳐진 프로젝트마다 묻는다. 답은 프로젝트마다 들고, 다시 묻는 동안은 전 것을 둔다. `file`·`directory` 줄에 `change?: 'modified' | 'untracked'`가 붙는다. 폴더의 상태는 경로 앞부분으로 얻는다(수정이 이긴다). `dir/` 아래는 모두 새 파일이다.
+  - `chrome/sidebar.ts`: `li`에 `modified`/`untracked` 클래스를 단다. `index.html`에서 `.name`의 색을 `--ui-git-modified`/`--ui-git-untracked`로 칠한다. `current`의 배경은 그대로 겹친다.
+  - 테마: `ThemeToml.KEYS`, `light.toml`·`dark.toml`(주석 한 줄씩), 페이지의 기본 변수, `ThemeCatalog.FORMAT = 2`. `settings-theme.md`의 키 목록과 `community-themes.md`의 대응표를 고친다(대응표의 출처 칸은 다음 항목에서 확정한다).
+  - 테스트: `tree.test.ts`(성공 조건의 경우들), `theme.test.ts`, `ThemeTomlTest`(두 키 없는 예전 파일). lint를 먼저 돌린다.
+- [ ] 테마 저장소: 두 키로 다시 만들기
+  - 위 "테마 키 제안"의 테마 저장소, 대비 표, `/theme-convert` 줄대로 한다. Neovim 그룹이 덤프에 있는지 보고 `SOURCES`를 확정한다. 대비 표를 사용자에게 보인다.
+  - 스킬을 고친 뒤 그 스킬로 `user-themes/`의 두 파일을 다시 만든다. 스킬은 `disable-model-invocation`이라 사용자가 `/theme-convert`로 부른다. 테마 저장소에서 연 세션에서 부를 수도 있다.
+  - 테마 저장소의 `AGENTS.md`에 두 키와 `FORMAT` 2를 적는다. 스킬 한 줄이 가리키는 것이 바뀌었으면 그것도 고친다.
+  - 두 저장소가 함께 바뀐다. 앱 → 테마 저장소 → 이 저장소의 `SKIFF_THEMES_DIR` 테스트 순서다. 테마 저장소의 커밋과 push는 각각 사용자에게 묻는다. push는 앱 릴리스 뒤에 한다.
+- [ ] 확인: 탭과 폴드8
+  - 성공 조건의 탭·폴드8 항목. 프로젝트는 이 맥의 원격 로그인으로 연다. 비밀번호 입력은 사용자가 한다. 서버 쪽 변경(파일 수정, 새 파일, 추적 안 하는 폴더)은 확인용 저장소에서 만들고 끝나면 되돌린다. 커뮤니티 테마 하나를 받아 확인했으면 지우고, `settings.toml`은 md5로 되돌린다.
+
 ## 아직 확인하지 않은 것
 
 세션이 지나도 이어지는 목록이다. 확인하면 지우고, 안 되는 게 나오면 그 주제의 spec 파일(목차는 [`skiffcode.spec.md`](skiffcode.spec.md))의 설계를 먼저 고친다.

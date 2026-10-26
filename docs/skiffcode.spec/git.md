@@ -14,6 +14,11 @@
   - `git log -n 2 --format=%H -- <rel>`: 두 번째 비교 대상.
   - `git ls-files -co --exclude-standard -z`: 파일 검색.
   - 결과는 커밋 해시를 키로 캐시한다. 해시 하나는 내용 하나를 영영 가리키므로 캐시가 낡지 않고, 매번 묻는 것은 HEAD가 어느 커밋인지(`cat-file`에 `HEAD`) 하나뿐이다. 내용과 이력을 각각 최근 30개(열린 파일 상한과 같다)까지 둔다.
+  - `git --no-optional-locks status --porcelain=v1 -z`: 사이드바 트리의 색([상단 메뉴](top-menu.md)의 사이드바, M15). `ls-files`처럼 캐시하지 않는다.
+    - **`--no-optional-locks`가 있어야 "읽기만 한다"가 맞다.** 그것이 없으면 `status`는 틈틈이 인덱스의 stat 정보를 새로 써서 `.git/index`를 바꾸고 `index.lock`을 잡는다. 그러면 사용자가 서버에서 같은 때 돌린 git 명령이 lock 때문에 실패할 수 있다. 두 번 돌아도 되는 명령이어야 한다는 `RemoteExec` 규칙과도 이렇게 해야 맞는다.
+    - 추적 안 하는 파일은 기본값(`-unormal`)대로 묻는다. 그러면 추적 안 하는 폴더는 파일마다가 아니라 `dir/` 한 줄로 온다. 무시하지 않은 `node_modules` 같은 것이 수천 줄이 되지 않는다.
+    - `-z`라서 경로는 따옴표 없이 그대로 온다(공백, 한글, 줄바꿈 모두). 이름 바꾸기(`R`)와 복사(`C`)는 새 경로 다음에 옛 경로가 오고, 옛 경로는 버린다. 경로는 저장소 꼭대기 기준이다. 프로젝트 루트가 저장소 꼭대기이므로 트리의 경로와 같다.
+    - 두 글자 상태(XY)를 둘로 가른다. 먼저 작업 트리에 없는 파일의 줄은 버린다. Y가 `D`이거나, X가 `D`이고 Y가 공백이거나, `DD`인 줄이다. 남은 것 가운데 충돌(`U`가 든 것, `AA`)은 *수정*이다. X나 Y가 `?`·`A`·`R`·`C`면 *새 파일*(HEAD에 없던 경로)이다. 그 밖(`M`·`T`)은 *수정*이다.
   - **`ls-files`는 캐시하지 않는다.** 추적하지 않는 파일은 HEAD가 그대로여도 생기고 사라진다. 팔레트를 열 때마다 한 번 부른다([팔레트](palette.md)의 파일 검색).
   - `log`는 `--literal-pathspecs`로 돌린다. `*.md`나 `:(glob)…` 같은 이름의 파일이 패턴으로 읽히지 않게 한다.
   - **기준 텍스트는 `git -C <root> cat-file --batch` 채널 하나를 길게 열어 읽는다.** exec의 진짜
@@ -39,5 +44,6 @@
 
 - ✅ exec가 되는 계정인지를 `supported()`가 가린다(internal-sftp는 `NoExec`, git 없는 bash 계정은 `Missing`) — 확인: `RemoteExecTest`, `CheckGitTest`, Docker 계정 셋으로 탭에서(M5).
 - ✅ `GitService`가 실제 `git`으로 HEAD 내용·이력·`ls-files`를 읽고, `cat-file --batch` 채널 하나를 다시 쓴다 — 확인: `GitServiceTest`(MINA + 실제 git).
+- ⬜ `GitService.status()`가 실제 `git`으로 수정·새 파일·추적 안 하는 폴더·충돌을 가르고, 이상한 이름도 그대로 돌려주며, 돌린 뒤에 `.git/index`가 바이트까지 같다 — 확인: `GitServiceTest`(M15).
 - ✅ git 거터가 세 레이어에서 서버의 `git diff -U0`와 같다 — 확인: vitest `gitGutter.test.ts`, 탭(M5).
 - ✅ 기준을 다시 묻는 때(화면에 올 때, 감시가 바뀐 것을 잡았을 때, 앱으로 돌아올 때)에 거터가 새로 그려진다 — 확인: 탭(M5).

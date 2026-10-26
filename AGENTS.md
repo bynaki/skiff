@@ -240,13 +240,25 @@ a new meaning, tell the user before implementing it and propose how** (user's de
   and the `SOURCES` of `vscode.ts` and `neovim.ts` (which VS Code color and Neovim group feed it),
   every theme regenerated, and whether `FORMAT` must go up — it must whenever an app that does not
   know the change would report the new files as having problems, because the app refuses a list
-  whose `format` is higher than its own;
-- what changes in the spec: the key list in `settings-theme.md` and the mapping table in
-  `community-themes.md`.
+  whose `format` is higher than its own. A key it does not know is worse than a warning:
+  `ThemeToml.read` then draws the whole theme in the bundled colors of its `base`;
+- what the contrast table measures it against: `MEASURED` in `generate.ts` measures against
+  `editor.background`, which is wrong for a color drawn on `ui.background` (the menu, the sidebar);
+- what changes in the `/theme-convert` skill (`.claude/skills/theme-convert/SKILL.md` there). It
+  reads the mapping table from the spec and the colors through the same scripts, so a key usually
+  reaches it without an edit — but check what its report points out (contrast, what a person needs
+  to import the file) and which checkout of this repository it is told to read the table from,
+  since `main` lags behind until a release. `Import Theme` takes one file with no `FORMAT` check,
+  so a file made after a key change is read by an older app as having an unknown key. The files
+  it already made in `user-themes/` are made again with it;
+- what changes in the spec: the key list in `settings-theme.md`, the mapping table in
+  `community-themes.md`, and its section on the skill when the skill changes.
 
-Once the user agrees, both repositories change together: the app, then the theme repository, then
-`SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest` here, which reads
-every theme there with the app's parser. **Pushing the theme repository's `main` publishes to every
+Once the user agrees, both repositories change together: the app, then the theme repository (its
+scripts, every theme, the skill and its own `AGENTS.md`), then
+`SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun` here, which
+reads every theme there, `user-themes/` included, with the app's parser. The skill is a command
+(`disable-model-invocation`), so remaking `user-themes/` with it is the user's to run. **Pushing the theme repository's `main` publishes to every
 user at once**, so it follows the same rule as a push here: ask first. Push a raised `format` no
 earlier than an app release that knows it: before then no installed app can read the list at all.
 

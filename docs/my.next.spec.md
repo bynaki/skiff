@@ -2,7 +2,7 @@
 
 ## skiff code
 
-### 전 화면으로 이동, 앞 화면으로 이동
+### [done] 전 화면으로 이동, 앞 화면으로 이동
 - vim의 ctrl+o(전화면으로), ctrl+i(앞화면으로) 기능과 같다.
 - editor, viewer, diff 모두 작동해야한다.
 - 파일간의 이동도 가능해야한다.
@@ -16,7 +16,7 @@
 
 ### 현재 선택된 파일:줄번호-줄번호 claude앱에 전달
 
-### 오른쪽에 가는 막대 네비게이션 바
+### [done] 오른쪽에 가는 막대 네비게이션 바
 - 오른쪽 가는 막대로 변경이력 표시하는 네비게이션바
 - 그 문서 전체의 변경이력을 한 화면에 볼수있다.
 - 터치는 지원하지 않음
@@ -38,14 +38,14 @@
 - 프로젝트로 열때 같은 프로젝트인데도 불구하고 중복해서 열린다.
 - 하나의 프로젝트로 인식하게 고쳐야한다.
 
-### markdown 문서 링크 열기
+### [done] markdown 문서 링크 열기
 - markdown viewer에서 문서 링크를 탭하면 여는 기능
 - .md 링크가 상대 경로이면 바로 연다.
 - https 일때 viewer에서 링크로 표시히고 탭하면 연결앱 창 띠운다.
 - https가 .md 파일이면 앱 내에서 연다.
 - .md 파일이면 이 앱내에서 연다.
 
-### 커뮤니티 테마들 .toml 제공
+### [done] 커뮤니티 테마들 .toml 제공
 - 아래 테마들을 skiffcode 테마에 맞게 .toml로 변환해서 기본 제공
 - 커맨드 팔레트 메뉴 `Theme...` 로 하고 선택하면 테마 목록 창 띠우기
 - 정한 것(2026-10-22): 변형은 대비 단계까지 전부, ocean은 폴드8의 `ocean copy`, 목록은 팔레트 안의 목록. 설계는 `skiffcode.spec/community-themes.md`, 할 일은 `skiffcode.plan.md`의 M13.
@@ -65,3 +65,9 @@
 - https://github.com/raunofreiberg/vesper
 - https://github.com/ayu-theme/ayu-colors
 - ocean theme
+
+### markdown 문서 목록
+
+### 사이드바 프로젝트 파일 목록에 변경된 파일 강조
+- 사이드바 프로젝트 파일목록에 변경이력있는 파일 색상으로 강조
+- 테마 키워드 필요하면 추가하고 모든 테마 (@skiffcode-themes 테마 포함) 적용
