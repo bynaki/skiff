@@ -25,8 +25,10 @@
     코드 실행을 허락). `FORMAT`은 2다. Nord와 Nightfox 7개를 목록에 더해 53개가 됐다(사용자 요청). `user-themes/`의 두 파일은
     사용자 요청으로 지웠다. `/theme-convert` 스킬과 그 저장소의 `AGENTS.md`도 고쳤다.
   - `AGENTS.md`("Themes live outside the app too")에 테마 키를 바꿀 때 테마 저장소와 스킬에서 볼 것을 더했다.
-- **테마 저장소는 push하면 안 된다. 먼저 `FORMAT` 2를 아는 앱이 릴리스돼야 한다.** 그 전에 push하면 깔려 있는 앱이 목록을 못 읽는다.
-  push는 그때 사용자에게 묻는다.
+- **테마 저장소의 `FORMAT` 2(53개)는 push했다**(2026-10-26 사용자 결정). raw.githubusercontent.com에서 `format 2`,
+  53개가 나오는 것까지 봤다. 앱에는 아직 릴리스 절차가 없다(GitHub 릴리스·태그 없음, `main`에는 `Download Theme...`가 없다).
+  그래서 목록을 읽는 앱은 사용자 기기의 `spec/next` 빌드뿐이고, 탭과 폴드8은 push 전에 FORMAT 2 빌드로 다시 깔았다. 규칙은
+  `AGENTS.md`의 "Themes live outside the app too" 끝에 고쳐 적었다.
 - 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로
   돌렸다. npm은 `~/.local/share/fnm/aliases/default/bin`을 PATH에 더해 썼다.
 - 탭과 폴드8이 둘 다 adb에 붙어 있으면 `-s <serial>` 없이 부른 adb는 "more than one device"로 실패한다. 탭의 화면은 밀어서
