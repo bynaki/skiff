@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M15, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M16, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -18,33 +18,6 @@
 - 설계와 다르게 구현하게 되면 그 주제의 spec 파일도 같은 커밋에서 고친다. 두 문서가 늘 현재 상태를 말해야 한다.
 
 ## 할 일
-
-### M16. 사이드바 개요 탭: 마크다운 목차
-
-읽을 spec: [`outline.md`](skiffcode.spec/outline.md) 전부, [`top-menu.md`](skiffcode.spec/top-menu.md)의 사이드바 항목, [`palette.md`](skiffcode.spec/palette.md)의 심볼 검색 lezer 쪽, [`jumps.md`](skiffcode.spec/jumps.md)의 적는 때, [`state.md`](skiffcode.spec/state.md).
-
-원래 요구사항은 `my.next.spec.md`의 "markdown 문서내 제목 목록(toc) 보이기"다. 사용자 결정(2026-10-26): 사이드바 머리의 ① 옆에 **트리·개요 탭 두 개**. 사이드바를 열면 **마지막에 보던 탭**. 레이어는 **마크다운 viewer와 editor**. **수준별 들여쓰기**, **지금 위치 강조**, 접고 펴기는 없음. 제목을 누르면 **그 줄로 가고 사이드바는 들어간다**(점프 목록에 적는다). **소스 코드의 심볼을 같은 탭에 보이는 것은 나중이고, 자리만 남긴다**(사용자 요청) — 탭 이름·아이콘을 마크다운 전용으로 하지 않고, 공급원과 목록을 나눈다. 이번에 심볼 공급원은 만들지 않는다.
-
-지금: 사이드바(`chrome/sidebar.ts`)는 머리에 ①(닫기) 하나와 프로젝트 트리(`tree.ts`)뿐이다. 마크다운 제목은 팔레트 `@` 모드가 lezer로 뽑는다(`symbols.ts`의 `markdown` 읽기, 맨 위 수준의 `ATXHeading`/`SetextHeading`). 그 결과(`DocSymbol`: 이름, 종류, 줄, 자식)에 수준은 없다. 화면 맨 위 줄은 `pane.topLine()`(렌더된 마크다운은 `data-line`), 줄로 가는 것은 `pane.goToLine()`, 점프는 `jumps.ts`의 `record`다. 사이드바의 글자(접근성 이름 포함)는 Kotlin string resource에서 `label()`로 온다.
-
-**성공 조건**
-
-- ✅ vitest: 마크다운 목차 목록이 spec대로다(`#`·밑줄 제목, 맨 위 수준만, 코드 블록 안의 `#`는 빠짐, 가장 얕은 수준이 0칸인 들여쓰기, 화면 맨 위 줄로 고르는 지금 위치, 첫 제목 앞이면 없음) — 확인: vitest `outline.test.ts`(2026-10-26).
-- ✅ vitest: 탭 규칙이 spec대로다(마지막 탭 기억, `localStorage`가 없거나 이상한 값이면 트리, 공급원이 없거나 diff이거나 문서가 없으면 개요 탭이 꺼지고 트리, 늦게 답한 공급원은 답이 오면 다시 그림) — 확인: vitest `outline.test.ts`(2026-10-26). 사이드바가 이 규칙을 부르는 것은 다음 항목과 탭 확인에서 본다.
-- ✅ 개요 목록이 파일 종류를 모른다: 그리기·지금 위치·누르기가 개요 항목(이름, 종류, 줄, 칸)만 받는다 — 코드 리뷰와, 마크다운이 아닌 가짜 공급원으로 도는 vitest — 확인: `chrome/sidebar.ts`의 `renderOutline`과 누르기는 `OutlineItem`의 `name`·`line`·`depth`와 공급원의 `empty`만 쓴다, vitest `outline.test.ts`의 "an outline whose source answers late"(2026-10-26).
-- ⬜ 탭에서 렌더된 마크다운과 editor 양쪽으로: 들여쓴 제목과 지금 절 강조가 보이고, 누르면 그 자리로 가고 사이드바가 들어가며, 오른쪽 가장자리 밀기로 돌아온다. 닫았다 열어도, 앱을 다시 켜도 개요 탭이 그대로다. 마크다운이 아닌 파일로 가면 트리가 나온다.
-- ⬜ 폴드8 커버 화면에서 머리의 ①과 탭 두 개가 들어가고 개요의 제목이 눌린다.
-- ⬜ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다.
-
-- [x] 개요 모델(`web/src/outline.ts`, DOM 없음): 개요 항목(이름, `SymbolKind`, 줄, 칸)과 공급원의 모양(화면의 파일 → 항목 목록 또는 "없음", 늦게 답해도 되게)을 둔다. 마크다운 공급원: 제목과 수준을 lezer에서 뽑는다 — `symbols.ts`의 마크다운 읽기와 같은 노드를 쓰고, 두 곳이 갈라지지 않게 읽는 부분을 함께 쓴다(팔레트 결과는 그대로). 칸은 가장 얕은 수준이 0. 화면 맨 위 줄로 지금 항목 고르기, 탭 고르기(기억한 값, 공급원 유무, 레이어, 문서 유무)를 순수 함수로 두고 vitest로 덮는다(마크다운이 아닌 가짜 공급원 포함). 기억은 `storage.ts`를 거쳐 `sidebar.tab`(`tree`/`outline`)에 둔다.
-  - 2026-10-26: `outline.ts`에 개요 항목, 공급원(`sourceFor`, 지금은 마크다운만), `headingItems`, `outlineEnabled`·`tabToShow`, `rememberedTab`·`rememberTab`, `currentItem`, 늦게 답하는 공급원을 견디는 `createOutline`(같은 파일은 전 목록을 두고, 다른 파일은 비우고, 마지막 물음의 답만 받음)을 두었다. 제목 수준은 `symbols.ts`의 `outlineOf`가 `DocSymbol.level`로 함께 준다(팔레트는 쓰지 않는다). vitest `outline.test.ts` 20개(마크다운이 아닌 가짜 공급원 포함), web 256 통과, `tsc --noEmit` 통과.
-- [x] 사이드바의 탭과 개요(`chrome/sidebar.ts`, CSS): 머리에 ① 다음으로 트리·개요 탭 두 개(선 아이콘, 켜진 모양, 꺼진 개요 탭, 마크다운 전용이 아닌 아이콘). 개요 목록을 항목만 보고 그리고(칸만큼 들여쓰기, 말줄임, 지금 항목 강조, 열면 그 줄로 스크롤, 비었을 때 공급원이 고른 한 줄), 누르면 점프를 적고 `goToLine` 하고 사이드바를 닫는다. 화면의 파일이나 레이어가 바뀌면 탭을 다시 고른다. 탭 두 개의 접근성 이름과 "제목 없음" 문구는 Kotlin string resource(`values`, `values-ko`)에 더해 `label()`로 넘긴다. vitest(필요하면 sidebar 쪽 규칙을 떼어서), lint.
-  - 2026-10-26: 사이드바 머리에 ①, 트리(폴더 아이콘), 개요(들여쓴 가로줄 아이콘) 탭. 보이는 탭의 것만 묻는다(개요 탭에서는 트리를 읽지 않는다, spec에 적음). `main.ts`가 `showing`(화면의 파일 id·이름·버퍼·레이어), `topLine`, `goTo`(= `moveTo`, 점프를 적는다)를 넘긴다. string resource `sidebar_tree_tab`·`sidebar_outline_tab`·`outline_no_headings`(영어·한국어)를 `labels`에 더했다. 규칙은 이미 `outline.ts`에 있어 sidebar 쪽에 새 vitest는 두지 않았다. web 256, `tsc --noEmit`, JVM 370(건너뜀 1, `SKIFF_THEMES_DIR`), `lintDebug` 경고 11개는 모두 전부터 있던 것(바꾼 파일에서 나온 것 없음).
-  - 탭에서 미리 돌려 봄(확인 항목은 아래에서 다시 한다): 로컬 마크다운(`Download/`)에서 개요 탭의 들여쓰기(`##`→0, `###`→1, `####`→2, 밑줄 `---`→0, `#####`→3, 코드 블록·목록·인용 안의 `#`는 빠짐), 지금 위치 강조, 누르면 그 자리로 가고 사이드바가 들어감, 오른쪽 가장자리 밀기로 돌아옴, editor에서 누르면 커서가 그 줄로 감, `.py`에서는 개요 탭이 꺼지고 트리(기억은 `outline` 그대로), 앱을 다시 켜고 마크다운을 열면 개요 탭.
-- [ ] 확인: 탭과 폴드8
-  - 탭: 제목 수준이 섞인 마크다운(`#` 다음 `###`, 밑줄 제목, 코드 블록 안의 `#`, 목록 안의 제목이 든 것)을 링크로 연다. viewer와 editor에서 개요와 지금 위치 강조, 누르기, 오른쪽 가장자리 밀기, 닫았다 열기, 앱 다시 켜기, 마크다운 아닌 파일로 가기, diff에서 꺼진 탭을 본다. 스크린샷을 사용자에게 보낸다.
-  - 폴드8 커버 화면: 머리의 ①과 탭 두 개, 개요 누르기. DOM은 DevTools로 읽고 사진은 CDP로 찍는다(`devices.md`).
-  - 끝나면 확인용 파일과 기기에 넣은 것을 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
 
 ## 아직 확인하지 않은 것
 

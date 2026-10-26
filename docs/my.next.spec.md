@@ -66,7 +66,7 @@
 - https://github.com/ayu-theme/ayu-colors
 - ocean theme
 
-### markdown 문서내 제목 목록(toc) 보이기
+### [done] markdown 문서내 제목 목록(toc) 보이기
 - 왼쪽 사이드바에 만든다.
 - 프로젝트 트리 레이어, toc 레이어 등으로..
 - 사이드바를 열었을때 왼쪽상단 사이드바 아이콘 옆에 `프로젝트 트리` 아이콘, 그 옆에 `toc` 아이콘 배치.

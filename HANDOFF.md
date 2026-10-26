@@ -14,29 +14,26 @@
 
 ---
 
-## 마지막 세션 (2026-10-26)
+## 마지막 세션 (2026-10-26 ~ 10-27)
 
 ### 지금 상태
-- **M15 "사이드바 트리에서 바뀐 파일 강조"를 끝내고 `plan.done.md`로 옮겼다.** 성공 조건 여섯 개가 모두 ✅다. 탭(라이트·다크·
-  `tokyonight-night`)과 폴드8 커버 화면은 사용자가 스크린샷을 보고 괜찮다고 했다. plan의 "할 일"은 다시 비어 있다.
-  - 앱: `GitService.status()`(`--no-optional-locks`), `ProjectSession.changes`, 브리지 `projectChanges`, `tree.ts`의 색 표시를
-    만들었다. 테마 키 `ui.git_modified`·`ui.git_untracked`를 더하고 `ThemeCatalog.FORMAT`을 2로 올렸다.
-  - 테마 저장소(`~/projects/skiffcode-themes`): 원본 17개를 기록된 커밋에서 다시 읽어 두 키를 넣었다(Neovim 원본은 사용자가 플러그인
-    코드 실행을 허락). `FORMAT`은 2다. Nord와 Nightfox 7개를 목록에 더해 53개가 됐다(사용자 요청). `user-themes/`의 두 파일은
-    사용자 요청으로 지웠다. `/theme-convert` 스킬과 그 저장소의 `AGENTS.md`도 고쳤다.
-  - `AGENTS.md`("Themes live outside the app too")에 테마 키를 바꿀 때 테마 저장소와 스킬에서 볼 것을 더했다.
-- **테마 저장소의 `FORMAT` 2(53개)는 push했다**(2026-10-26 사용자 결정). raw.githubusercontent.com에서 `format 2`,
-  53개가 나오는 것까지 봤다. 앱에는 아직 릴리스 절차가 없다(GitHub 릴리스·태그 없음, `main`에는 `Download Theme...`가 없다).
-  그래서 목록을 읽는 앱은 사용자 기기의 `spec/next` 빌드뿐이고, 탭과 폴드8은 push 전에 FORMAT 2 빌드로 다시 깔았다. 규칙은
-  `AGENTS.md`의 "Themes live outside the app too" 끝에 고쳐 적었다.
+- **M16 "사이드바 개요 탭: 마크다운 목차"를 끝내고 `plan.done.md`로 옮겼다.** 성공 조건 여섯 개가 모두 ✅다. plan의 "할 일"은
+  다시 비어 있다. 원래 요구사항(`my.next.spec.md`의 toc)은 `[done]`으로 표시했다.
+  - `web/src/outline.ts`: 개요 항목과 공급원(지금은 마크다운 하나), 탭 고르기와 기억(`localStorage`의 `sidebar.tab`), 화면 맨 위
+    줄로 고르는 지금 위치, 늦게 답하는 공급원을 견디는 `createOutline`. 소스 코드 심볼은 같은 탭에 공급원 하나를 더하면 되게
+    자리만 남겼다(`docs/skiffcode.spec/outline.md`의 "소스 코드 심볼을 위한 자리").
+  - `chrome/sidebar.ts`: ① 옆의 트리·개요 탭, 개요 목록, 누르면 `moveTo`(점프 목록) 후 사이드바를 닫는다. 보이는 탭의 것만 묻는다.
+  - 탭에서는 viewer·editor·diff를 모두 봤다. 폴드8은 무선 adb가 Wi-Fi·테일스케일 어디서도 붙지 않아, APK를 보내 사용자가 깔고
+    눈으로 확인했다(DOM은 읽지 못함).
+- 탭에서 링크(`am start -d skiffcode://…`)로 열면 확인창 "열기"는 `tap 1328 1310`, git 저장소면 이어서 "프로젝트 만들기"가
+  `tap 1311 1307`이다. 탭 WebView의 페이지 좌표는 `devicePixelRatio` 2를 곱하고 위에 60px(상태 표시줄)을 더하면 화면 좌표다.
 - 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로
   돌렸다. npm은 `~/.local/share/fnm/aliases/default/bin`을 PATH에 더해 썼다.
-- 탭과 폴드8이 둘 다 adb에 붙어 있으면 `-s <serial>` 없이 부른 adb는 "more than one device"로 실패한다. 탭의 화면은 밀어서
-  열리지만 폴드8은 PIN이 있어 사용자가 풀어야 한다.
 
 ### 정리
-- 폴드8의 확인용 프로젝트 `skiff-m15-sample`을 사이드바에서 길게 눌러 지웠고, 이 맥의 홈 아래 같은 이름의 저장소도 지웠다.
+- 탭의 확인용 프로젝트 `skiff-m16-sample`을 사이드바에서 길게 눌러 지우고, 열린 파일을 닫았다. 탭 `Download/`의
+  `skiff-m16.md`·`skiff-m16.py`와 이 맥의 `~/skiff-m16-sample`도 지웠다. 폴드8에는 확인용으로 넣은 것이 없다.
 
 ### 다음 세션이 할 일
-1. plan의 M16 "마크다운 목차"를 첫 항목부터 한다. 설계와 사용자 결정은 `docs/skiffcode.spec/outline.md`(2026-10-26 사용자와 정함). 소스 코드 심볼은 자리만 남기고 이번에 만들지 않는다.
+1. plan의 "할 일"이 비어 있다. 다음 마일스톤은 사용자와 `docs/my.next.spec.md`에서 고른다.
    커밋도 푸시도 사용자가 말할 때만 한다.
