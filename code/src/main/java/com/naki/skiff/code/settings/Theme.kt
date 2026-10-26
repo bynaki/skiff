@@ -36,7 +36,7 @@ object ThemeToml {
      */
     val KEYS: List<String> = listOf(
         "ui.background", "ui.foreground", "ui.muted", "ui.border", "ui.faint", "ui.subtle", "ui.accent",
-        "ui.scrim", "ui.strong_background", "ui.strong_foreground",
+        "ui.scrim", "ui.strong_background", "ui.strong_foreground", "ui.git_modified", "ui.git_untracked",
         "editor.background", "editor.foreground", "editor.gutter_background", "editor.gutter_foreground",
         "editor.gutter_border", "editor.cursor", "editor.selection", "editor.code_background",
         "syntax.keyword", "syntax.atom", "syntax.literal", "syntax.string", "syntax.regexp",

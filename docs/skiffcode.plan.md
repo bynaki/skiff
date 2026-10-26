@@ -49,8 +49,8 @@
 **성공 조건**
 
 - ✅ JVM: `GitService.status()`가 실제 git(MINA)에서 수정(작업 트리, 스테이징), 새 파일(추적 안 함, 스테이징한 추가, 이름 바꾼 새 경로), 추적 안 하는 폴더(`dir/`), 충돌을 가른다. 공백·한글·줄바꿈이 든 이름을 그대로 돌려준다. 돌린 뒤 `.git/index`가 바이트까지 같다. exec가 안 되거나 git이 없는 프로젝트는 예외 없이 "없음"이다 — 확인: `GitServiceTest`, `GitChangeTest`. 브리지가 부르는 `ProjectSession.changes`는 `ProjectChangesTest`로 확인했다(2026-10-26, JVM 369, 건너뜀 1 — `SKIFF_THEMES_DIR` 테스트).
-- ⬜ vitest `tree.test.ts`: 파일 줄은 자기 상태를 받는다. 폴더 줄은 아래에 수정이 하나라도 있으면 수정, 새 파일만 있으면 새 파일이다. 추적 안 하는 폴더 아래는 전부 새 파일이다. 루트가 접힌 프로젝트는 묻지 않는다. 다시 묻는 동안은 전 색을 둔다. 답이 "없음"이거나 실패면 색이 없다.
-- ⬜ 테마: 두 키가 `ThemeToml.KEYS`, 번들 `light.toml`·`dark.toml`, 페이지의 CSS 변수, `settings-theme.md`에 있다. 두 키가 없는 예전 파일은 문제 없이 번들 값을 받는다 — 확인: `ThemeTomlTest`, vitest `theme.test.ts`.
+- ✅ vitest `tree.test.ts`: 파일 줄은 자기 상태를 받는다. 폴더 줄은 아래에 수정이 하나라도 있으면 수정, 새 파일만 있으면 새 파일이다. 추적 안 하는 폴더 아래는 전부 새 파일이다. 루트가 접힌 프로젝트는 묻지 않는다. 다시 묻는 동안은 전 색을 둔다. 답이 "없음"이거나 실패면 색이 없다 — 확인: vitest `tree.test.ts` +6(2026-10-26, web 236).
+- ✅ 테마: 두 키가 `ThemeToml.KEYS`, 번들 `light.toml`·`dark.toml`, 페이지의 CSS 변수, `settings-theme.md`에 있다. 두 키가 없는 예전 파일은 문제 없이 번들 값을 받는다 — 확인: `ThemeTomlTest`, vitest `theme.test.ts`(2026-10-26, JVM 370).
 - ⬜ 테마 저장소: 45개와 `user-themes/` 둘에 두 키가 있다. `FORMAT`이 2다. 저장소 `npm test`가 통과한다. 이 저장소에서 `SKIFF_THEMES_DIR=~/projects/skiffcode-themes ./gradlew :code:testDebugUnitTest --rerun`이 45+2개를 문제없이 읽는다. 대비 표가 두 키를 `ui.background`에 대고 재고, 4.5:1 아래인 테마는 보고한다. `/theme-convert`가 고쳐져 있고(위 세 가지), `user-themes/`의 두 파일을 그 스킬로 다시 만들었을 때 보고에 두 키의 대비와 앱 버전 경고가 나온다.
 - ⬜ 탭, 사용자 확인: 이 맥의 원격 로그인으로 연 프로젝트에서 수정한 파일, 새 파일, 둘을 품은 접힌 폴더가 두 색으로 보인다. 파일을 저장하고 사이드바를 다시 열면 색이 따라 바뀐다. 라이트, 다크, 커뮤니티 테마 하나에서 사용자가 보고 읽힌다고 한다.
 - ⬜ 폴드8 커버 화면에서 같은 트리가 색과 함께 읽힌다(사용자 확인).
@@ -68,11 +68,20 @@
     - `GitChangeTest` 8.
     - `ProjectChangesTest` 4: 가짜 `git` 스크립트, 실패하는 git, git 없음, exec 안 됨.
   - 결과: JVM 369(건너뜀 1), web 230, lint 경고 11(그대로).
-- [ ] 페이지의 색과 앱의 테마 키
+- [x] 페이지의 색과 앱의 테마 키
   - `tree.ts`: `createTree`가 `changes(project)` 출처를 하나 더 받는다. `set`/`refresh`가 루트가 펼쳐진 프로젝트마다 묻는다. 답은 프로젝트마다 들고, 다시 묻는 동안은 전 것을 둔다. `file`·`directory` 줄에 `change?: 'modified' | 'untracked'`가 붙는다. 폴더의 상태는 경로 앞부분으로 얻는다(수정이 이긴다). `dir/` 아래는 모두 새 파일이다.
   - `chrome/sidebar.ts`: `li`에 `modified`/`untracked` 클래스를 단다. `index.html`에서 `.name`의 색을 `--ui-git-modified`/`--ui-git-untracked`로 칠한다. `current`의 배경은 그대로 겹친다.
   - 테마: `ThemeToml.KEYS`, `light.toml`·`dark.toml`(주석 한 줄씩), 페이지의 기본 변수, `ThemeCatalog.FORMAT = 2`. `settings-theme.md`의 키 목록과 `community-themes.md`의 대응표를 고친다(대응표의 출처 칸은 다음 항목에서 확정한다).
   - 테스트: `tree.test.ts`(성공 조건의 경우들), `theme.test.ts`, `ThemeTomlTest`(두 키 없는 예전 파일). lint를 먼저 돌린다.
+  - 한 것:
+    - `tree.ts`: `createTree`가 세 번째 인자 `changesOf`를 받는다. 루트를 펼칠 때(`toggle`)와 `refresh` 때, 루트가 펼쳐진 프로젝트마다 한 번 묻는다. 묻는 중이면 다시 묻지 않는다. 답은 경로와 그 위 폴더마다 표시(`marksOf`)로 들고, 수정이 이긴다. 추적 안 하는 폴더는 따로 들어 그 아래 경로를 새 파일로 친다. 답이 `null`이거나 실패하면 표시를 지운다.
+    - `chrome/sidebar.ts`: 줄의 `li`에 `modified`/`untracked` 클래스를 단다. `index.html`이 `.name`만 칠하므로 지금 파일의 배경은 그대로다.
+    - `main.ts`: 출처는 `projectChanges`다.
+    - 테마: `ThemeToml.KEYS`에 두 키를 `[ui]`의 끝에 더했다. 번들 `light.toml`·`dark.toml`(설명 주석과 함께), `index.html`의 기본 변수에도 넣었다. `ThemeCatalog.FORMAT`은 2다. `ThemeCatalogTest`의 "새 앱용 목록" 경우는 `FORMAT + 1`로 고쳐 다음에 올릴 때 깨지지 않게 했다.
+    - spec: `settings-theme.md`에 두 키를 적었다. `community-themes.md` 대응표에 두 줄을 더했다. Neovim 그룹은 다음 항목에서 덤프를 보고 확정한다.
+  - 대비(재 봤다): 사이드바 배경에서 라이트 4.87·5.08, 다크 6.86·6.82다. **지금 파일 줄의 배경(`ui.subtle`) 위에서는 라이트가 4.30·4.49로 4.5에 조금 못 미친다**(다크 5.56·5.53). 정한 값을 그대로 두고 사용자에게 알렸다.
+  - 테스트: vitest `tree.test.ts` +6(web 236), `ThemeTomlTest` +1(JVM 370, 건너뜀 1), `npm run build`(tsc) 통과, lint 경고 11(그대로).
+  - **`SKIFF_THEMES_DIR`를 주면 `ThemeTomlTest`가 테마 저장소의 파일에서 깨진다.** 그 파일들에는 아직 두 키가 없다. 다음 항목에서 다시 만들면 풀린다.
 - [ ] 테마 저장소: 두 키로 다시 만들기
   - 위 "테마 키 제안"의 테마 저장소, 대비 표, `/theme-convert` 줄대로 한다. Neovim 그룹이 덤프에 있는지 보고 `SOURCES`를 확정한다. 대비 표를 사용자에게 보인다.
   - 스킬을 고친 뒤 그 스킬로 `user-themes/`의 두 파일을 다시 만든다. 스킬은 `disable-model-invocation`이라 사용자가 `/theme-convert`로 부른다. 테마 저장소에서 연 세션에서 부를 수도 있다.

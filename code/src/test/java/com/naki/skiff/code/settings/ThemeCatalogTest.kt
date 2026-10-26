@@ -128,8 +128,9 @@ class ThemeCatalogTest {
 
     @Test
     fun `a list for a newer app is refused, saying which format it is`() {
-        index(row("good"), format = "2")
-        assertEquals(2, refused<CatalogError.TooNew> { list() }.format)
+        val newer = ThemeCatalog.FORMAT + 1
+        index(row("good"), format = "$newer")
+        assertEquals(newer, refused<CatalogError.TooNew> { list() }.format)
     }
 
     @Test

@@ -99,6 +99,21 @@ class ThemeTomlTest {
     }
 
     @Test
+    fun `a theme from before the git colors reads without a problem and takes the base's`() {
+        for ((base, colors) in listOf("light" to light, "dark" to dark)) {
+            val older = File("src/main/assets/themes/$base.toml").readLines()
+                .filterNot { it.startsWith("git_") }
+                .joinToString("\n")
+            val read = ThemeToml.read(older, fallback)
+            assertEquals(base, emptyList<SettingsProblem>(), read.problems)
+            assertEquals(base, colors["ui.git_modified"], read.theme.colors["ui.git_modified"])
+            assertEquals(base, colors["ui.git_untracked"], read.theme.colors["ui.git_untracked"])
+        }
+        assertEquals("#9a6700" to "#1a7f37", light["ui.git_modified"] to light["ui.git_untracked"])
+        assertEquals("#d29922" to "#3fb950", dark["ui.git_modified"] to dark["ui.git_untracked"])
+    }
+
+    @Test
     fun `a value that is not a color is the base's, reported, and the others are kept`() {
         val read = ThemeToml.read("[ui]\nbackground = \"red\"\nforeground = \"#123456\"\n", fallback)
         assertEquals(light["ui.background"], read.theme.colors["ui.background"])

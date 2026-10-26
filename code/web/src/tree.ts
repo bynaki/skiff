@@ -26,10 +26,23 @@ export interface Here {
 /** A directory's contents, or what kept them from being read, in the user's language. */
 export type Listing = { entries: TreeEntry[] } | { failed: string }
 
+/**
+ * How a path differs from HEAD (2026-10-26 사용자 결정): `modified` where HEAD has it, `untracked` where
+ * it does not. A folder takes `modified` when anything under it is, `untracked` when all of it is new.
+ */
+export type ChangeKind = 'modified' | 'untracked'
+
+/** One path git's status names, relative to the root. A [directory] is a folder git does not track at all. */
+export interface Change {
+  path: string
+  kind: ChangeKind
+  directory: boolean
+}
+
 export type Row =
   | { kind: 'project'; project: ProjectInfo; open: boolean }
-  | { kind: 'directory'; project: string; path: string; name: string; depth: number; open: boolean }
-  | { kind: 'file'; project: string; path: string; name: string; depth: number; current: boolean }
+  | { kind: 'directory'; project: string; path: string; name: string; depth: number; open: boolean; change?: ChangeKind }
+  | { kind: 'file'; project: string; path: string; name: string; depth: number; current: boolean; change?: ChangeKind }
   | { kind: 'listing'; depth: number }
   | { kind: 'empty'; depth: number }
   | { kind: 'failed'; depth: number; message: string }
@@ -44,8 +57,9 @@ export interface Tree {
   /** Folds or unfolds a project (path '') or a directory, which is listed again as it unfolds. */
   toggle(project: string, path: string): void
   /**
-   * Lists every unfolded directory again: things change on a server while nobody is looking. What
-   * was listed before stays on the screen until the new answer is in.
+   * Lists every unfolded directory again, and asks git again what changed in every project whose
+   * root is unfolded: things change on a server while nobody is looking. What was listed and colored
+   * before stays on the screen until the new answer is in.
    */
   refresh(): void
   rows(): Row[]
@@ -55,13 +69,69 @@ const keyOf = (project: string, path: string) => `${project}\u0000${path}`
 
 const childOf = (path: string, name: string) => (path === '' ? name : `${path}/${name}`)
 
-/** [changed] is called when a listing comes in, for the tree to be drawn again. */
-export function createTree(list: (project: string, path: string) => Promise<Listing>, changed: () => void): Tree {
+/**
+ * What each path in a project shows, folders included: every change marks its own path and every
+ * folder above it, `modified` winning over `untracked`. A folder git does not track is kept apart, as
+ * everything under it is new.
+ */
+interface Marks {
+  paths: Map<string, ChangeKind>
+  newFolders: string[]
+}
+
+function marksOf(changes: Change[]): Marks {
+  const paths = new Map<string, ChangeKind>()
+  const newFolders: string[] = []
+  for (const change of changes) {
+    if (change.directory) newFolders.push(change.path)
+    const segments = change.path.split('/')
+    for (let end = segments.length; end > 0; end--) {
+      const path = segments.slice(0, end).join('/')
+      if (paths.get(path) === 'modified') continue
+      paths.set(path, change.kind)
+    }
+  }
+  return { paths, newFolders }
+}
+
+function markOf(marks: Marks | undefined, path: string): ChangeKind | undefined {
+  if (!marks) return undefined
+  return marks.paths.get(path) ?? (marks.newFolders.some((folder) => path.startsWith(`${folder}/`)) ? 'untracked' : undefined)
+}
+
+/**
+ * [changed] is called when a listing or what git says comes in, for the tree to be drawn again.
+ * [changesOf] answers null where git cannot be asked, and the tree is then drawn without colors.
+ */
+export function createTree(
+  list: (project: string, path: string) => Promise<Listing>,
+  changed: () => void,
+  changesOf: (project: string) => Promise<Change[] | null>,
+): Tree {
   let projects: ProjectInfo[] = []
   let here: Here | null = null
   const unfolded = new Set<string>()
   const listings = new Map<string, Listing>()
   const asking = new Map<string, Promise<Listing>>()
+  const marks = new Map<string, Marks>()
+  const askingMarks = new Map<string, Promise<Change[] | null>>()
+
+  function ask(project: string): void {
+    if (askingMarks.has(project)) return
+    const answer = changesOf(project).catch((error): Change[] | null => {
+      console.log(`changes: ${error}`)
+      return null
+    })
+    askingMarks.set(project, answer)
+    void answer.then((changes) => {
+      // The project went while this was out.
+      if (askingMarks.get(project) !== answer) return
+      askingMarks.delete(project)
+      if (changes) marks.set(project, marksOf(changes))
+      else marks.delete(project)
+      changed()
+    })
+  }
 
   function load(project: string, path: string): void {
     const key = keyOf(project, path)
@@ -87,14 +157,16 @@ export function createTree(list: (project: string, path: string) => Promise<List
     if (!listing) return [{ kind: 'listing', depth }]
     if ('failed' in listing) return [{ kind: 'failed', depth, message: listing.failed }]
     if (listing.entries.length === 0) return [{ kind: 'empty', depth }]
+    const marked = marks.get(project)
     return listing.entries.flatMap((entry): Row[] => {
       const child = childOf(path, entry.name)
+      const change = markOf(marked, child)
       if (!entry.directory) {
         const current = here?.project === project && here.path === child
-        return [{ kind: 'file', project, path: child, name: entry.name, depth, current }]
+        return [{ kind: 'file', project, path: child, name: entry.name, depth, current, ...(change && { change }) }]
       }
       const open = unfolded.has(keyOf(project, child))
-      const row: Row = { kind: 'directory', project, path: child, name: entry.name, depth, open }
+      const row: Row = { kind: 'directory', project, path: child, name: entry.name, depth, open, ...(change && { change }) }
       return open ? [row, ...children(project, child, depth + 1)] : [row]
     })
   }
@@ -105,6 +177,9 @@ export function createTree(list: (project: string, path: string) => Promise<List
       const ids = new Set(next.map((project) => project.id))
       for (const map of [unfolded, listings, asking]) {
         for (const key of [...map.keys()]) if (!ids.has(key.slice(0, key.indexOf('\u0000')))) map.delete(key)
+      }
+      for (const map of [marks, askingMarks]) {
+        for (const project of [...map.keys()]) if (!ids.has(project)) map.delete(project)
       }
       here = nextHere && ids.has(nextHere.project) ? nextHere : null
       if (!here) return
@@ -120,11 +195,15 @@ export function createTree(list: (project: string, path: string) => Promise<List
       const key = keyOf(project, path)
       if (unfolded.delete(key)) return
       unfold(project, path)
+      if (path === '') ask(project)
     },
     refresh() {
       for (const key of unfolded) {
         const cut = key.indexOf('\u0000')
-        load(key.slice(0, cut), key.slice(cut + 1))
+        const path = key.slice(cut + 1)
+        load(key.slice(0, cut), path)
+        // A folded project is not asked: its server is not connected to for it (top-menu.md).
+        if (path === '') ask(key.slice(0, cut))
       }
     },
     rows() {

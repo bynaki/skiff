@@ -6,11 +6,12 @@
 //
 // Under it is every project, each a line of its own with its files folded beneath (tree.ts). Each
 // opening asks Kotlin again what the projects are and where the file on the screen is, unfolds down to
-// that file, and lists the unfolded directories again. Tapping a file opens it and puts the drawer
-// away; holding a project down asks to remove it (2026-10-02 사용자 결정). The files that are open
-// moved out of here to the name in the menu (2026-09-26 사용자 결정).
+// that file, and lists the unfolded directories again, coloring what git says changed (2026-10-26
+// 사용자 결정). Tapping a file opens it and puts the drawer away; holding a project down asks to remove
+// it (2026-10-02 사용자 결정). The files that are open moved out of here to the name in the menu
+// (2026-09-26 사용자 결정).
 import { SIDEBAR_ICON } from './topbar'
-import { type Here, type Listing, type ProjectInfo, type Row, createTree } from '../tree'
+import { type Change, type Here, type Listing, type ProjectInfo, type Row, createTree } from '../tree'
 
 /** Accessible names and the tree's own words, from Kotlin's string resources like every other text on the page. */
 export interface SidebarLabels {
@@ -25,6 +26,8 @@ export interface SidebarLabels {
 export interface SidebarSource {
   projects(): Promise<{ projects: ProjectInfo[]; active: Here | null }>
   list(project: string, path: string): Promise<Listing>
+  /** What git says changed in the project, or null where it cannot be asked. */
+  changes(project: string): Promise<Change[] | null>
   open(project: string, path: string): void
   remove(project: string): void
 }
@@ -72,7 +75,7 @@ export function createSidebar(source: SidebarSource): Sidebar {
   const rowsOf = new WeakMap<Element, Row>()
   /** Set as the drawer opens, so the file on the screen is scrolled to once it has been listed. */
   let reveal = false
-  const tree = createTree(source.list, render)
+  const tree = createTree(source.list, render, source.changes)
 
   function isOpen(): boolean {
     return panel.classList.contains('open')
@@ -129,6 +132,8 @@ export function createSidebar(source: SidebarSource): Sidebar {
     } else {
       name.textContent = row.name
       if (row.kind === 'file' && row.current) li.classList.add('current')
+      // A changed file, or a folder with one in it, takes the color of its name (top-menu.md).
+      if (row.change) li.classList.add(row.change)
     }
     button.append(chevron, text)
     li.append(button)

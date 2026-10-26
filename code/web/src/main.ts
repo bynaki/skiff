@@ -12,6 +12,7 @@ import { type BannerLabels, createBanner } from './chrome/banner'
 import { createPaletteView } from './chrome/palette'
 import { type OpenFile, type OpenFilesLabels, createOpenFiles } from './chrome/openfiles'
 import { type SidebarLabels, createSidebar } from './chrome/sidebar'
+import { type Change } from './tree'
 import { type TopbarLabels, createTopbar } from './chrome/topbar'
 import { type Catalog, type CatalogTheme, type CommandSource, catalogItems, commands, themeItems } from './commands'
 import { createFolder, files } from './files'
@@ -121,6 +122,7 @@ const banner = createBanner()
 const sidebar = createSidebar({
   projects: () => rpc('projects'),
   list: (project, path) => rpc('projectDir', { project, path }),
+  changes: (project) => rpc<{ changes: Change[] | null }>('projectChanges', { project }).then((answer) => answer.changes),
   open: (project, path) => void rpc('openFromProject', { project, path }).catch((error) => console.log(`openFromProject: ${error}`)),
   remove: (project) => void rpc('removeProject', { project }).catch((error) => console.log(`removeProject: ${error}`)),
 })

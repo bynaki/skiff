@@ -106,6 +106,8 @@
   | `ui.accent` | `focusBorder`, `button.background`(불투명한 것만) | `Function` fg | `syntax.definition` |
   | `ui.scrim` | — | — | `editor.background` + 알파 `99` |
   | `ui.strong_background` / `strong_foreground` | `button.background` / `button.foreground` | `PmenuSel` bg / fg(없으면 `Pmenu` fg) | `ui.foreground` / `ui.background` |
+  | `ui.git_modified` | `gitDecoration.modifiedResourceForeground` | `NvimTreeGitDirty`, `NeoTreeGitModified` | `diff.changed` |
+  | `ui.git_untracked` | `gitDecoration.untrackedResourceForeground` | `NvimTreeGitNew`, `NeoTreeGitUntracked` | `diff.added` |
   | `editor.background` / `foreground` | `editor.background` / `editor.foreground` | `Normal` bg / fg | — (반드시 있다) |
   | `editor.gutter_background` | `editorGutter.background` | `SignColumn` bg | `editor.background` |
   | `editor.gutter_foreground` | `editorLineNumber.foreground` | `LineNr` fg | `ui.muted` |

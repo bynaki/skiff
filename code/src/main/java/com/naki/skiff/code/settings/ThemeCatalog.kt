@@ -142,8 +142,11 @@ class ThemeCatalog(
     companion object {
         val BASE = URL("https://raw.githubusercontent.com/bynaki/skiffcode-themes/main/")
 
-        /** The theme file format this app reads: the repository raises it when the theme keys change. */
-        const val FORMAT = 1
+        /**
+         * The theme file format this app reads: the repository raises it when the theme keys change.
+         * 2 added `ui.git_modified` and `ui.git_untracked` (M15).
+         */
+        const val FORMAT = 2
 
         const val INDEX_LIMIT = 256 * 1024
         const val THEME_LIMIT = 64 * 1024

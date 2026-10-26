@@ -26,6 +26,7 @@
       --syntax-class: #167; --syntax-macro: #256; --syntax-property: #00c; --syntax-comment: #940;
       --syntax-meta: #404740; --syntax-invalid: #f00; --syntax-warning: #9a6700;
       --diff-added: #2ea043; --diff-removed: #f85149; --diff-changed: #0969da;
+      --ui-git-modified: #9a6700; --ui-git-untracked: #1a7f37;
     }
     html, body { margin: 0; height: 100%; }
     body { background: var(--editor-background); color: var(--editor-foreground); font-family: sans-serif; }
@@ -219,6 +220,9 @@
     #sidebar .tree .project button { padding-top: 10px; padding-bottom: 10px; }
     #sidebar .tree .project .name { font-weight: 600; }
     #sidebar .tree li.current { background: var(--ui-subtle); }
+    /* What git says changed (top-menu.md): the name's color only, so the current line's background stays. */
+    #sidebar .tree li.modified .name { color: var(--ui-git-modified); }
+    #sidebar .tree li.untracked .name { color: var(--ui-git-untracked); }
     #sidebar .tree .chevron { flex: none; width: 14px; color: var(--ui-muted); font-size: 13px; text-align: center; }
     #sidebar .tree .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     #sidebar .tree .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

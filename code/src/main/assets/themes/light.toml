@@ -15,6 +15,10 @@ accent = "#0969da"
 scrim = "#1f232866"
 strong_background = "#1f2328"
 strong_foreground = "#fff"
+# A changed file's name in the sidebar's tree, and a folder with one in it: modified where HEAD
+# has the path, untracked where it does not.
+git_modified = "#9a6700"
+git_untracked = "#1a7f37"
 
 # The document: the code views and rendered markdown.
 [editor]
