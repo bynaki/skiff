@@ -1102,3 +1102,30 @@ M13이 끝난 뒤에 한다(2026-10-22 사용자 요청). 사용자 결정(2026-
   - 끝나면 확인용 파일과 기기에 넣은 것을 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
   - 2026-10-27 폴드8: 무선 adb가 Wi-Fi에서도 테일스케일에서도 붙지 않아, 사용자에게 APK(`0550b19`)를 보냈다. 사용자가 깔아 커버 화면을 보고 괜찮다고 했다.
   - 정리(2026-10-27): 탭의 확인용 프로젝트 `skiff-m16-sample`을 사이드바에서 길게 눌러 지우고 열린 파일을 닫았다. `Download/`의 `skiff-m16.md`·`skiff-m16.py`와 이 맥의 `~/skiff-m16-sample`도 지웠다. 기억한 탭은 `outline`으로 두었다.
+
+### M17. 사이드바 개요 탭: 소스 코드 심볼
+
+읽을 spec: [`outline.md`](skiffcode.spec/outline.md) 전부(특히 "소스 코드 심볼"), [`palette.md`](skiffcode.spec/palette.md)의 심볼 검색, [`lsp.md`](skiffcode.spec/lsp.md)의 다시 띄우기.
+
+원래 요구사항은 `my.next.spec.md`의 "사이드바 아웃라인에 소스코드 아웃라인 기능 추가"다(2026-10-27). M16이 자리만 남긴 소스 코드 개요를 만든다. 사용자 결정(2026-10-27): 공급원은 **떠서 준비된 LSP, 아니면 기다리지 않고 lezer**. 지금 위치는 **범위 안의 가장 깊은 심볼**(어느 범위에도 없으면 강조 없음). 종류는 **이름 앞의 작은 선 아이콘**(클래스·함수·메서드·그 밖, 테마 키 없음). 나머지(대상 언어, 넣는 것, 칸, 레이어, 언제 묻나)는 spec에 적은 대로다.
+
+지금: 개요 공급원은 마크다운 하나다(`outline.ts`의 `sourceFor`). 개요 항목에는 시작 줄만 있고 `currentItem`은 시작 줄로 고른다. 팔레트는 `pane.serverOutline()`(서버를 깨우고 `initializing`을 기다림) 다음 `outlineOf`(lezer)로 같은 `DocSymbol`을 받는다. `outlineFromServer`는 `selectionRange`만 읽고 `range`는 버린다. lezer 읽기의 `at()`은 이름 노드만 받아 정의의 끝을 모른다. 언어 서버는 Python, TS/JS, Markdown(`LanguageServer.kt`)이고, lezer도 TS/JS, Python, Markdown을 읽는다. 이 맥에는 `pyright-langserver`는 있고 `typescript-language-server`는 없다.
+
+**성공 조건**
+
+- ✅ vitest: 소스 코드 개요가 spec대로다 — 준비된 서버의 답, 서버가 없거나 뜨는 중이거나 실패하거나 평평한 답이면 lezer(기다리지 않음), 넣는 것은 팔레트 개요와 같음, 칸은 심볼 트리 깊이, 끝 줄(LSP `range`, lezer 정의 노드), 범위 안의 가장 깊은 것으로 고르는 지금 위치(범위 밖이면 없음, 끝 줄 없는 마크다운은 전과 같음). 팔레트의 결과는 그대로다. — 확인: vitest `outline.test.ts`, `symbols.test.ts`(2026-10-27). 기다리지 않는 것(`readyDocumentSymbols`가 `serverCapabilities` 없이는 바로 null)은 코드 리뷰와 아래 탭 확인으로 본다.
+- ✅ 탭에서 TypeScript와 Python으로: LSP가 붙은 프로젝트(Python, pyright)와 LSP 없이 연 파일(TS, 기기 로컬 파일) 양쪽에서 viewer·editor의 개요가 아이콘과 들여쓰기로 보이고, 지금 위치 강조, 누르면 그 줄로 가고 사이드바가 들어가며, 오른쪽 가장자리 밀기로 돌아온다. diff와 그 밖의 언어에서는 개요 탭이 꺼지고, 마크다운 목차는 전과 같다. — 확인: 탭, 홈 아래 견본 git 저장소의 `app.py`(pyright)·`view.ts`(서버 없음)·`notes.md`·`main.go`를 링크로 열어 보고 DOM을 읽고 스크린샷을 사용자에게 보냄(2026-10-27). 기기 로컬 `.py`(LSP 없는 Python)는 같은 빌드로 미리 본 것(2026-10-27).
+- ✅ 폴드8 커버 화면에서 코드 개요의 아이콘과 긴 이름의 말줄임이 들어가고 항목이 눌린다. — 확인: 폴드8 커버 화면, 무선 adb로 깔고 기기 로컬 `.py`로 보고 DOM을 읽음(2026-10-27).
+- ✅ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다. — 확인: 사용자(2026-10-27).
+
+- [x] 심볼과 공급원(`symbols.ts`, `outline.ts`, `lsp.ts`, `layers/pane.ts`, DOM 없음): `DocSymbol`에 끝 줄을 더한다 — `outlineFromServer`가 `range.end`를 읽고, lezer 읽기의 `at()`이 이름 노드와 함께 정의 노드를 받는다(팔레트는 쓰지 않는다). 개요 항목에 `end?`를 더하고, `currentItem`은 끝 줄이 있으면 화면 맨 위 줄을 품은 가장 깊은 항목, 없으면 지금 규칙. 소스 코드 공급원: 심볼 트리를 깊이와 함께 펼치고, `OutlineFile`이 주는 서버 개요를 먼저 묻고 null이면 lezer. 서버 개요는 `lsp.ts`에 깨우지도 기다리지도 않는 `readyDocumentSymbols`(준비되지 않았으면 바로 null)를 두고 `pane`이 넘긴다. `sourceFor`가 TS/JS/TSX/JSX/Python에 이 공급원을 준다. 비었을 때의 문구 키 `noSymbols`. vitest(가짜 서버 개요로 준비됨·없음·실패·평평한 답, 범위 고르기, 깊이, lezer 끝 줄), `tsc`.
+  - 2026-10-27: `DocSymbol.end`(lezer는 정의 노드의 마지막 공백 아닌 글자의 줄, LSP는 `range.end`, 없으면 비움). lezer Python은 함수 뒤의 빈 줄과 주석이 범위에 들지 않는 것을 실제로 봤다. `outline.ts`에 `symbolItems`, 소스 코드 공급원(`serverOutline` 다음 lezer), `OutlineItem.end`, 범위로 고르는 `currentItem`(파일 순서라 마지막으로 품은 것이 가장 안쪽). `lsp.ts`의 `readyDocumentSymbols`(깨우지도 기다리지도 않음, 팔레트의 `documentSymbols`와 묻는 부분을 함께 씀), `pane.readyOutline()`. 평평한 답·실패는 `outlineFromServer`/catch에서 null이라 lezer로 간다. vitest 265(9개 더함), `tsc` 통과.
+- [x] 사이드바(`chrome/sidebar.ts`, `index.html` CSS, `main.ts`, Kotlin string resource): 종류 아이콘 네 개(선 아이콘, 작게, `ui.muted`, 마크다운 제목은 없음)를 이름 앞에 둔다. 들여쓰기·말줄임은 아이콘과 함께 맞춘다. `main.ts`의 `showing`이 서버 개요를 함께 넘긴다. `outline_no_symbols`(No symbols/심볼 없음)를 `values`, `values-ko`, `MainActivity`의 labels에 더한다. vitest, `tsc`, JVM, lint.
+  - 2026-10-27: 종류 아이콘(클래스는 상자, 함수는 f, 메서드는 괄호, 그 밖은 고리, 14px, `ui.muted`)을 이름 앞에, 버튼을 flex로 바꿔 말줄임은 이름에만. `main.ts`의 `showing`이 `serverOutline: () => pane.readyOutline()`을 넘긴다. `outline_no_symbols`(영어·한국어)와 labels의 `noSymbols`. vitest 265, `tsc`, JVM 370(건너뜀 1, `SKIFF_THEMES_DIR`), `lintDebug` 경고 11개는 모두 전부터 있던 것.
+- [x] 확인: 탭과 폴드8
+  - 탭: 이 맥의 홈 아래 견본 저장소(Python 파일과 TS 파일, 클래스 안 메서드, 데코레이터, 함수 사이의 빈 줄과 import, 긴 이름)를 링크로 열어 프로젝트로 만든다. Python은 pyright가 붙은 경우, TS는 서버가 없는 경우로 본다. 기기 로컬 `.py`도 하나 열어 LSP 없는 Python을 본다. viewer·editor에서 아이콘·들여쓰기·지금 위치(메서드 안, 메서드 사이, 함수 밖)·누르기·오른쪽 가장자리 밀기, diff와 그 밖의 언어에서 꺼진 탭, 마크다운 목차가 전과 같은지. 스크린샷을 사용자에게 보낸다(서버 주소가 보이는 화면은 잘라서).
+  - 폴드8 커버 화면: 아이콘과 말줄임, 누르기. adb가 붙지 않으면 APK를 보내 사용자가 본다.
+  - 끝나면 확인용 파일과 앱의 확인용 프로젝트를 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
+  - 2026-10-27 폴드8: 무선 adb가 붙어 `installDebug`로 깔았다. 기기 로컬 `skiff-m17.py`(lezer)를 커버 화면에서 열어 아이콘·깊이별 들여쓰기·긴 이름의 말줄임을 봤다. `hello`를 누르면 그 줄로 가고 사이드바가 들어가며, 다시 열면 `hello`가, `Greeter`를 누르고 다시 열면 `Greeter`가 강조된다(DOM으로도 읽음). 오른쪽 가장자리 밀기로 앞 자리에 돌아온다. 24줄짜리 짧은 파일에서는 끝까지 내려가도 10번 줄이 맨 위라, 그 앞의 빈 9번 줄이 상단 메뉴 밑에 8px 걸쳐 맨 위 줄로 잡혀 강조가 없었다. 규칙대로라 두었다(사용자에게 알림).
+  - 2026-10-27 탭: adb가 USB의 탭을 못 잡아 adb 서버를 다시 띄웠다. 홈 아래 견본 git 저장소(`app.py`·`view.ts`·`notes.md`·`main.go`, `app.py`는 커밋 뒤 한 줄 고침)를 링크로 열어 프로젝트로 만들었다. `app.py`는 pyright의 답으로 나왔다(lezer가 넣지 않는 모듈 변수 `x`가 고리 아이콘으로 있음). viewer에서 화면 맨 위 줄을 옮겨 가며 강조를 읽었다: 1(import)·20·24·37(함수 사이 빈 줄)은 없음, 13·16(메서드 사이)은 `Greeter`, 15는 `hello`, 19는 `deep`, 26·33은 `helper_1`. `deep`을 누르면 그 줄로 가고 사이드바가 들어가며 다시 열면 `deep`이 강조된다. editor에서도 같은 개요이고, `helper_3`을 누르면 52줄, 오른쪽 가장자리 밀기로 13줄에 돌아온다. diff에서는 개요 탭이 꺼지고 트리. `view.ts`는 lezer로 `loadConfiguration…`(말줄임)·`Pane`·`show`·`topLine`·`render`. `notes.md`는 아이콘 없는 목차로 전과 같고, `main.go`에서는 개요 탭이 꺼진다. 서버가 있는 TS는 이 맥에 `typescript-language-server`가 없어 보지 못했다(LSP 쪽은 Python으로 봤다).
+  - 정리(2026-10-27): 탭의 확인용 프로젝트 `skiff-m17-sample`을 사이드바에서 길게 눌러 지우고 열린 파일 네 개를 닫았다. 탭과 폴드8의 `Download/skiff-m17.py`, 이 맥의 `~/skiff-m17-sample`도 지웠다. 폴드8 앱에 열린 `skiff-m17.py`는 사용자가 폰을 쓰고 있어 닫지 못했다.

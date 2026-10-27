@@ -17,25 +17,25 @@
 ## 마지막 세션 (2026-10-26 ~ 10-27)
 
 ### 지금 상태
-- **M16 "사이드바 개요 탭: 마크다운 목차"를 끝내고 `plan.done.md`로 옮겼다.** 성공 조건 여섯 개가 모두 ✅다. plan의 "할 일"은
-  다시 비어 있다. 원래 요구사항(`my.next.spec.md`의 toc)은 `[done]`으로 표시했다.
-  - `web/src/outline.ts`: 개요 항목과 공급원(지금은 마크다운 하나), 탭 고르기와 기억(`localStorage`의 `sidebar.tab`), 화면 맨 위
-    줄로 고르는 지금 위치, 늦게 답하는 공급원을 견디는 `createOutline`. 소스 코드 심볼은 같은 탭에 공급원 하나를 더하면 되게
-    자리만 남겼다(`docs/skiffcode.spec/outline.md`의 "소스 코드 심볼을 위한 자리").
-  - `chrome/sidebar.ts`: ① 옆의 트리·개요 탭, 개요 목록, 누르면 `moveTo`(점프 목록) 후 사이드바를 닫는다. 보이는 탭의 것만 묻는다.
-  - 탭에서는 viewer·editor·diff를 모두 봤다. 폴드8은 무선 adb가 Wi-Fi·테일스케일 어디서도 붙지 않아, APK를 보내 사용자가 깔고
-    눈으로 확인했다(DOM은 읽지 못함).
+- **M17 "사이드바 개요 탭: 소스 코드 심볼"을 끝내고 `plan.done.md`로 옮겼다.** 성공 조건 네 개가 모두 ✅다. 그 앞의 M16(마크다운
+  목차)도 이 세션에 끝냈다. plan의 "할 일"은 다시 비어 있다. 두 원래 요구사항은 `my.next.spec.md`에 `[done]`으로 표시했다.
+  - `web/src/outline.ts`: 공급원이 마크다운과 소스 코드(TS/JS/TSX/JSX, Python) 둘이다. 소스 코드는 떠서 준비된 언어 서버가 있으면
+    그 답(`lsp.ts`의 `readyDocumentSymbols`, 서버를 깨우지도 기다리지도 않음), 아니면 lezer. 항목에 끝 줄이 있으면 지금 위치는
+    화면 맨 위 줄을 품은 가장 안쪽 항목이고, 어느 범위에도 없으면 강조하지 않는다.
+  - `chrome/sidebar.ts`: 이름 앞의 종류 아이콘(클래스·함수·메서드·그 밖, 테마 키 없음).
+  - 짧은 파일을 끝까지 내리면 상단 메뉴 밑에 걸친 빈 줄이 맨 위 줄로 잡혀 강조가 없을 수 있다. 규칙대로라 두었고 사용자에게 알렸다.
+- 커밋은 `699a9d4`(M17 계획), `ebfbd63`(구현), 그리고 이 마일스톤을 닫는 커밋이다. `origin/spec/next`에는 아직 push하지 않았다.
+- 탭이 USB로 꽂혀 있어도 adb에 안 잡히면 `adb kill-server; adb start-server`로 잡혔다. 폴드8은 이번에 무선 adb(mDNS)로 붙어
+  있었다. 폴드8의 커버 화면 스크린샷은 `screencap -d <display id>`로 고른다(`dumpsys SurfaceFlinger --display-id`).
 - 탭에서 링크(`am start -d skiffcode://…`)로 열면 확인창 "열기"는 `tap 1328 1310`, git 저장소면 이어서 "프로젝트 만들기"가
-  `tap 1311 1307`이다. 탭 WebView의 페이지 좌표는 `devicePixelRatio` 2를 곱하고 위에 60px(상태 표시줄)을 더하면 화면 좌표다.
+  `tap 1311 1307`이다. 사이드바 머리는 ① `54 115`, 트리 탭 `149 115`, 개요 탭 `239 115`.
 - 이 맥의 셸에는 `java`가 PATH에 없다. Gradle은 `JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`으로
   돌렸다. npm은 `~/.local/share/fnm/aliases/default/bin`을 PATH에 더해 썼다.
 
 ### 정리
-- 탭의 확인용 프로젝트 `skiff-m16-sample`을 사이드바에서 길게 눌러 지우고, 열린 파일을 닫았다. 탭 `Download/`의
-  `skiff-m16.md`·`skiff-m16.py`와 이 맥의 `~/skiff-m16-sample`도 지웠다. 폴드8에는 확인용으로 넣은 것이 없다.
+- 탭의 확인용 프로젝트 `skiff-m17-sample`을 지우고 열린 파일을 닫았다. 탭과 폴드8의 `Download/skiff-m17.py`, 이 맥의
+  `~/skiff-m17-sample`도 지웠다. **폴드8 앱에는 지운 `skiff-m17.py`가 아직 열려 있다**(사용자가 폰을 쓰고 있어 닫지 못함).
 
 ### 다음 세션이 할 일
-1. plan의 M17 "사이드바 개요 탭: 소스 코드 심볼"의 항목 3(탭과 폴드8 확인)을 한다. 항목 1·2(심볼과 공급원, 사이드바)는
-   끝났고, 탭에 깔아 기기 로컬 `.py`(lezer)의 개요를 미리 본 데까지 했다. 탭 `Download/skiff-m17.py`가 남아 있으니 확인 뒤
-   지운다. 설계와 사용자 결정은 `docs/skiffcode.spec/outline.md`의 "소스 코드 심볼"(2026-10-27 사용자와 정함).
+1. plan의 "할 일"이 비어 있다. 다음 마일스톤은 사용자와 `docs/my.next.spec.md`에서 고른다.
    커밋도 푸시도 사용자가 말할 때만 한다.
