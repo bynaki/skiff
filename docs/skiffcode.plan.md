@@ -19,6 +19,28 @@
 
 ## 할 일
 
+### M17. 사이드바 개요 탭: 소스 코드 심볼
+
+읽을 spec: [`outline.md`](skiffcode.spec/outline.md) 전부(특히 "소스 코드 심볼"), [`palette.md`](skiffcode.spec/palette.md)의 심볼 검색, [`lsp.md`](skiffcode.spec/lsp.md)의 다시 띄우기.
+
+원래 요구사항은 `my.next.spec.md`의 "사이드바 아웃라인에 소스코드 아웃라인 기능 추가"다(2026-10-27). M16이 자리만 남긴 소스 코드 개요를 만든다. 사용자 결정(2026-10-27): 공급원은 **떠서 준비된 LSP, 아니면 기다리지 않고 lezer**. 지금 위치는 **범위 안의 가장 깊은 심볼**(어느 범위에도 없으면 강조 없음). 종류는 **이름 앞의 작은 선 아이콘**(클래스·함수·메서드·그 밖, 테마 키 없음). 나머지(대상 언어, 넣는 것, 칸, 레이어, 언제 묻나)는 spec에 적은 대로다.
+
+지금: 개요 공급원은 마크다운 하나다(`outline.ts`의 `sourceFor`). 개요 항목에는 시작 줄만 있고 `currentItem`은 시작 줄로 고른다. 팔레트는 `pane.serverOutline()`(서버를 깨우고 `initializing`을 기다림) 다음 `outlineOf`(lezer)로 같은 `DocSymbol`을 받는다. `outlineFromServer`는 `selectionRange`만 읽고 `range`는 버린다. lezer 읽기의 `at()`은 이름 노드만 받아 정의의 끝을 모른다. 언어 서버는 Python, TS/JS, Markdown(`LanguageServer.kt`)이고, lezer도 TS/JS, Python, Markdown을 읽는다. 이 맥에는 `pyright-langserver`는 있고 `typescript-language-server`는 없다.
+
+**성공 조건**
+
+- ⬜ vitest: 소스 코드 개요가 spec대로다 — 준비된 서버의 답, 서버가 없거나 뜨는 중이거나 실패하거나 평평한 답이면 lezer(기다리지 않음), 넣는 것은 팔레트 개요와 같음, 칸은 심볼 트리 깊이, 끝 줄(LSP `range`, lezer 정의 노드), 범위 안의 가장 깊은 것으로 고르는 지금 위치(범위 밖이면 없음, 끝 줄 없는 마크다운은 전과 같음). 팔레트의 결과는 그대로다.
+- ⬜ 탭에서 TypeScript와 Python으로: LSP가 붙은 프로젝트(Python, pyright)와 LSP 없이 연 파일(TS, 기기 로컬 파일) 양쪽에서 viewer·editor의 개요가 아이콘과 들여쓰기로 보이고, 지금 위치 강조, 누르면 그 줄로 가고 사이드바가 들어가며, 오른쪽 가장자리 밀기로 돌아온다. diff와 그 밖의 언어에서는 개요 탭이 꺼지고, 마크다운 목차는 전과 같다.
+- ⬜ 폴드8 커버 화면에서 코드 개요의 아이콘과 긴 이름의 말줄임이 들어가고 항목이 눌린다.
+- ⬜ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다.
+
+- [ ] 심볼과 공급원(`symbols.ts`, `outline.ts`, `lsp.ts`, `layers/pane.ts`, DOM 없음): `DocSymbol`에 끝 줄을 더한다 — `outlineFromServer`가 `range.end`를 읽고, lezer 읽기의 `at()`이 이름 노드와 함께 정의 노드를 받는다(팔레트는 쓰지 않는다). 개요 항목에 `end?`를 더하고, `currentItem`은 끝 줄이 있으면 화면 맨 위 줄을 품은 가장 깊은 항목, 없으면 지금 규칙. 소스 코드 공급원: 심볼 트리를 깊이와 함께 펼치고, `OutlineFile`이 주는 서버 개요를 먼저 묻고 null이면 lezer. 서버 개요는 `lsp.ts`에 깨우지도 기다리지도 않는 `readyDocumentSymbols`(준비되지 않았으면 바로 null)를 두고 `pane`이 넘긴다. `sourceFor`가 TS/JS/TSX/JSX/Python에 이 공급원을 준다. 비었을 때의 문구 키 `noSymbols`. vitest(가짜 서버 개요로 준비됨·없음·실패·평평한 답, 범위 고르기, 깊이, lezer 끝 줄), `tsc`.
+- [ ] 사이드바(`chrome/sidebar.ts`, `index.html` CSS, `main.ts`, Kotlin string resource): 종류 아이콘 네 개(선 아이콘, 작게, `ui.muted`, 마크다운 제목은 없음)를 이름 앞에 둔다. 들여쓰기·말줄임은 아이콘과 함께 맞춘다. `main.ts`의 `showing`이 서버 개요를 함께 넘긴다. `outline_no_symbols`(No symbols/심볼 없음)를 `values`, `values-ko`, `MainActivity`의 labels에 더한다. vitest, `tsc`, JVM, lint.
+- [ ] 확인: 탭과 폴드8
+  - 탭: 이 맥의 홈 아래 견본 저장소(Python 파일과 TS 파일, 클래스 안 메서드, 데코레이터, 함수 사이의 빈 줄과 import, 긴 이름)를 링크로 열어 프로젝트로 만든다. Python은 pyright가 붙은 경우, TS는 서버가 없는 경우로 본다. 기기 로컬 `.py`도 하나 열어 LSP 없는 Python을 본다. viewer·editor에서 아이콘·들여쓰기·지금 위치(메서드 안, 메서드 사이, 함수 밖)·누르기·오른쪽 가장자리 밀기, diff와 그 밖의 언어에서 꺼진 탭, 마크다운 목차가 전과 같은지. 스크린샷을 사용자에게 보낸다(서버 주소가 보이는 화면은 잘라서).
+  - 폴드8 커버 화면: 아이콘과 말줄임, 누르기. adb가 붙지 않으면 APK를 보내 사용자가 본다.
+  - 끝나면 확인용 파일과 앱의 확인용 프로젝트를 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
+
 ## 아직 확인하지 않은 것
 
 세션이 지나도 이어지는 목록이다. 확인하면 지우고, 안 되는 게 나오면 그 주제의 spec 파일(목차는 [`skiffcode.spec.md`](skiffcode.spec.md))의 설계를 먼저 고친다.
