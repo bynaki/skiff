@@ -329,11 +329,23 @@ export async function showHover(view: EditorView, target: LspTarget, pos: number
 export async function documentSymbols(view: EditorView, target: LspTarget): Promise<DocSymbol[] | null> {
   wakeLsp(target)
   const plugin = LSPPlugin.get(view)
-  if (!plugin) return null
+  return plugin ? askOutline(plugin, true) : null
+}
+
+/**
+ * The same, for the sidebar's outline, from a server that is up and has answered `initialize`: null at
+ * once from one that is not, without starting it or waiting for it, and the file's tree is read.
+ */
+export function readyDocumentSymbols(view: EditorView): Promise<DocSymbol[] | null> {
+  const plugin = LSPPlugin.get(view)
+  return plugin?.client.serverCapabilities ? askOutline(plugin, false) : Promise.resolve(null)
+}
+
+async function askOutline(plugin: LSPPlugin, initializing: boolean): Promise<DocSymbol[] | null> {
   const client = plugin.client
   client.sync()
   try {
-    await client.initializing
+    if (initializing) await client.initializing
     if (!client.serverCapabilities?.documentSymbolProvider) return null
     return outlineFromServer(await client.request<object, LspDocumentSymbol[] | LspSymbolInformation[] | null>(
       'textDocument/documentSymbol',

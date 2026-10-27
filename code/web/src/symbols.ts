@@ -16,14 +16,22 @@ export interface DocSymbol {
   kind: SymbolKind
   /** The line of the symbol's name, from 1. */
   line: number
+  /** The last line of what it names, a function's body to its end, which the sidebar's outline marks the place by. */
+  end?: number
   /** What is inside it: a class's methods. */
   children: DocSymbol[]
   /** A Markdown heading's level, 1 for `#` to 6, which the sidebar's outline indents by. */
   level?: number
 }
 
-/** How one language's tree is read. [at] makes a symbol out of the node that holds its name. */
-type Reader = (top: SyntaxNode, at: (node: SyntaxNode, kind: SymbolKind, children?: DocSymbol[]) => DocSymbol) => DocSymbol[]
+/**
+ * How one language's tree is read. [at] makes a symbol out of the node that holds its name and the
+ * node of all of it, a whole function or class, which is where it ends.
+ */
+type Reader = (
+  top: SyntaxNode,
+  at: (name: SyntaxNode, whole: SyntaxNode, kind: SymbolKind, children?: DocSymbol[]) => DocSymbol,
+) => DocSymbol[]
 
 const children = (node: SyntaxNode): SyntaxNode[] => {
   const all: SyntaxNode[] = []
@@ -41,9 +49,9 @@ const script: Reader = (top, at) => {
     const name = statement.getChild('VariableDefinition')
     switch (statement.name) {
       case 'ExportDeclaration': return statements(statement)
-      case 'FunctionDeclaration': return name ? [at(name, 'function')] : []
+      case 'FunctionDeclaration': return name ? [at(name, statement, 'function')] : []
       // `export default class {}` has no name to find it by.
-      case 'ClassDeclaration': return name ? [at(name, 'class', members(statement.getChild('ClassBody')!))] : []
+      case 'ClassDeclaration': return name ? [at(name, statement, 'class', members(statement.getChild('ClassBody')!))] : []
       case 'VariableDeclaration': return bound(statement, 'VariableDefinition', 'function')
       default: return []
     }
@@ -51,7 +59,7 @@ const script: Reader = (top, at) => {
   const members = (body: SyntaxNode): DocSymbol[] => children(body).flatMap((member) => {
     if (member.name === 'MethodDeclaration') {
       const name = member.getChild('PropertyDefinition') ?? member.getChild('PrivatePropertyDefinition')
-      return name ? [at(name, 'method')] : []
+      return name ? [at(name, member, 'method')] : []
     }
     return member.name === 'PropertyDeclaration' ? bound(member, 'PropertyDefinition', 'method') : []
   })
@@ -60,7 +68,7 @@ const script: Reader = (top, at) => {
     let name: SyntaxNode | null = null
     return children(node).flatMap((child) => {
       if (child.name === definition) name = child
-      return name && (child.name === 'ArrowFunction' || child.name === 'FunctionExpression') ? [at(name, kind)] : []
+      return name && (child.name === 'ArrowFunction' || child.name === 'FunctionExpression') ? [at(name, child, kind)] : []
     })
   }
   return statements(top)
@@ -74,8 +82,8 @@ const python: Reader = (top, at) => {
       : statement
     const name = definition?.getChild('VariableName')
     if (!definition || !name) return []
-    if (definition.name === 'FunctionDefinition') return [at(name, inClass ? 'method' : 'function')]
-    if (definition.name === 'ClassDefinition') return [at(name, 'class', definitions(definition.getChild('Body')!, true))]
+    if (definition.name === 'FunctionDefinition') return [at(name, definition, inClass ? 'method' : 'function')]
+    if (definition.name === 'ClassDefinition') return [at(name, definition, 'class', definitions(definition.getChild('Body')!, true))]
     return []
   })
   return definitions(top, false)
@@ -83,7 +91,7 @@ const python: Reader = (top, at) => {
 
 /** Markdown: the headings at the top level, `#` and underlined alike. A `#` in a code block is text. */
 const markdown: Reader = (top, at) =>
-  children(top).filter((node) => /^(ATX|Setext)Heading\d$/.test(node.name)).map((node) => at(node, 'heading'))
+  children(top).filter((node) => /^(ATX|Setext)Heading\d$/.test(node.name)).map((node) => at(node, node, 'heading'))
 
 const READERS: Record<string, Reader> = {
   TypeScript: script,
@@ -130,8 +138,12 @@ export async function outlineOf(fileName: string, text: string): Promise<DocSymb
     return (name + text.slice(from, node.to)).trim()
   }
 
-  return read(tree.topNode, (node, kind, inside = []) => {
-    const symbol: DocSymbol = { name: nameOf(node), kind, line: lineOf(node.from), children: inside }
+  // A Python body runs on over the blank lines and comments after it, to the next statement's dedent:
+  // it ends at its last character that is not space.
+  const endOf = (node: SyntaxNode): number => lineOf(node.from + Math.max(0, text.slice(node.from, node.to).trimEnd().length - 1))
+
+  return read(tree.topNode, (node, whole, kind, inside = []) => {
+    const symbol: DocSymbol = { name: nameOf(node), kind, line: lineOf(node.from), end: endOf(whole), children: inside }
     const level = /Heading(\d)$/.exec(node.name)
     if (level) symbol.level = Number(level[1])
     return symbol
@@ -156,6 +168,8 @@ interface LspRange { start: LspPosition; end: LspPosition }
 export interface LspDocumentSymbol {
   name: string
   kind: number
+  /** All of it, a function's body included. Every server sends it; one that does not leaves the symbol without an end. */
+  range?: LspRange
   selectionRange: LspRange
   children?: LspDocumentSymbol[]
 }
@@ -189,7 +203,9 @@ export function outlineFromServer(answer: LspDocumentSymbol[] | LspSymbolInforma
         : symbol.kind === LSP_FUNCTION ? 'function' : 'other'
     const inside = kind === 'method' || kind === 'function' ? []
       : (symbol.children ?? []).filter((child) => child.kind !== LSP_VARIABLE).map(convert)
-    return { name: symbol.name, kind, line: symbol.selectionRange.start.line + 1, children: inside }
+    const found: DocSymbol = { name: symbol.name, kind, line: symbol.selectionRange.start.line + 1, children: inside }
+    if (symbol.range) found.end = symbol.range.end.line + 1
+    return found
   }
   return (answer as LspDocumentSymbol[]).map(convert)
 }

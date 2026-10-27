@@ -458,6 +458,7 @@ class MainActivity : Activity() {
                 .put("treeTab", getString(R.string.sidebar_tree_tab))
                 .put("outlineTab", getString(R.string.sidebar_outline_tab))
                 .put("noHeadings", getString(R.string.outline_no_headings))
+                .put("noSymbols", getString(R.string.outline_no_symbols))
                 .put("close", getString(R.string.action_close))
                 .put("closeDirty", getString(R.string.close_dirty))
                 .put("cancel", getString(R.string.action_cancel))

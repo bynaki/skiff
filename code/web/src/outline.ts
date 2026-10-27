@@ -1,7 +1,7 @@
 // The sidebar's second tab, the outline of the file on the screen (docs/skiffcode.spec/outline.md).
 // What is shown is split from how: a source turns the file into outline items, and the list draws,
-// marks and goes to items without knowing what kind of file they came from. Markdown's headings are
-// the one source so far; a source file's symbols are meant to come in later as another.
+// marks and goes to items without knowing what kind of file they came from. There are two sources:
+// Markdown's headings, and a source file's symbols from its language server or its lezer tree.
 import { LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import type { LayerName } from './layers/pane'
@@ -16,6 +16,8 @@ export interface OutlineItem {
   line: number
   /** How far it is indented, from 0. */
   depth: number
+  /** The last line of what it names, when the source knows it: a function's, not a heading's. */
+  end?: number
 }
 
 /** The file an outline is asked for: which one it is, its name, and its buffer as it is now. */
@@ -23,11 +25,16 @@ export interface OutlineFile {
   id: string
   name: string
   text: string
+  /**
+   * Its language server's outline, only from a server that is up already: null at once from one that
+   * is not, is starting, or cannot say, and then the buffer is read instead. Without it, the buffer.
+   */
+  serverOutline?: () => Promise<DocSymbol[] | null>
 }
 
 export interface OutlineSource {
   /** The sidebar's label for an outline with nothing in it, which is the source's to pick. */
-  empty: 'noHeadings'
+  empty: 'noHeadings' | 'noSymbols'
   /** Its items, in the file's order. May take its time: a language server would have to be asked. */
   items(file: OutlineFile): Promise<OutlineItem[]>
 }
@@ -48,9 +55,35 @@ const markdown: OutlineSource = {
   items: async (file) => headingItems(await outlineOf(file.name, file.text)),
 }
 
+/**
+ * A source file's symbols, indented by how deep they sit in the symbol tree: a method in a class is
+ * one step in. Each keeps its end, by which the place on the screen is the innermost one it is in.
+ */
+export function symbolItems(outline: DocSymbol[], depth = 0): OutlineItem[] {
+  return outline.flatMap((symbol) => {
+    const item: OutlineItem = { name: symbol.name, kind: symbol.kind, line: symbol.line, depth }
+    if (symbol.end !== undefined) item.end = symbol.end
+    return [item, ...symbolItems(symbol.children, depth + 1)]
+  })
+}
+
+/**
+ * The server's outline when one is up to give it, and the file's lezer tree when not, without waiting
+ * for a server to start (2026-10-27 사용자 결정): the sidebar opens on a list, not on a gap.
+ */
+const code: OutlineSource = {
+  empty: 'noSymbols',
+  items: async (file) => symbolItems((await file.serverOutline?.()) ?? await outlineOf(file.name, file.text)),
+}
+
+/** The languages `symbols.ts` reads a tree of, Markdown aside: the ones a source file's outline is for. */
+const CODE = new Set(['TypeScript', 'JavaScript', 'TSX', 'JSX', 'Python'])
+
 /** The source for a file named [name], or null when nothing gives it an outline. By name, as the pane picks its language. */
 export function sourceFor(name: string): OutlineSource | null {
-  return LanguageDescription.matchFilename(languages, name)?.name === 'Markdown' ? markdown : null
+  const language = LanguageDescription.matchFilename(languages, name)?.name
+  if (language === 'Markdown') return markdown
+  return language && CODE.has(language) ? code : null
 }
 
 /** What is on the screen, as far as the tabs care: the file's name and the layer it is in. */
@@ -90,15 +123,19 @@ export function tabToShow(remembered: SidebarTab, showing: Showing | null): Side
 }
 
 /**
- * The item the top of the screen is in: the last one that starts on [topLine] or before it, or -1
- * when the screen is above the first. The top rather than the cursor, since the viewer has no cursor
- * and both layers ought to answer alike.
+ * The item the top of the screen is in, or -1 for none. The top rather than the cursor, since the
+ * viewer has no cursor and both layers ought to answer alike.
+ *
+ * An item without an end (a heading) is in until the next one starts: the last that starts on
+ * [topLine] or before it. An item with one (a symbol) is in from its name to its end, and of those the
+ * innermost: items come in the file's order with what is inside after what holds it, so that is the
+ * last one found. Between symbols, among the imports or below a function, nothing is.
  */
 export function currentItem(items: OutlineItem[], topLine: number): number {
   let current = -1
   for (const [index, item] of items.entries()) {
     if (item.line > topLine) break
-    current = index
+    if (item.end === undefined || topLine <= item.end) current = index
   }
   return current
 }

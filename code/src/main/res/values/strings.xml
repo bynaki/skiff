@@ -79,6 +79,7 @@
     <string name="sidebar_tree_tab">Projects</string>
     <string name="sidebar_outline_tab">Outline</string>
     <string name="outline_no_headings">No headings</string>
+    <string name="outline_no_symbols">No symbols</string>
     <string name="project_remove_title">Remove project?</string>
     <string name="project_remove">%1$s is forgotten by this app. Nothing on the server is changed:\n\n%2$s</string>
     <string name="action_remove">Remove</string>

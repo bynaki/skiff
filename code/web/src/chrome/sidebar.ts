@@ -16,6 +16,7 @@
 // and the file has none. Tapping a line of the outline goes there and puts the drawer away.
 import { SIDEBAR_ICON, svg } from './topbar'
 import type { LayerName } from '../layers/pane'
+import type { SymbolKind } from '../symbols'
 import {
   type OutlineFile,
   type OutlineSource,
@@ -39,8 +40,9 @@ export interface SidebarLabels {
   emptyDirectory: string
   treeTab: string
   outlineTab: string
-  /** An outline source's line for an outline with nothing in it. */
+  /** An outline source's lines for an outline with nothing in it. */
   noHeadings: string
+  noSymbols: string
 }
 
 /** What the drawer asks of Kotlin. A place is a project and a path relative to its root. */
@@ -79,6 +81,17 @@ const HOLD_SLOP = 10
 /** A folder, for the tree; lines indented under each other, for the outline of whatever kind of file. */
 const TREE_ICON = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>')
 const OUTLINE_ICON = svg('<path d="M4 6h16M8 12h12M12 18h8"/>')
+
+/**
+ * What kind of symbol a line of a source file's outline is (2026-10-27 사용자 결정): a box for a
+ * class, an f for a function, brackets for a method, a ring for the rest. A heading has none.
+ */
+const KIND_ICONS: Partial<Record<SymbolKind, string>> = {
+  class: svg('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>'),
+  function: svg('<path d="M16 4h-2a3 3 0 0 0-3 3v13M7 10h8"/>'),
+  method: svg('<path d="M9 4c-3.5 4-3.5 12 0 16M15 4c3.5 4 3.5 12 0 16"/>'),
+  other: svg('<circle cx="12" cy="12" r="4"/>'),
+}
 
 export function createSidebar(source: SidebarSource): Sidebar {
   const scrim = document.createElement('div')
@@ -187,6 +200,8 @@ export function createSidebar(source: SidebarSource): Sidebar {
       const button = Object.assign(document.createElement('button'), { type: 'button' })
       button.dataset.line = String(entry.line)
       button.style.setProperty('--depth', String(entry.depth))
+      const icon = KIND_ICONS[entry.kind]
+      if (icon) button.append(Object.assign(document.createElement('span'), { className: 'kind', innerHTML: icon }))
       button.append(Object.assign(document.createElement('span'), { className: 'name', textContent: entry.name }))
       li.append(button)
       return li

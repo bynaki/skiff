@@ -29,7 +29,7 @@ import { editorTheme } from '../theme'
 import { swatchesFor } from '../swatches'
 import { gitGutter, setBaseline } from '../gitGutter'
 import { unifiedDiff } from '../diff'
-import { type LspTarget, documentSymbols, goToDefinition, lspAvailable, lspPlugin, lspSupport, openInProject, showHover, wakeLsp, watchLsp, workspaceSymbols } from '../lsp'
+import { type LspTarget, documentSymbols, goToDefinition, lspAvailable, lspPlugin, lspSupport, openInProject, readyDocumentSymbols, showHover, wakeLsp, watchLsp, workspaceSymbols } from '../lsp'
 import type { DocSymbol, ProjectSymbol } from '../symbols'
 
 /** ③ cycles through these, passing over `diff` while the file has nothing to be compared with. */
@@ -218,6 +218,8 @@ export interface Pane {
   showHover(): void
   /** The language server's outline of the file, or null when the palette is to read the file's own. */
   serverOutline(): Promise<DocSymbol[] | null>
+  /** The same from a server that is up already, for the sidebar's outline: null at once otherwise, and nothing started. */
+  readyOutline(): Promise<DocSymbol[] | null>
   /** What the language server finds across the project for [query], other than in this file. */
   projectSymbols(query: string): Promise<ProjectSymbol[]>
   /** Opens what [projectSymbols] found, in its own file. */
@@ -594,6 +596,10 @@ export function openPane(
     serverOutline() {
       const shown = codeView()
       return shown && doc.lsp ? documentSymbols(shown, doc.lsp) : Promise.resolve(null)
+    },
+    readyOutline() {
+      const shown = codeView()
+      return shown && doc.lsp ? readyDocumentSymbols(shown) : Promise.resolve(null)
     },
     projectSymbols: (query) => (doc.lsp ? workspaceSymbols(doc.lsp, query) : Promise.resolve([])),
     openSymbol(symbol) {

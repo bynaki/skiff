@@ -103,6 +103,58 @@ describe('the outline of a Markdown file', () => {
   })
 })
 
+/** The outline as `name:line-end`, children indented, for where each symbol stops. */
+function spans(outline: DocSymbol[], depth = 0): string[] {
+  return outline.flatMap((symbol) => [`${'  '.repeat(depth)}${symbol.name}:${symbol.line}-${symbol.end}`, ...spans(symbol.children, depth + 1)])
+}
+
+describe('where a symbol read from the file ends', () => {
+  test('is the end of the whole function or class, not of its name', async () => {
+    const text = [
+      'import a from "a"',
+      '',
+      'export function f() {',
+      '  return 1',
+      '}',
+      '',
+      'class B {',
+      '  m() {',
+      '    return 2',
+      '  }',
+      '  k = () => {',
+      '  }',
+      '}',
+      'const g = () => {',
+      '  return 3',
+      '}',
+    ].join('\n')
+    expect(spans(await outlineOf('a.ts', text))).toEqual(['f:3-5', 'B:7-13', '  m:8-10', '  k:11-12', 'g:14-16'])
+  })
+
+  test('in Python is its last line of code, not the blank lines and comments before the next statement', async () => {
+    const text = [
+      'import os',
+      '',
+      '@wrap',
+      'def f(x):',
+      '    return x',
+      '',
+      '    # after it',
+      '',
+      '',
+      'class A:',
+      '    def m(self):',
+      '        pass',
+      '',
+      '    def n(self):',
+      '        pass',
+      '',
+      'X = 1',
+    ].join('\n')
+    expect(spans(await outlineOf('a.py', text))).toEqual(['f:4-5', 'A:10-15', '  m:11-12', '  n:14-15'])
+  })
+})
+
 test('a language with no rules here has no outline yet', async () => {
   expect(await outlineOf('config.json', '{"a": 1}')).toEqual([])
   expect(await outlineOf('notes.txt', '# not a heading')).toEqual([])
@@ -146,6 +198,13 @@ describe('the outline a language server gives', () => {
       '  method hello:18',
       '  other count:19',
     ])
+  })
+
+  test('ends each symbol where its range ends, and leaves the end out when the server sent no range', () => {
+    const ranged = (name: string, kind: number, line: number, end: number, children: LspDocumentSymbol[] = []): LspDocumentSymbol =>
+      ({ ...tree(name, kind, line, children), range: { start: { line, character: 0 }, end: { line: end, character: 1 } } })
+    const answer = [ranged('Greeter', 5, 2, 9, [ranged('hello', 6, 3, 5)]), tree('main', 12, 11)]
+    expect(spans(outlineFromServer(answer)!)).toEqual(['Greeter:3-10', '  hello:4-6', 'main:12-undefined'])
   })
 
   test('is read from the file instead when the server sends a flat list', () => {

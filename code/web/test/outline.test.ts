@@ -1,5 +1,5 @@
-// The sidebar's outline tab: what Markdown's headings become, which tab is shown, where the screen
-// is, and an outline whose source answers late.
+// The sidebar's outline tab: what Markdown's headings and a source file's symbols become, which tab
+// is shown, where the screen is, and an outline whose source answers late.
 import { afterEach, describe, expect, test } from 'vitest'
 import {
   type OutlineFile,
@@ -11,8 +11,10 @@ import {
   rememberTab,
   rememberedTab,
   sourceFor,
+  symbolItems,
   tabToShow,
 } from '../src/outline'
+import type { DocSymbol } from '../src/symbols'
 
 /** The items as `depth name:line`, indented by depth, which reads better in a failure than objects do. */
 const flat = (items: OutlineItem[]): string[] => items.map((item) => `${'  '.repeat(item.depth)}${item.name}:${item.line}`)
@@ -66,24 +68,64 @@ describe('the outline of a Markdown file', () => {
 })
 
 describe('a source', () => {
-  test('is there for Markdown by its name, and not for anything else yet', () => {
-    expect(sourceFor('README.md')).not.toBeNull()
-    expect(sourceFor('notes.markdown')).not.toBeNull()
-    expect(sourceFor('main.ts')).toBeNull()
-    expect(sourceFor('notes.txt')).toBeNull()
-    expect(sourceFor('Makefile')).toBeNull()
+  test('is there for Markdown and for the languages whose symbols are read, by the name', () => {
+    expect(sourceFor('README.md')?.empty).toBe('noHeadings')
+    expect(sourceFor('notes.markdown')?.empty).toBe('noHeadings')
+    for (const name of ['main.ts', 'view.tsx', 'a.js', 'b.jsx', 'main.py']) expect(sourceFor(name)?.empty).toBe('noSymbols')
+  })
+
+  test('is not there for any other language, or for a file that has none', () => {
+    for (const name of ['main.go', 'Main.kt', 'notes.txt', 'config.json', 'Makefile']) expect(sourceFor(name)).toBeNull()
+  })
+})
+
+/** A symbol as the palette's outline has it, at [line] to [end], with what is inside it. */
+const symbol = (name: string, kind: DocSymbol['kind'], line: number, end: number, children: DocSymbol[] = []): DocSymbol =>
+  ({ name, kind, line, end, children })
+
+/** The items as `name:line-end`, indented by depth. */
+const spans = (items: OutlineItem[]): string[] => items.map((item) => `${'  '.repeat(item.depth)}${item.name}:${item.line}-${item.end}`)
+
+describe('the outline of a source file', () => {
+  test('is its symbols indented by how deep they sit, each with its end', () => {
+    const outline = [
+      symbol('load', 'function', 1, 3),
+      symbol('Pane', 'class', 5, 20, [symbol('show', 'method', 6, 9), symbol('Inner', 'class', 10, 18, [symbol('m', 'method', 11, 12)])]),
+    ]
+    expect(spans(symbolItems(outline))).toEqual(['load:1-3', 'Pane:5-20', '  show:6-9', '  Inner:10-18', '    m:11-12'])
+    expect(symbolItems(outline).map((item) => item.kind)).toEqual(['function', 'class', 'method', 'class', 'method'])
+  })
+
+  test('is what the server answered when one is up to answer', async () => {
+    const server = [symbol('from_server', 'function', 2, 4)]
+    const items = await sourceFor('a.py')!.items({ ...file('def from_tree(): pass', 'a.py'), serverOutline: async () => server })
+    expect(spans(items)).toEqual(['from_server:2-4'])
+  })
+
+  test('is read from the file when the server is not up, cannot say, or is not there at all', async () => {
+    const text = 'class A:\n    def m(self):\n        pass\n\ndef f():\n    pass\n'
+    const read = ['A:1-3', '  m:2-3', 'f:5-6']
+    expect(spans(await sourceFor('a.py')!.items({ ...file(text, 'a.py'), serverOutline: async () => null }))).toEqual(read)
+    expect(spans(await sourceFor('a.py')!.items(file(text, 'a.py')))).toEqual(read)
+  })
+
+  test('is empty without symbols, with the line the source picked for that', async () => {
+    expect(await sourceFor('a.ts')!.items(file('const a = 1', 'a.ts'))).toEqual([])
   })
 })
 
 describe('the outline tab', () => {
-  test('can be picked for Markdown in the viewer and the editor', () => {
-    expect(outlineEnabled({ name: 'a.md', layer: 'viewer' })).toBe(true)
-    expect(outlineEnabled({ name: 'a.md', layer: 'editor' })).toBe(true)
+  test('can be picked for Markdown and source files in the viewer and the editor', () => {
+    for (const name of ['a.md', 'main.py', 'main.ts']) {
+      expect(outlineEnabled({ name, layer: 'viewer' })).toBe(true)
+      expect(outlineEnabled({ name, layer: 'editor' })).toBe(true)
+    }
   })
 
   test('cannot be picked in the diff layer, without a source, or without a document', () => {
     expect(outlineEnabled({ name: 'a.md', layer: 'diff' })).toBe(false)
-    expect(outlineEnabled({ name: 'main.py', layer: 'viewer' })).toBe(false)
+    expect(outlineEnabled({ name: 'main.py', layer: 'diff' })).toBe(false)
+    expect(outlineEnabled({ name: 'main.go', layer: 'viewer' })).toBe(false)
     expect(outlineEnabled(null)).toBe(false)
   })
 
@@ -93,7 +135,7 @@ describe('the outline tab', () => {
   })
 
   test('gives way to the tree when there is no outline to show', () => {
-    expect(tabToShow('outline', { name: 'main.py', layer: 'viewer' })).toBe('tree')
+    expect(tabToShow('outline', { name: 'main.go', layer: 'viewer' })).toBe('tree')
     expect(tabToShow('outline', { name: 'a.md', layer: 'diff' })).toBe('tree')
     expect(tabToShow('outline', null)).toBe('tree')
   })
@@ -140,7 +182,7 @@ describe('the tab the sidebar was left on', () => {
   test('is still the outline after a file without one has been on the screen', () => {
     give(fakeStorage())
     rememberTab('outline')
-    expect(tabToShow(rememberedTab(), { name: 'main.py', layer: 'viewer' })).toBe('tree')
+    expect(tabToShow(rememberedTab(), { name: 'main.go', layer: 'viewer' })).toBe('tree')
     expect(tabToShow(rememberedTab(), { name: 'a.md', layer: 'viewer' })).toBe('outline')
   })
 })
@@ -159,6 +201,22 @@ describe('where the screen is', () => {
   test('is nowhere above the first item, or in an empty outline', () => {
     expect(currentItem(items(3, 10), 2)).toBe(-1)
     expect(currentItem([], 40)).toBe(-1)
+  })
+
+  test('is the innermost symbol whose lines hold the top line, and none between them', () => {
+    // 1 import, 3-5 f, 8-20 class A with m at 9-12 and n at 15-18, 23 g to 25.
+    const outline = symbolItems([
+      symbol('f', 'function', 3, 5),
+      symbol('A', 'class', 8, 20, [symbol('m', 'method', 9, 12), symbol('n', 'method', 15, 18)]),
+      symbol('g', 'function', 23, 25),
+    ])
+    const at = (line: number) => outline[currentItem(outline, line)]?.name ?? null
+    expect(at(1)).toBeNull()
+    expect([at(3), at(5)]).toEqual(['f', 'f'])
+    expect([at(6), at(7)]).toEqual([null, null])
+    expect([at(8), at(9), at(12)]).toEqual(['A', 'm', 'm'])
+    expect([at(13), at(14), at(19), at(20)]).toEqual(['A', 'A', 'A', 'A'])
+    expect([at(16), at(21), at(24), at(30)]).toEqual(['n', null, 'g', null])
   })
 })
 
