@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M16, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M17, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -18,6 +18,59 @@
 - 설계와 다르게 구현하게 되면 그 주제의 spec 파일도 같은 커밋에서 고친다. 두 문서가 늘 현재 상태를 말해야 한다.
 
 ## 할 일
+
+### M18. 마크다운 이미지
+
+읽을 spec: [`markdown-images.md`](skiffcode.spec/markdown-images.md) 전부, [`markdown-links.md`](skiffcode.spec/markdown-links.md)의 "링크 종류와 하는 일"과 "https 마크다운", [`security.md`](skiffcode.spec/security.md), [`jumps.md`](skiffcode.spec/jumps.md)의 겹쳐 나온 것.
+
+원래 요구사항은 `my.next.spec.md`의 "마크다운 뷰에 이미지 보이기"다(2026-11-01). 사용자 결정(2026-11-01)은 다섯 가지다.
+- 못 보이면 **alt 글을 담은 자리 상자**(이유는 적지 않음).
+- raw HTML `<img>`는 **이번에 안 함**.
+- 탭하면 **전체 화면**, 탭·뒤로 가기로 닫기.
+- 웹 이미지는 **늘 받고 끄는 설정 없음**.
+- 받는 길은 페이지가 `src`를 같은 출처 주소로 바꾸고 Kotlin이 문서 기준으로 풀어 받는 것이다(CSP 그대로).
+
+지금 상태는 이렇다.
+- 페이지 CSP는 `img-src 'self' data:`이고, `MainActivity`의 `shouldInterceptRequest`는 `/assets/web/` 밖을 모두 `refused()`(빈 403)로 막는다. 그래서 문서 속 이미지는 하나도 안 보인다.
+- `index.html`에 `.markdown img { max-width: 100%; }`만 있다.
+- 링크는 `markdown.ts`가 `href` 원문을 `openLink`로 보내고, `MarkdownLink.resolve`가 `Base.Path`/`NoFolder`/`Web` 기준으로 푼다. `.md`가 아닌 https는 `External`이다.
+- 원격 읽기는 문서의 `Folder`(그 문서를 읽은 `FileSystem`)가 들고 있고, 웹 받기는 `WebLoader`(`HttpURLConnection`)다.
+- 겹쳐 나온 것은 `web/src/back.ts`가 `MutationObserver`로 보고 `navigationState.overlay`를 보낸다.
+
+**성공 조건**
+
+- ⬜ JVM: 이미지 `src` 풀기가 spec의 표대로다(상대·`../`·`/`의 프로젝트와 단일 파일, 퍼센트 인코딩, 쿼리·조각 버림, 루트 위 `..`·NUL 거부, `content://` 기준, https는 확장자와 상관없이, GitHub blob → raw, 웹 문서 기준의 상대, http·그 밖의 스킴은 받지 않음). 이미지인 것만(PNG, JPEG, GIF, WebP, BMP, ICO, SVG) 10MB 안에서 내주고 나머지는 404다. 웹 받기가 https만·`text/html` 거부·상한·쿠키 없음을 지킨다.
+- ⬜ vitest: 페이지가 `src`를 `/doc-image/<id>?src=…`로 바꾸고, `data:`는 두고, 받지 않는 `src`는 요청 없이 자리 상자다. 실패하면 자리 상자(alt, 없으면 파일 이름)로 바꾼다. 링크 안의 이미지는 링크를 연다.
+- ⬜ 탭에서 원격 프로젝트, 기기 로컬 파일, https 웹 문서의 상대·`/`·https 이미지(PNG, JPEG, SVG 배지)가 보인다. 없는 파일, 이미지가 아닌 파일, `http://` 이미지는 자리 상자다. 이미지를 탭하면 전체 화면이고, 탭과 가장자리 밀기로 닫힌다. 이미지가 늦게 들어와도 `?line=`·`#제목`으로 간 자리가 밀리지 않는다.
+- ⬜ 폴드8 커버 화면에서 이미지가 폭에 맞고, 전체 화면이 열리고 닫힌다.
+- ⬜ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다.
+
+- [ ] Kotlin이 이미지를 푸는 쪽과 내주는 쪽(`intent/MarkdownLink.kt`, 새 `doc/ImageLoader.kt`, `ui/MainActivity.kt`, `ui/Folder.kt`)
+  - 풀기: `MarkdownLink`에 이미지 풀기(`resolveImage`)를 더하고, 파일·조각·`withinRoot`·GitHub 변환은 링크와 함께 쓴다. https는 확장자와 상관없이 `Web`, http·그 밖은 받지 않는다.
+  - 읽기: `ImageLoader`는 파일(문서의 `FileSystem`, 크기를 먼저 봄)과 https(`WebLoader`와 같은 시간 제한, 쿠키·`Referer` 없음, 받으며 셈)를 읽는다. 첫 바이트로 종류를 판정해 MIME을 정하고, 아니면 null이다. 상한은 10MB다.
+  - 내주기: `shouldInterceptRequest`에 `/doc-image/<id>?src=` 길을 더한다. 문서의 기준과 파일시스템만 메인 스레드에서 꺼내고, 읽기는 그 스레드에서 한다. 실패는 모두 빈 404이고, 성공은 판정한 MIME으로 내준다.
+  - 문서: `security.md`의 로더·CSP 줄과 `markdown-links.md`의 "CSP가 외부 이미지(추적 픽셀)를 막는다"를 지금 모습으로 고친다.
+  - 확인: JVM 테스트(`MarkdownLinkTest`에 이미지 풀기, 새 `ImageLoaderTest`는 종류 판정·상한·로컬 파일·로컬 HTTP 서버로 웹), lint.
+- [ ] 페이지 쪽(`web/src/markdown.ts`, `index.html` CSS, `back.ts`, 새 전체 화면 모듈)
+  - markdown-it의 `image` 규칙에서 받을 `src`는 `/doc-image/<id>?src=<encodeURIComponent>`로 바꾸고 `loading="lazy"`·`decoding="async"`를 단다. `data:`는 둔다. 받지 않는 것(`http:`, 그 밖의 스킴)은 처음부터 자리 상자다. 렌더에 열린 문서 id가 필요하므로 `renderMarkdown`/`showMarkdown`이 id를 받는다.
+  - 자리 상자: 끊긴 이미지 선 아이콘(`topbar.ts`의 `svg()`와 같은 모양)과 alt 글(없으면 `src`의 파일 이름)을 담고, `ui.border` 테두리, `ui.muted` 글자다. `error` 이벤트에서 바꾼다.
+  - 제자리 지키기: 화면 맨 위 블록보다 위에서 이미지가 `load`/`error`로 높이가 바뀌면, 그 블록이 같은 자리에 남게 `scrollTop`을 옮긴다(`zoom.ts`의 `holdBlock`과 같은 방법).
+  - 전체 화면: 링크 밖의 보이는 이미지를 탭하면 연다. 화면에 비율대로 맞추고 배경은 `ui.scrim`이며, 상단 메뉴와 커맨드 버튼을 덮는다. 탭하면 닫는다. `back.ts`가 이것을 겹쳐 나온 것으로 보고, 뒤로 가기는 이것부터 닫는다.
+  - 확인: vitest(`src` 바꾸기, `data:` 유지, 받지 않는 것·실패의 자리 상자와 alt/파일 이름, 링크 안 이미지, 전체 화면 열고 닫기, 제자리 지키기 계산), `tsc`.
+- [ ] 확인: 탭과 폴드8
+  - 견본 준비
+    - 이 맥의 홈 아래 견본 git 저장소를 링크로 열어 프로젝트로 만든다.
+    - 넣는 것: `README.md`, `img/` 아래 PNG·JPEG·SVG, 하위 폴더 문서의 `../img/…`, `/img/…`, 없는 파일, 이미지가 아닌 파일(`.txt`를 `.png`로), https PNG, shields.io SVG 배지, `http://` 이미지, 링크로 감싼 배지, alt 없는 이미지, 이미지 위로 긴 본문 뒤의 제목.
+    - 기기 로컬 `.md`와 그 옆 이미지도 하나 둔다.
+    - https 웹 문서는 상대 이미지가 있는 공개 GitHub README의 blob 링크로 본다.
+  - 탭에서 보는 것
+    - 위 각각이 보이거나 자리 상자인지.
+    - 전체 화면을 열고 탭·가장자리 밀기로 닫히는지.
+    - 이미지 아래 줄로 `?line=`와 `#제목`으로 갔을 때 자리가 밀리지 않는지.
+    - editor로 갔다 와도 그대로인지.
+    - 스크린샷을 사용자에게 보낸다(서버 주소가 보이는 화면은 잘라서).
+  - 폴드8 커버 화면: 폭 맞춤과 전체 화면을 본다. adb가 붙지 않으면 APK를 보내 사용자가 본다.
+  - 끝나면 확인용 파일과 앱의 확인용 프로젝트를 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
 
 ## 아직 확인하지 않은 것
 

@@ -31,6 +31,7 @@
 | [`reset-data.md`](skiffcode.spec/reset-data.md) | 데이터 초기화 | 팔레트의 `Reset Data…` 체크리스트 |
 | [`jumps.md`](skiffcode.spec/jumps.md) | 전 화면, 앞 화면 (점프 목록) | 점프 목록, 시스템 뒤로 가기 제스처의 가장자리, 적는 때 |
 | [`markdown-links.md`](skiffcode.spec/markdown-links.md) | — | 렌더된 마크다운의 링크: 상대 경로는 묻지 않고 열기, `#제목`, https `.md`는 읽기 전용 웹 문서, GitHub blob → raw |
+| [`markdown-images.md`](skiffcode.spec/markdown-images.md) | — | 렌더된 마크다운의 이미지: 같은 출처 주소로 Kotlin이 풀고 받기(CSP 그대로), 상대·`/`·https·웹 문서 기준, 이미지인 것만 10MB 안에서, 늦게 들어와도 제자리, 못 보이면 alt 자리 상자, 탭하면 전체 화면 |
 | [`outline.md`](skiffcode.spec/outline.md) | — | 사이드바 개요 탭: 머리의 두 번째 탭, 마지막에 보던 탭 기억, 공급원과 목록을 나눈 모양, 마크다운 목차(viewer·editor, lezer 제목, 수준별 들여쓰기, 화면 맨 위 줄로 고르는 지금 위치, 누르면 그 줄로 가고 점프 목록에 적음), 소스 코드 심볼(떠 있는 LSP 아니면 lezer, 심볼 트리 깊이, 범위로 고르는 지금 위치, 종류 아이콘) |
 | [`margins.md`](skiffcode.spec/margins.md) | — | 문서 여백과 scrolloff: 세 코드 레이어에 아래 N줄(scrolloff)과, 줄바꿈이 꺼졌을 때 오른쪽 N글자(sidescrolloff), 마크다운 viewer는 예외 |
 | [`nav-bar.md`](skiffcode.spec/nav-bar.md) | — | 오른쪽 가는 막대: 문서 전체의 git 변경과 LSP 진단, 보이는 구간 상자, 터치 없음, 마크다운 viewer는 예외, `nav_bar` 기본 끔 |
