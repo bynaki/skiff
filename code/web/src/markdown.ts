@@ -5,9 +5,10 @@
 import MarkdownIt from 'markdown-it'
 import { type Heading, anchorLine, decodeFragment } from './anchors'
 import { TOPBAR_SPACE } from './chrome/topbar'
+import { type ImageEnv, images, missingImageHtml, topBlockIndex } from './images'
 import { type Hold, holdBlock } from './zoom'
 
-const md = new MarkdownIt({ html: false })
+const md = new MarkdownIt({ html: false }).use(images)
 
 // Each top-level block carries the first source line it came from, so `?line=` can find it.
 md.core.ruler.push('source_line', (state) => {
@@ -16,27 +17,46 @@ md.core.ruler.push('source_line', (state) => {
   }
 })
 
-/** What a tapped link does, which only `main.ts` knows how to: which file is open, and the jump list. */
-export interface LinkHooks {
+/**
+ * What a tap in the document does, which only `main.ts` knows how to: which file is open, the jump
+ * list, the full screen image.
+ */
+export interface MarkdownHooks {
   /** Any link but a bare `#fragment`, as the document wrote it, for Kotlin to resolve against the file. */
   open(href: string): void
   /** A heading of this document, by its source line. */
   heading(line: number): void
+  /** An image that is shown, outside a link, by the address it was loaded from. */
+  image(src: string, alt: string): void
 }
 
-let hooks: LinkHooks | null = null
+let hooks: MarkdownHooks | null = null
 
-export function setLinkHooks(next: LinkHooks): void {
+export function setMarkdownHooks(next: MarkdownHooks): void {
   hooks = next
 }
 
-export function renderMarkdown(source: string): HTMLElement {
+/** [source] rendered; [docId] is the open file it is, which its images are asked for by. */
+export function renderMarkdown(source: string, docId?: number): HTMLElement {
   const body = document.createElement('article')
   body.className = 'markdown'
-  body.innerHTML = md.render(source)
+  body.innerHTML = md.render(source, { docId } satisfies ImageEnv)
+  // An image Kotlin did not answer with one becomes the alt box. `error` does not bubble, so it is
+  // caught on the way down.
+  body.addEventListener('error', (event) => {
+    const image = event.target
+    if (!(image instanceof HTMLImageElement)) return
+    image.insertAdjacentHTML('afterend', missingImageHtml(image.alt, image.dataset.src ?? ''))
+    image.remove()
+  }, true)
   body.addEventListener('click', (event) => {
-    const link = (event.target as Element).closest('a')
-    if (!link) return
+    const target = event.target as Element
+    const link = target.closest('a')
+    if (!link) {
+      // A loaded image, not the alt box, which has nothing bigger to show.
+      if (target instanceof HTMLImageElement && target.complete && target.naturalWidth > 0) hooks?.image(target.src, target.alt)
+      return
+    }
     // Nothing goes to the WebView, which would only hand it to another app: a link is resolved
     // against the file it is in (docs/skiffcode.spec/markdown-links.md), which the page does not
     // know the path of. The `href` as written, not `link.href`, which is resolved against the page.
@@ -96,10 +116,10 @@ export interface MarkdownSurface {
   remove(): void
 }
 
-export function showMarkdown(parent: HTMLElement, source: string): MarkdownSurface {
+export function showMarkdown(parent: HTMLElement, source: string, docId?: number): MarkdownSurface {
   const scroller = document.createElement('div')
   scroller.className = 'markdown-scroller'
-  let body = renderMarkdown(source)
+  let body = renderMarkdown(source, docId)
   let rendered = source
   scroller.append(body)
   parent.append(scroller)
@@ -107,15 +127,56 @@ export function showMarkdown(parent: HTMLElement, source: string): MarkdownSurfa
   // Reads `body` when the gesture starts, so a re-render does not leave a stale one behind.
   const hold: Hold = (clientY) => holdBlock(scroller, body)(clientY)
 
+  // Where the screen is meant to be: a block and how far below the top it starts. An image comes in
+  // after the text around it, and one above this block would push it down the screen — `?line=`,
+  // `#heading`, a jump or the outline would land and then slide away. One below it may be what the
+  // document was too short to scroll to without. So when an image loads, or fails and becomes the alt
+  // box, the screen goes back to the block. The block is the one the surface was sent to, or, once
+  // the user has scrolled, the one they left at the top.
+  let anchor: { block: Element; offset: number } | null = null
+  // The scrollTop this surface last set itself, whose scroll event is not the user moving.
+  let ours: number | null = null
+  const top = () => scroller.getBoundingClientRect().top + TOPBAR_SPACE
+  const remember = () => {
+    if (scroller.style.display === 'none') return
+    const blocks = [...body.children]
+    const index = topBlockIndex(blocks.map((block) => block.getBoundingClientRect().bottom), top())
+    anchor = index === null ? null : { block: blocks[index], offset: blocks[index].getBoundingClientRect().top - top() }
+  }
+  const scrolled = () => {
+    if (ours !== null && Math.abs(scroller.scrollTop - ours) < 1) return
+    ours = null
+    remember()
+  }
+  const settle = (event: Event) => {
+    if (!(event.target instanceof HTMLImageElement)) return
+    // After the alt box has taken a failed image's place, which happens in the same dispatch.
+    requestAnimationFrame(() => {
+      if (!anchor || !anchor.block.isConnected || scroller.style.display === 'none') return
+      const moved = anchor.block.getBoundingClientRect().top - top() - anchor.offset
+      if (Math.abs(moved) < 1) return
+      scroller.scrollTop += moved
+      ours = scroller.scrollTop
+    })
+  }
+  scroller.addEventListener('scroll', scrolled, { passive: true })
+  scroller.addEventListener('load', settle, true)
+  scroller.addEventListener('error', settle, true)
+  requestAnimationFrame(() => {
+    if (!anchor) remember()
+  })
+
   return {
     hold,
     visible: (on) => { scroller.style.display = on ? '' : 'none' },
     update(text) {
       if (text === rendered) return
-      const next = renderMarkdown(text)
+      const next = renderMarkdown(text, docId)
       body.replaceWith(next)
       body = next
       rendered = text
+      anchor = null
+      ours = null
     },
     topLine() {
       const top = scroller.getBoundingClientRect().top + TOPBAR_SPACE
@@ -130,7 +191,11 @@ export function showMarkdown(parent: HTMLElement, source: string): MarkdownSurfa
     scrollToLine(line) {
       // The scroller is positioned (see index.html), so offsetTop is measured from it.
       const block = blockAtLine(body, line)
-      if (block) scroller.scrollTop = block.offsetTop - TOPBAR_SPACE
+      if (!block) return
+      scroller.scrollTop = block.offsetTop - TOPBAR_SPACE
+      ours = scroller.scrollTop
+      // The block it was sent to, even when the document is still too short to bring it to the top.
+      anchor = { block, offset: 0 }
     },
     remove: () => scroller.remove(),
   }

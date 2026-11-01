@@ -42,6 +42,8 @@ export type LayerName = 'viewer' | 'editor' | 'diff'
 export type CompareTo = 'head' | 'previous'
 
 export interface TextDocument {
+  /** The open file's id, which the images in its rendered markdown are asked for by. */
+  id?: number
   name: string
   text: string
   /** 1-based, from a link's `?line=`. */
@@ -267,7 +269,7 @@ export function openPane(
   // The document's text while no view holds it, which is the markdown viewer before its first trip
   // to the editor. Once there is a view, the view is the buffer.
   let source = memory?.source ?? doc.text
-  const markdown = language?.name === 'Markdown' ? showMarkdown(parent, source) : null
+  const markdown = language?.name === 'Markdown' ? showMarkdown(parent, source, doc.id) : null
   // A link's diff layer waits for what it compares with (`wantDiff`), so the pane opens on the viewer.
   let layer: LayerName = memory?.layer ?? (doc.layer === 'editor' ? 'editor' : 'viewer')
   // The diff layer was asked for before what it compares with had arrived.

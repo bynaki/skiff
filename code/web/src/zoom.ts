@@ -171,6 +171,14 @@ export function holdBlock(scroller: HTMLElement, content: HTMLElement): Hold {
   }
 }
 
+// Whether something over the document takes two fingers for itself (the full screen image).
+let paused: () => boolean = () => false
+
+/** Leaves the document's size alone while [when] holds, for whatever is over it to zoom instead. */
+export function pausePinchZoom(when: () => boolean): void {
+  paused = when
+}
+
 /**
  * Listens for the pinch on the document, not on the scroller under the fingers: while a focused
  * editor holds the caret, Chrome hands the second finger's `touchstart` to `<html>` instead of the
@@ -188,7 +196,7 @@ export function installPinchZoom(hold: Hold): () => void {
   const midY = (touches: TouchList) => (touches[0].clientY + touches[1].clientY) / 2
 
   const start = (event: TouchEvent) => {
-    if (event.touches.length !== 2) return
+    if (event.touches.length !== 2 || paused()) return
     gesture = { distance: distance(event.touches), size: fontSize }
     apply = hold(midY(event.touches))
   }

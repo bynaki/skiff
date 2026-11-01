@@ -18,6 +18,7 @@ import { type Catalog, type CatalogTheme, type CommandSource, catalogItems, comm
 import { createFolder, files } from './files'
 import { type Jump, createJumps } from './jumps'
 import { createLoadingView } from './chrome/loading'
+import { createImageViewer } from './chrome/imageViewer'
 import { type MoreLabels, createMoreMenu } from './chrome/more'
 import { createLoading } from './loading'
 import type { PaletteItem, PaletteMode } from './palette'
@@ -25,9 +26,9 @@ import { type DocSymbol, createProjectSearch, outlineOf, projectItems, symbols }
 import { type LspTarget, setLspHooks, setLspTimeout } from './lsp'
 import { type CompareTo, type LayerName, type Pane, type PaneMemory, adoptInto, isDirty, openPane } from './layers/pane'
 import { RETAINED_BUFFERS, forgetOldBuffers } from './memories'
-import { setLinkHooks } from './markdown'
+import { setMarkdownHooks } from './markdown'
 import { type Settings, type ThemeEntry, showSettings } from './settings'
-import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, setFontSize, storedFontSize } from './zoom'
+import { DEFAULT_FONT_SIZE, ZOOM_STEP, currentFontSize, pausePinchZoom, setFontSize, storedFontSize } from './zoom'
 
 /** Every text in here that a person reads comes from Kotlin's string resources, already localised. */
 type DocumentState =
@@ -146,6 +147,10 @@ const openFiles = createOpenFiles({
 })
 
 const moreMenu = createMoreMenu((compare) => void chooseCompare(compare), (open) => topbar.setMoreOpen(open))
+// A tapped image in rendered markdown, over everything (docs/skiffcode.spec/markdown-images.md).
+const imageViewer = createImageViewer()
+// The fingers on it zoom the image, not the document under it.
+pausePinchZoom(imageViewer.isOpen)
 
 /** The drawer covers the whole screen, so the menus hanging under the top one go away first. */
 function toggleSidebar(): void {
@@ -436,7 +441,7 @@ const paletteView = createPaletteView(
 )
 
 /** What floats over the document. A back gesture closes these before it moves. */
-const overlays: Overlay[] = [sidebar, paletteView, openFiles, moreMenu]
+const overlays: Overlay[] = [sidebar, paletteView, openFiles, moreMenu, imageViewer]
 
 /**
  * Tells Kotlin whether a back gesture has anything to do here, which is when it takes the gesture
@@ -449,7 +454,7 @@ const reportNavigation = createNavigationReporter(
   (state) => notify('navigationState', state),
 )
 const overlayWatch = new MutationObserver(reportNavigation)
-for (const id of ['sidebar', 'palette', 'open-files', 'more']) {
+for (const id of ['sidebar', 'palette', 'open-files', 'more', 'image-viewer']) {
   const element = document.getElementById(id)
   if (element) overlayWatch.observe(element, { attributes: true, attributeFilter: ['class', 'hidden'] })
 }
@@ -571,12 +576,13 @@ function goForward(): void {
 // A link tapped in rendered markdown (docs/skiffcode.spec/markdown-links.md). A heading of the same
 // file is a move within it; anything else is Kotlin's to resolve against the file the link is in,
 // and a file it opens arrives through [reconcile], which writes the spot it leaves.
-setLinkHooks({
+setMarkdownHooks({
   open: (href) => {
     if (activeId === null) return
     void rpc('openLink', { id: activeId, href }).catch((error) => console.log(`openLink: ${error}`))
   },
   heading: (line) => moveTo(line),
+  image: (src, alt) => imageViewer.show(src, alt),
 })
 
 /** Puts the active file on the screen, from what it left behind if it has been there before. */
@@ -591,6 +597,7 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   banner.hide()
   // What it would choose for is the file leaving.
   moreMenu.hide()
+  imageViewer.hide()
   root.replaceChildren()
   topbar.show()
   // The line may still be seeing out its minimum, but the shape has been answered by the document.
@@ -598,7 +605,7 @@ async function show(files: OpenFile[], memory?: PaneMemory): Promise<void> {
   document.title = doc.state === 'empty' ? 'Skiff Code' : doc.name
   switch (doc.state) {
     case 'text':
-      pane = openPane(root, doc, memory, (dirty) => topbar.setFile(doc.name, dirty))
+      pane = openPane(root, { ...doc, id: id ?? undefined }, memory, (dirty) => topbar.setFile(doc.name, dirty))
       break
     case 'refused':
       root.append(notice(doc.title, doc.message))
@@ -742,6 +749,7 @@ rpc<Labels>('labels').then((answer) => {
   sidebar.label(answer)
   openFiles.label(answer)
   moreMenu.label(answer)
+  imageViewer.label(answer)
 }).catch((error) => console.log(`labels: ${error}`))
 onNotify<{ opening: boolean }>('openingChanged', (params) => (params.opening ? loading.start() : loading.stop()))
 onNotify<{ goToLine?: number | null; col?: number | null; layer?: LayerName | null; anchor?: string | null }>('documentsChanged', (params) => {

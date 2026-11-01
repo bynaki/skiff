@@ -40,7 +40,7 @@ data class NavigationState(
     val back: Boolean = false,
     /** And one to go forward to. */
     val forward: Boolean = false,
-    /** The sidebar, the palette, the open files menu or ④'s menu is out, which a back closes first. */
+    /** The sidebar, the palette, the open files menu, ④'s menu or a full screen image is out, which a back closes first. */
     val overlay: Boolean = false,
 ) {
     /**
