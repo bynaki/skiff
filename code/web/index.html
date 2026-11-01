@@ -6,8 +6,9 @@
   <!--
     The page renders remote file contents next to a privileged bridge, so it runs only the bundle.
     Styles allow 'unsafe-inline' for the <style> below; CodeMirror's own go through constructed
-    stylesheets. img-src stops a rendered document from calling out to a tracking pixel, and
-    MainActivity refuses such requests again at the network layer.
+    stylesheets. img-src keeps a rendered document from calling out to any address itself, and
+    MainActivity refuses such requests again at the network layer. Its images come from the page's
+    own origin (/doc-image/), which Kotlin reads for it (docs/skiffcode.spec/markdown-images.md).
   -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
   <title>Skiff Code</title>

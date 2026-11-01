@@ -36,12 +36,14 @@ import com.naki.skiff.code.data.readSkiffProfiles
 import com.naki.skiff.code.doc.DocumentSaver
 import com.naki.skiff.code.doc.FileChange
 import com.naki.skiff.code.doc.FileWatcher
+import com.naki.skiff.code.doc.ImageLoader
 import com.naki.skiff.code.doc.LoadResult
 import com.naki.skiff.code.doc.SaveResult
 import com.naki.skiff.code.doc.Stamp
 import com.naki.skiff.code.doc.Stamped
 import com.naki.skiff.code.doc.TextFormat
 import com.naki.skiff.code.doc.TextLoader
+import com.naki.skiff.code.intent.ImageSource
 import com.naki.skiff.code.intent.LinkTarget
 import com.naki.skiff.code.intent.MarkdownLink
 import com.naki.skiff.code.intent.OpenAt
@@ -82,6 +84,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -90,10 +93,13 @@ import okio.source
 import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.net.URL
 import java.text.DecimalFormat
 
 private const val TAG = "SkiffCode"
 private const val ORIGIN = WebBridge.ORIGIN
+/** The first path segment of an image in rendered markdown on the page's origin; `markdown.ts` builds it. */
+private const val IMAGE_PATH = "doc-image"
 
 /**
  * One WebView served from assets, talking JSON-RPC over [WebBridge]. The page shows whichever of
@@ -105,6 +111,8 @@ class MainActivity : Activity() {
 
     private val container by lazy { application.skiffCode }
     private val scope = MainScope()
+    /** Reads the images in rendered markdown; see [documentImage]. */
+    private val images = ImageLoader()
     private val bridge = WebBridge(scope)
     private val saver = DocumentSaver()
     private var hostKeyDialog: AlertDialog? = null
@@ -153,10 +161,11 @@ class MainActivity : Activity() {
         // under this origin, and the page runs nothing but its own bundle.
         webView.settings.domStorageEnabled = true
         webView.webViewClient = object : WebViewClient() {
-            // The bundle is the only thing the page may load. Anything else — an image in a
-            // rendered document, a stray fetch — gets an empty 403 instead of reaching the network.
+            // The bundle and the images of a rendered document are the only things the page may
+            // load. Anything else — a stray fetch — gets an empty 403 instead of reaching the network.
+            // Called on a WebView thread, not the main one, so an image may be read right here.
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse =
-                assetLoader.shouldInterceptRequest(request.url) ?: refused()
+                assetLoader.shouldInterceptRequest(request.url) ?: documentImage(request.url) ?: refused()
 
             // The page is never navigated away from. A link the user taps goes to another app.
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -415,16 +424,10 @@ class MainActivity : Activity() {
         // confirmed, wherever it is: the user tapped it in this app (2026-10-15 사용자 결정).
         bridge.method("openLink") { params ->
             val entry = docs.byId(params.getInt("id")) ?: error("no open file the link is in")
-            val folder = entry.folder
-            val base = when {
-                entry.web != null -> MarkdownLink.Base.Web(entry.web)
-                folder != null -> MarkdownLink.Base.Path(folder.file, entry.project?.project?.root)
-                else -> MarkdownLink.Base.NoFolder
-            }
-            when (val target = MarkdownLink.resolve(base, params.getString("href"))) {
+            when (val target = MarkdownLink.resolve(linkBase(entry), params.getString("href"))) {
                 // A web document has no folder, so a file target only ever comes with one.
                 is LinkTarget.File -> {
-                    val request = folder!!.requestAt(target.path, OpenAt(anchor = target.fragment))
+                    val request = entry.folder!!.requestAt(target.path, OpenAt(anchor = target.fragment))
                     startOpening { openFlow().open(linkOf(request), request, pathChosen = true) }
                 }
                 is LinkTarget.Web -> {
@@ -1421,6 +1424,52 @@ class MainActivity : Activity() {
         else @Suppress("DEPRECATION") super.onBackPressed()
     }
 
+    /** Where the links and images in [entry]'s rendered markdown are taken from. */
+    private fun linkBase(entry: OpenDocuments.Entry): MarkdownLink.Base {
+        val folder = entry.folder
+        return when {
+            entry.web != null -> MarkdownLink.Base.Web(entry.web)
+            folder != null -> MarkdownLink.Base.Path(folder.file, entry.project?.project?.root)
+            else -> MarkdownLink.Base.NoFolder
+        }
+    }
+
+    /**
+     * An image in an open file's rendered markdown, which the page asks for as
+     * `/doc-image/<id>?src=<src as written>` on its own origin (docs/skiffcode.spec/markdown-images.md).
+     * Null for any other request. As with a link, the page names only the file and the `src`; where
+     * that is, and which server it is on, is resolved here against the file. Anything that does not
+     * come back as an image is an empty 404, which the page shows as the alt box.
+     *
+     * This runs on a WebView thread: the open files are the main thread's, so only the base and the
+     * folder are fetched from there, and the reading waits here.
+     */
+    private fun documentImage(url: Uri): WebResourceResponse? {
+        if (url.scheme != "https" || url.host != WebViewAssetLoader.DEFAULT_DOMAIN) return null
+        val segments = url.pathSegments
+        if (segments.size != 2 || segments[0] != IMAGE_PATH) return null
+        val id = segments[1].toIntOrNull() ?: return notFound()
+        val src = url.getQueryParameter("src") ?: return notFound()
+        val image = try {
+            runBlocking {
+                val (base, folder) = withContext(Dispatchers.Main) {
+                    docs.byId(id)?.let { linkBase(it) to it.folder }
+                } ?: return@runBlocking null
+                when (val source = MarkdownLink.resolveImage(base, src)) {
+                    is ImageSource.File -> folder?.image(source.path, images)
+                    is ImageSource.Web -> images.load(URL(source.url))
+                    ImageSource.None -> null
+                }
+            }
+        } catch (e: Exception) {
+            // Thrown on a WebView thread, it would take the app down for one picture. What failed is
+            // logged, never the path or the address: those are the user's server's.
+            Log.w(TAG, "image not read: ${e.javaClass.simpleName}")
+            null
+        }
+        return image?.let { WebResourceResponse(it.mime, null, 200, "OK", emptyMap(), ByteArrayInputStream(it.bytes)) } ?: notFound()
+    }
+
     /** Links out of the page. Only schemes another app should handle; `intent:` and the like are dropped. */
     private fun openExternally(uri: Uri) {
         if (uri.scheme !in setOf("http", "https", "mailto")) {
@@ -1449,6 +1498,8 @@ private const val AWAY_MS = 10 * 60_000L
 
 /** Larger than either file has any reason to be; what is picked is read whole, into memory. */
 private const val IMPORT_LIMIT = 256 * 1024
+
+private fun notFound() = WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))
 
 private fun refused() = WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
 

@@ -1,5 +1,7 @@
 package com.naki.skiff.code.ui
 
+import com.naki.skiff.code.doc.Image
+import com.naki.skiff.code.doc.ImageLoader
 import com.naki.skiff.code.intent.OpenAt
 import com.naki.skiff.code.intent.OpenRequest
 import com.naki.skiff.fs.FileSystem
@@ -52,6 +54,13 @@ class Folder private constructor(private val fs: FileSystem, private val request
         is OpenRequest.Remote -> request.copy(path = path, at = at)
         else -> OpenRequest.LocalPath(path, at)
     }
+
+    /**
+     * The image at [path], read over the same session as this file (docs/skiffcode.spec/markdown-images.md).
+     * Like [requestAt], the path has been resolved by [com.naki.skiff.code.intent.MarkdownLink], not
+     * sent by the page; [images] gives back only what really is an image.
+     */
+    suspend fun image(path: String, images: ImageLoader): Image? = images.load(fs, path)
 
     /**
      * The files beside this one, by name, leaving out directories, this file itself and whatever

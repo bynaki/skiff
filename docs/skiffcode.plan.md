@@ -39,18 +39,25 @@
 
 **성공 조건**
 
-- ⬜ JVM: 이미지 `src` 풀기가 spec의 표대로다(상대·`../`·`/`의 프로젝트와 단일 파일, 퍼센트 인코딩, 쿼리·조각 버림, 루트 위 `..`·NUL 거부, `content://` 기준, https는 확장자와 상관없이, GitHub blob → raw, 웹 문서 기준의 상대, http·그 밖의 스킴은 받지 않음). 이미지인 것만(PNG, JPEG, GIF, WebP, BMP, ICO, SVG) 10MB 안에서 내주고 나머지는 404다. 웹 받기가 https만·`text/html` 거부·상한·쿠키 없음을 지킨다.
+- ✅ JVM: 이미지 `src` 풀기가 spec의 표대로다(상대·`../`·`/`의 프로젝트와 단일 파일, 퍼센트 인코딩, 쿼리·조각 버림, 루트 위 `..`·NUL 거부, `content://` 기준, https는 확장자와 상관없이, GitHub blob → raw, 웹 문서 기준의 상대, http·그 밖의 스킴은 받지 않음). 이미지인 것만(PNG, JPEG, GIF, WebP, BMP, ICO, SVG) 10MB 안에서 내주고 나머지는 404다. 웹 받기가 https만·`text/html` 거부·상한·쿠키 없음을 지킨다. — 확인: JVM `MarkdownLinkTest`(이미지 6개 더함), `ImageLoaderTest`(8개, 로컬 파일과 로컬 HTTP 서버)(2026-11-01).
 - ⬜ vitest: 페이지가 `src`를 `/doc-image/<id>?src=…`로 바꾸고, `data:`는 두고, 받지 않는 `src`는 요청 없이 자리 상자다. 실패하면 자리 상자(alt, 없으면 파일 이름)로 바꾼다. 링크 안의 이미지는 링크를 연다.
 - ⬜ 탭에서 원격 프로젝트, 기기 로컬 파일, https 웹 문서의 상대·`/`·https 이미지(PNG, JPEG, SVG 배지)가 보인다. 없는 파일, 이미지가 아닌 파일, `http://` 이미지는 자리 상자다. 이미지를 탭하면 전체 화면이고, 탭과 가장자리 밀기로 닫힌다. 이미지가 늦게 들어와도 `?line=`·`#제목`으로 간 자리가 밀리지 않는다.
 - ⬜ 폴드8 커버 화면에서 이미지가 폭에 맞고, 전체 화면이 열리고 닫힌다.
 - ⬜ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다.
 
-- [ ] Kotlin이 이미지를 푸는 쪽과 내주는 쪽(`intent/MarkdownLink.kt`, 새 `doc/ImageLoader.kt`, `ui/MainActivity.kt`, `ui/Folder.kt`)
+- [x] Kotlin이 이미지를 푸는 쪽과 내주는 쪽(`intent/MarkdownLink.kt`, 새 `doc/ImageLoader.kt`, `ui/MainActivity.kt`, `ui/Folder.kt`)
   - 풀기: `MarkdownLink`에 이미지 풀기(`resolveImage`)를 더하고, 파일·조각·`withinRoot`·GitHub 변환은 링크와 함께 쓴다. https는 확장자와 상관없이 `Web`, http·그 밖은 받지 않는다.
   - 읽기: `ImageLoader`는 파일(문서의 `FileSystem`, 크기를 먼저 봄)과 https(`WebLoader`와 같은 시간 제한, 쿠키·`Referer` 없음, 받으며 셈)를 읽는다. 첫 바이트로 종류를 판정해 MIME을 정하고, 아니면 null이다. 상한은 10MB다.
   - 내주기: `shouldInterceptRequest`에 `/doc-image/<id>?src=` 길을 더한다. 문서의 기준과 파일시스템만 메인 스레드에서 꺼내고, 읽기는 그 스레드에서 한다. 실패는 모두 빈 404이고, 성공은 판정한 MIME으로 내준다.
   - 문서: `security.md`의 로더·CSP 줄과 `markdown-links.md`의 "CSP가 외부 이미지(추적 픽셀)를 막는다"를 지금 모습으로 고친다.
   - 확인: JVM 테스트(`MarkdownLinkTest`에 이미지 풀기, 새 `ImageLoaderTest`는 종류 판정·상한·로컬 파일·로컬 HTTP 서버로 웹), lint.
+  - 2026-11-01
+    - `MarkdownLink.resolveImage`와 `ImageSource`(File/Web/None)를 더했다. 링크의 경로 풀기는 `filePath`로 떼어 둘이 함께 쓴다. https는 호스트가 있어야 하고, GitHub blob은 raw로 바꾼다.
+    - `doc/ImageLoader.kt`: 앞 1KB로 종류를 판정하고, 아니면 더 읽지 않는다. BMP는 `BM` 두 글자라 약하지만 그려지지 않을 뿐이다. 파일은 `stat`으로 크기와 폴더를 먼저 보고, 웹은 `Content-Length`와 받는 양을 함께 센다. 실패는 모두 null이다.
+    - `Folder.image`가 문서의 `FileSystem`으로 읽는다.
+    - `MainActivity.documentImage`가 `https://appassets.androidplatform.net/doc-image/<id>?src=`만 받는다. 문서의 기준(`linkBase`, `openLink`와 함께 씀)과 `Folder`는 `Dispatchers.Main`에서 꺼내고, 읽기는 WebView 스레드에서 `runBlocking`으로 한다. 실패와 예외는 빈 404이고, 로그에는 예외 이름만 남긴다(경로와 주소는 남기지 않음).
+    - `security.md`, `markdown-links.md`, `index.html`의 CSP 주석을 고쳤다. 페이지는 아직 `src`를 바꾸지 않으므로 화면은 그대로다(다음 항목).
+    - JVM 384(건너뜀 1, `SKIFF_THEMES_DIR`), vitest 265, `lintDebug` 경고 11개는 모두 전부터 있던 것이다.
 - [ ] 페이지 쪽(`web/src/markdown.ts`, `index.html` CSS, `back.ts`, 새 전체 화면 모듈)
   - markdown-it의 `image` 규칙에서 받을 `src`는 `/doc-image/<id>?src=<encodeURIComponent>`로 바꾸고 `loading="lazy"`·`decoding="async"`를 단다. `data:`는 둔다. 받지 않는 것(`http:`, 그 밖의 스킴)은 처음부터 자리 상자다. 렌더에 열린 문서 id가 필요하므로 `renderMarkdown`/`showMarkdown`이 id를 받는다.
   - 자리 상자: 끊긴 이미지 선 아이콘(`topbar.ts`의 `svg()`와 같은 모양)과 alt 글(없으면 `src`의 파일 이름)을 담고, `ui.border` 테두리, `ui.muted` 글자다. `error` 이벤트에서 바꾼다.

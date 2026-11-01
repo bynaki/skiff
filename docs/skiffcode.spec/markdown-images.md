@@ -79,7 +79,7 @@
 이 주제가 됐다고 말할 수 있는 조건과 확인 방법이다(`AGENTS.md`). ✅는 충족, ⬜는 아직이다. 확인한 때와 자세한 내역은
 [`skiffcode.plan.done.md`](../skiffcode.plan.done.md)의 그 마일스톤에 있다.
 
-- ⬜ 이미지 `src` 풀기가 위 표대로이고, 이미지인 것만 상한 안에서 내주며, 웹 받기가 https·`text/html`·상한 규칙을 지킨다 — 확인: JVM 테스트.
+- ✅ 이미지 `src` 풀기가 위 표대로이고, 이미지인 것만 상한 안에서 내주며, 웹 받기가 https·`text/html`·상한 규칙을 지킨다 — 확인: JVM `MarkdownLinkTest`, `ImageLoaderTest`.
 - ⬜ 페이지가 `src`를 같은 출처의 주소로 바꾸고, `data:`는 두며, 받지 않는 것과 실패한 것은 자리 상자(alt, 없으면 파일 이름)로 그린다.
   링크 안의 이미지는 링크를 연다 — 확인: vitest.
 - ⬜ 탭에서 원격 프로젝트, 기기 로컬 파일, https 웹 문서의 상대·`/`·https 이미지(PNG, JPEG, SVG 배지)가 보인다. 없는 파일, 이미지가 아닌 파일,

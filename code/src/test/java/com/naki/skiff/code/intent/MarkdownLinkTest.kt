@@ -111,4 +111,54 @@ class MarkdownLinkTest {
         assertEquals(LinkTarget.Web("https://example.com/x.md", null), MarkdownLink.resolve(web, "//example.com/x.md"))
         assertEquals(LinkTarget.Ignore, MarkdownLink.resolve(web, "#top"))
     }
+
+    private val none = ImageSource.None
+
+    @Test
+    fun `an image beside the document is a file, taken as a link's path is`() {
+        assertEquals(ImageSource.File("/home/alice/demo/docs/img/a.png"), MarkdownLink.resolveImage(project, "img/a.png"))
+        assertEquals(ImageSource.File("/home/alice/demo/img/a.png"), MarkdownLink.resolveImage(project, "../img/a.png"))
+        assertEquals(ImageSource.File("/home/alice/demo/img/a.png"), MarkdownLink.resolveImage(project, "/img/a.png"))
+        assertEquals(ImageSource.File("/etc/a.svg"), MarkdownLink.resolveImage(single, "/etc/a.svg"))
+        assertEquals(ImageSource.File("/home/alice/notes/my pic.png"), MarkdownLink.resolveImage(single, "./my%20pic.png?raw=1#x"))
+    }
+
+    @Test
+    fun `an image path that climbs above the root, holds a nul or names nothing is not read`() {
+        for (src in listOf("../../../../a.png", "/../a.png", "a%00.png", "%zz.png", "?x", "#top", "", "  ", "//example.com/a.png")) {
+            assertEquals(src, none, MarkdownLink.resolveImage(single, src))
+        }
+    }
+
+    @Test
+    fun `a content document has no folder for an image beside it, but a web image still shows`() {
+        assertEquals(none, MarkdownLink.resolveImage(Base.NoFolder, "a.png"))
+        assertEquals(none, MarkdownLink.resolveImage(Base.NoFolder, "/a.png"))
+        assertEquals(ImageSource.Web("https://example.com/a.png"), MarkdownLink.resolveImage(Base.NoFolder, "https://example.com/a.png"))
+    }
+
+    @Test
+    fun `any https image is read whatever its extension, and a GitHub blob becomes its raw file`() {
+        assertEquals(ImageSource.Web("https://img.shields.io/badge/a-b-green"), MarkdownLink.resolveImage(project, "https://img.shields.io/badge/a-b-green"))
+        assertEquals(ImageSource.Web("HTTPS://example.com/a.png?s=2"), MarkdownLink.resolveImage(project, "HTTPS://example.com/a.png?s=2#f"))
+        assertEquals(
+            ImageSource.Web("https://raw.githubusercontent.com/o/r/main/img/a.png"),
+            MarkdownLink.resolveImage(project, "https://github.com/o/r/blob/main/img/a.png"),
+        )
+    }
+
+    @Test
+    fun `plain http and every other scheme are not read`() {
+        for (src in listOf("http://example.com/a.png", "data:image/png;base64,AAAA", "file:///etc/a.png", "content://a/b.png", "javascript:alert(1)", "https:///a.png")) {
+            assertEquals(src, none, MarkdownLink.resolveImage(project, src))
+        }
+    }
+
+    @Test
+    fun `an image in a web document is taken from its address, and only over https`() {
+        assertEquals(ImageSource.Web("https://raw.githubusercontent.com/o/r/main/docs/img/a.png"), MarkdownLink.resolveImage(web, "img/a.png"))
+        assertEquals(ImageSource.Web("https://raw.githubusercontent.com/o/r/main/a.png"), MarkdownLink.resolveImage(web, "/o/r/main/a.png"))
+        assertEquals(ImageSource.Web("https://example.com/a.png"), MarkdownLink.resolveImage(web, "//example.com/a.png"))
+        assertEquals(none, MarkdownLink.resolveImage(Base.Web("http://example.com/a.md"), "a.png"))
+    }
 }

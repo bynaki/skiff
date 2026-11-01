@@ -23,6 +23,18 @@ sealed interface LinkTarget {
     data object Ignore : LinkTarget
 }
 
+/** Where an image in rendered markdown is read from (docs/skiffcode.spec/markdown-images.md). */
+sealed interface ImageSource {
+    /** A file on the document's server or device, read the way the document was. */
+    data class File(val path: String) : ImageSource
+
+    /** An https address, which Kotlin reads for the page. */
+    data class Web(val url: String) : ImageSource
+
+    /** Not read at all: the page shows the alt box. */
+    data object None : ImageSource
+}
+
 object MarkdownLink {
 
     /** Where the document holding the link is. */
@@ -61,18 +73,59 @@ object MarkdownLink {
         }
     }
 
+    /**
+     * Resolves an image's [src] the way [resolve] does a link, against the same document and with
+     * the same refusals. The difference is that an image is not told apart by its extension: any
+     * https address is read, and nothing but https is.
+     */
+    fun resolveImage(base: Base, src: String): ImageSource {
+        val link = src.trim()
+        if (link.isEmpty() || link.startsWith('#')) return ImageSource.None
+        if (SCHEME.containsMatchIn(link)) return webImage(link)
+        return when (base) {
+            is Base.Path -> {
+                val path = if (link.startsWith("//")) null else filePath(base, link)
+                path?.let(ImageSource::File) ?: ImageSource.None
+            }
+            Base.NoFolder -> ImageSource.None
+            is Base.Web -> try {
+                webImage(URI(base.url).resolve(link).toString())
+            } catch (e: URISyntaxException) {
+                ImageSource.None
+            } catch (e: IllegalArgumentException) {
+                ImageSource.None
+            }
+        }
+    }
+
+    private fun webImage(link: String): ImageSource {
+        if (!link.substringBefore(':').equals("https", ignoreCase = true)) return ImageSource.None
+        val uri = try {
+            URI(link)
+        } catch (e: URISyntaxException) {
+            return ImageSource.None
+        }
+        if (uri.host.isNullOrEmpty()) return ImageSource.None
+        return ImageSource.Web(github(uri) ?: link.substringBefore('#'))
+    }
+
     private fun file(base: Base.Path, link: String): LinkTarget {
         val fragment = link.substringAfter('#', "").let { if (it.isEmpty()) null else percentDecode(it) }
+        val path = filePath(base, link) ?: return LinkTarget.Ignore
+        return LinkTarget.File(path, fragment)
+    }
+
+    /** The path [link] names from [base], without its query and fragment, or null when it names none. */
+    private fun filePath(base: Base.Path, link: String): String? {
         val encoded = link.substringBefore('#').substringBefore('?')
-        if (encoded.isEmpty()) return LinkTarget.Ignore
-        val decoded = percentDecode(encoded) ?: return LinkTarget.Ignore
+        if (encoded.isEmpty()) return null
+        val decoded = percentDecode(encoded) ?: return null
         val joined = if (decoded.startsWith(FsPath.SEPARATOR)) {
             (base.root ?: FsPath.ROOT).trimEnd(FsPath.SEPARATOR) + decoded
         } else {
             FsPath.parent(base.path) + FsPath.SEPARATOR + decoded
         }
-        val path = withinRoot(joined) ?: return LinkTarget.Ignore
-        return LinkTarget.File(path, fragment)
+        return withinRoot(joined)
     }
 
     /**
@@ -108,7 +161,7 @@ object MarkdownLink {
 
     /**
      * The raw file behind a GitHub `blob` page, whose own address answers with the page around it
-     * rather than the markdown. Null for any other address.
+     * rather than the file. Null for any other address.
      */
     private fun github(uri: URI): String? {
         if (uri.host?.lowercase() !in GITHUB_HOSTS) return null
