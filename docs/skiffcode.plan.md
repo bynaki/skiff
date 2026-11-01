@@ -1,7 +1,7 @@
 # Skiff Code 할 일
 
 설계와 정한 것은 [`skiffcode.spec.md`](skiffcode.spec.md)(목차)와 그 아래 주제별 파일에 있다. 이 문서는 그것을 한 세션 크기의 할 일로 나눈 체크리스트다.
-끝난 마일스톤(0, M0~M17, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
+끝난 마일스톤(0, M0~M18, F1, F2)은 [`skiffcode.plan.done.md`](skiffcode.plan.done.md)로 옮겼다.
 
 ## 이어받는 방법
 
@@ -18,113 +18,6 @@
 - 설계와 다르게 구현하게 되면 그 주제의 spec 파일도 같은 커밋에서 고친다. 두 문서가 늘 현재 상태를 말해야 한다.
 
 ## 할 일
-
-### M18. 마크다운 이미지
-
-읽을 spec: [`markdown-images.md`](skiffcode.spec/markdown-images.md) 전부, [`markdown-links.md`](skiffcode.spec/markdown-links.md)의 "링크 종류와 하는 일"과 "https 마크다운", [`security.md`](skiffcode.spec/security.md), [`jumps.md`](skiffcode.spec/jumps.md)의 겹쳐 나온 것.
-
-원래 요구사항은 `my.next.spec.md`의 "마크다운 뷰에 이미지 보이기"다(2026-11-01). 사용자 결정(2026-11-01)은 다섯 가지다.
-- 못 보이면 **alt 글을 담은 자리 상자**(이유는 적지 않음).
-- raw HTML `<img>`는 **이번에 안 함**.
-- 탭하면 **전체 화면**, 탭·뒤로 가기로 닫기.
-- 웹 이미지는 **늘 받고 끄는 설정 없음**.
-- 받는 길은 페이지가 `src`를 같은 출처 주소로 바꾸고 Kotlin이 문서 기준으로 풀어 받는 것이다(CSP 그대로).
-
-지금 상태는 이렇다.
-- 페이지 CSP는 `img-src 'self' data:`이고, `MainActivity`의 `shouldInterceptRequest`는 `/assets/web/` 밖을 모두 `refused()`(빈 403)로 막는다. 그래서 문서 속 이미지는 하나도 안 보인다.
-- `index.html`에 `.markdown img { max-width: 100%; }`만 있다.
-- 링크는 `markdown.ts`가 `href` 원문을 `openLink`로 보내고, `MarkdownLink.resolve`가 `Base.Path`/`NoFolder`/`Web` 기준으로 푼다. `.md`가 아닌 https는 `External`이다.
-- 원격 읽기는 문서의 `Folder`(그 문서를 읽은 `FileSystem`)가 들고 있고, 웹 받기는 `WebLoader`(`HttpURLConnection`)다.
-- 겹쳐 나온 것은 `web/src/back.ts`가 `MutationObserver`로 보고 `navigationState.overlay`를 보낸다.
-
-**성공 조건**
-
-- ✅ JVM: 이미지 `src` 풀기가 spec의 표대로다(상대·`../`·`/`의 프로젝트와 단일 파일, 퍼센트 인코딩, 쿼리·조각 버림, 루트 위 `..`·NUL 거부, `content://` 기준, https는 확장자와 상관없이, GitHub blob → raw, 웹 문서 기준의 상대, http·그 밖의 스킴은 받지 않음). 이미지인 것만(PNG, JPEG, GIF, WebP, BMP, ICO, SVG) 10MB 안에서 내주고 나머지는 404다. 웹 받기가 https만·`text/html` 거부·상한·쿠키 없음을 지킨다. — 확인: JVM `MarkdownLinkTest`(이미지 6개 더함), `ImageLoaderTest`(8개, 로컬 파일과 로컬 HTTP 서버)(2026-11-01).
-- ✅ vitest: 페이지가 `src`를 `/doc-image/<id>?src=…`로 바꾸고, `data:`는 두고, 받지 않는 `src`는 요청 없이 자리 상자다. 실패하면 자리 상자(alt, 없으면 파일 이름)로 바꾼다. 링크 안의 이미지는 링크를 연다. — 확인: vitest `images.test.ts`(13개, 2026-11-01). `error`에서 자리 상자로 바꾸는 것과 링크 밖 이미지의 탭은 DOM이 있어야 해서 탭에서 본다(항목 3).
-- ✅ 탭에서 원격 프로젝트, 기기 로컬 파일, https 웹 문서의 상대·`/`·https 이미지(PNG, JPEG, SVG 배지)가 보인다. 없는 파일, 이미지가 아닌 파일, `http://` 이미지는 자리 상자다. 이미지를 탭하면 전체 화면이고, 탭과 가장자리 밀기로 닫힌다. 이미지가 늦게 들어와도 `?line=`·`#제목`으로 간 자리가 밀리지 않는다. — 확인: 탭, 견본 git 저장소·기기 로컬 `.md`·fd README(웹 문서)를 열어 DOM을 읽고 스크린샷을 사용자에게 보냄(2026-11-01).
-- ✅ 폴드8 커버 화면에서 이미지가 폭에 맞고, 전체 화면이 열리고 닫힌다. — 확인: 폴드8 커버 화면, 견본 `README.md`를 단일 파일로 열어 DOM을 읽고 스크린샷으로 봄(2026-11-01).
-- ✅ 전체 화면에서 핀치로 확대·축소하고 끌어 옮기며, 그동안 뒤의 문서 글자 크기는 그대로다. X 버튼은 늘 닫고, 확대 중 탭은 화면 맞춤으로 돌아간다. — 확인: vitest `imageViewer.test.ts`(10개), 탭(CDP 터치와 adb 탭), 폴드8은 사용자가 손가락으로(2026-11-01).
-- ✅ 사용자가 화면(탭, 폴드8)을 보고 괜찮다고 한다. — 확인: 사용자 "확인했어"(2026-11-01).
-
-- [x] Kotlin이 이미지를 푸는 쪽과 내주는 쪽(`intent/MarkdownLink.kt`, 새 `doc/ImageLoader.kt`, `ui/MainActivity.kt`, `ui/Folder.kt`)
-  - 풀기: `MarkdownLink`에 이미지 풀기(`resolveImage`)를 더하고, 파일·조각·`withinRoot`·GitHub 변환은 링크와 함께 쓴다. https는 확장자와 상관없이 `Web`, http·그 밖은 받지 않는다.
-  - 읽기: `ImageLoader`는 파일(문서의 `FileSystem`, 크기를 먼저 봄)과 https(`WebLoader`와 같은 시간 제한, 쿠키·`Referer` 없음, 받으며 셈)를 읽는다. 첫 바이트로 종류를 판정해 MIME을 정하고, 아니면 null이다. 상한은 10MB다.
-  - 내주기: `shouldInterceptRequest`에 `/doc-image/<id>?src=` 길을 더한다. 문서의 기준과 파일시스템만 메인 스레드에서 꺼내고, 읽기는 그 스레드에서 한다. 실패는 모두 빈 404이고, 성공은 판정한 MIME으로 내준다.
-  - 문서: `security.md`의 로더·CSP 줄과 `markdown-links.md`의 "CSP가 외부 이미지(추적 픽셀)를 막는다"를 지금 모습으로 고친다.
-  - 확인: JVM 테스트(`MarkdownLinkTest`에 이미지 풀기, 새 `ImageLoaderTest`는 종류 판정·상한·로컬 파일·로컬 HTTP 서버로 웹), lint.
-  - 2026-11-01
-    - `MarkdownLink.resolveImage`와 `ImageSource`(File/Web/None)를 더했다. 링크의 경로 풀기는 `filePath`로 떼어 둘이 함께 쓴다. https는 호스트가 있어야 하고, GitHub blob은 raw로 바꾼다.
-    - `doc/ImageLoader.kt`: 앞 1KB로 종류를 판정하고, 아니면 더 읽지 않는다. BMP는 `BM` 두 글자라 약하지만 그려지지 않을 뿐이다. 파일은 `stat`으로 크기와 폴더를 먼저 보고, 웹은 `Content-Length`와 받는 양을 함께 센다. 실패는 모두 null이다.
-    - `Folder.image`가 문서의 `FileSystem`으로 읽는다.
-    - `MainActivity.documentImage`가 `https://appassets.androidplatform.net/doc-image/<id>?src=`만 받는다. 문서의 기준(`linkBase`, `openLink`와 함께 씀)과 `Folder`는 `Dispatchers.Main`에서 꺼내고, 읽기는 WebView 스레드에서 `runBlocking`으로 한다. 실패와 예외는 빈 404이고, 로그에는 예외 이름만 남긴다(경로와 주소는 남기지 않음).
-    - `security.md`, `markdown-links.md`, `index.html`의 CSP 주석을 고쳤다. 페이지는 아직 `src`를 바꾸지 않으므로 화면은 그대로다(다음 항목).
-    - JVM 384(건너뜀 1, `SKIFF_THEMES_DIR`), vitest 265, `lintDebug` 경고 11개는 모두 전부터 있던 것이다.
-- [x] 페이지 쪽(`web/src/markdown.ts`, `index.html` CSS, `back.ts`, 새 전체 화면 모듈)
-  - markdown-it의 `image` 규칙에서 받을 `src`는 `/doc-image/<id>?src=<encodeURIComponent>`로 바꾸고 `loading="lazy"`·`decoding="async"`를 단다. `data:`는 둔다. 받지 않는 것(`http:`, 그 밖의 스킴)은 처음부터 자리 상자다. 렌더에 열린 문서 id가 필요하므로 `renderMarkdown`/`showMarkdown`이 id를 받는다.
-  - 자리 상자: 끊긴 이미지 선 아이콘(`topbar.ts`의 `svg()`와 같은 모양)과 alt 글(없으면 `src`의 파일 이름)을 담고, `ui.border` 테두리, `ui.muted` 글자다. `error` 이벤트에서 바꾼다.
-  - 제자리 지키기: 화면 맨 위 블록보다 위에서 이미지가 `load`/`error`로 높이가 바뀌면, 그 블록이 같은 자리에 남게 `scrollTop`을 옮긴다(`zoom.ts`의 `holdBlock`과 같은 방법).
-  - 전체 화면: 링크 밖의 보이는 이미지를 탭하면 연다. 화면에 비율대로 맞추고 배경은 `ui.scrim`이며(탭 확인 뒤 불투명한 `editor.background`로 바꿈, 항목 3), 상단 메뉴와 커맨드 버튼을 덮는다. 탭하면 닫는다. `back.ts`가 이것을 겹쳐 나온 것으로 보고, 뒤로 가기는 이것부터 닫는다.
-  - 확인: vitest(`src` 바꾸기, `data:` 유지, 받지 않는 것·실패의 자리 상자와 alt/파일 이름, 링크 안 이미지, 전체 화면 열고 닫기, 제자리 지키기 계산), `tsc`.
-  - 2026-11-01
-    - `web/src/images.ts`(DOM 없음): `imageUrl`(`/doc-image/<id>?src=`, 앞에 `/`를 둔다 — 페이지는 `/assets/web/` 아래라 상대 주소면 그 밑으로 간다), `imageLabel`, `missingImageHtml`, markdown-it의 `image` 렌더 규칙, `topBlockIndex`.
-    - 렌더 규칙은 markdown-it가 정규화한 `src`(한글은 `%XX`)를 보낸다. 링크의 `href`와 같은 것이고, Kotlin이 한 번 푼다. 이미지가 안 되는 `src`는 markdown-it가 이미지로 읽지 않아 글자로 남는다.
-    - `markdown.ts`:
-      - `renderMarkdown`/`showMarkdown`이 문서 id를 받는다(`TextDocument.id`, `main.ts`가 넣는다).
-      - `error`를 잡는 쪽(capture)에서 자리 상자로 바꾼다.
-      - 링크 밖의 불러온 이미지를 탭하면 `hooks.image`. `LinkHooks`는 `MarkdownHooks`로 이름을 바꿨다.
-      - 제자리 지키기: 스크롤할 때와 `scrollToLine` 직후에 맨 위 블록과 그 거리를 적어 두고, 이미지의 `load`/`error` 다음 프레임에 그 블록을 같은 자리로 돌린다. `ResizeObserver`는 핀치의 `hold`와 다툴 수 있어 쓰지 않았다.
-    - `chrome/imageViewer.ts`: `#image-viewer`(z-index 40, `object-fit: contain`)를 두고 탭하면 닫는다. `main.ts`의 겹쳐 나온 것 목록과 `MutationObserver`에 더했고, 다른 파일을 띄우면 닫는다.
-    - `jumps.md`와 `BackGesture.kt` 주석의 겹쳐 나온 것 목록에 전체 화면 이미지를 더했다.
-    - DOM이 없는 vitest라 전체 화면 열고 닫기와 `error` 바꾸기는 탭에서 본다.
-    - vitest 278(13개 더함), `tsc`, `vite build` 통과.
-- [ ] 확인: 탭과 폴드8
-  - 견본 준비
-    - 이 맥의 홈 아래 견본 git 저장소를 링크로 열어 프로젝트로 만든다.
-    - 넣는 것: `README.md`, `img/` 아래 PNG·JPEG·SVG, 하위 폴더 문서의 `../img/…`, `/img/…`, 없는 파일, 이미지가 아닌 파일(`.txt`를 `.png`로), https PNG, shields.io SVG 배지, `http://` 이미지, 링크로 감싼 배지, alt 없는 이미지, 이미지 위로 긴 본문 뒤의 제목.
-    - 기기 로컬 `.md`와 그 옆 이미지도 하나 둔다.
-    - https 웹 문서는 상대 이미지가 있는 공개 GitHub README의 blob 링크로 본다.
-  - 탭에서 보는 것
-    - 위 각각이 보이거나 자리 상자인지.
-    - 전체 화면을 열고 탭·가장자리 밀기로 닫히는지.
-    - 이미지 아래 줄로 `?line=`와 `#제목`으로 갔을 때 자리가 밀리지 않는지.
-    - editor로 갔다 와도 그대로인지.
-    - 스크린샷을 사용자에게 보낸다(서버 주소가 보이는 화면은 잘라서).
-  - 폴드8 커버 화면: 폭 맞춤과 전체 화면을 본다. adb가 붙지 않으면 APK를 보내 사용자가 본다.
-  - 끝나면 확인용 파일과 앱의 확인용 프로젝트를 지우고, 사용자 확인을 받은 뒤 마일스톤을 닫는다.
-  - 2026-11-01 탭(사용자가 "탭에만 일단")
-    - 준비: 탭의 Tailscale이 꺼져 있어 처음 열기가 "연결이 끊어졌습니다"였다. 앱을 열자 다시 붙었다. 링크의 호스트는 탭 프로필의 이름이어야 한다(테일스케일 주소로 보내면 "등록되지 않은 서버" 창).
-    - 홈 아래 견본 git 저장소의 `README.md`를 프로젝트로 열었다. DOM으로 읽은 결과:
-      - 보임: PNG(800px), JPEG, SVG, `/img/…`, 웹 PNG, shields.io SVG 배지 둘(하나는 링크 안).
-      - 자리 상자: 없는 파일, 이미지가 아닌 파일(`.png` 이름의 글), alt 없는 것(파일 이름 `nothing.png`), `http://` 이미지.
-      - 하위 문서 `docs/sub.md`(링크로 이동)의 `../img/red.png`와 `/img/logo.svg`도 보였다.
-    - 전체 화면: 이미지를 탭하면 열리고, 탭·오른쪽 가장자리 밀기·왼쪽 가장자리 밀기 모두 닫으며 문서 자리는 그대로다.
-      - 처음 모습은 작은 이미지가 원래 크기 그대로였고, `ui.scrim`이 반투명이라 본문이 비쳤다.
-      - 화면에 맞춰 키우고(가장자리 16px) 불투명한 `editor.background`로 바꿨다. spec도 고쳤다.
-    - 제자리 지키기:
-      - 처음에는 앱을 새로 띄워 `?line=105`(문서 끝 가까운 `## 아래 제목`)로 열면 제목이 화면 아래쪽(위에서 495px)에 있었다. 아래쪽 이미지가 들어오기 전이라 문서가 짧아 스크롤이 끝에서 멈췄고, 그 멈춘 자리를 붙잡았기 때문이다.
-      - `scrollToLine`이 보낸 블록을 붙잡고, 이 화면이 스스로 옮긴 스크롤은 붙잡을 곳을 바꾸지 않게 고쳤다.
-      - 다시 재니 제목이 상단 메뉴 바로 밑(56px)에 있었다. `#아래-제목` 링크도 56px이다.
-    - 오른쪽 가장자리 밀기로 하위 문서에서 README로 돌아온다. editor→diff→viewer를 돌아와도 이미지 8장과 자리 상자 4개가 그대로다. 돌아온 자리가 조금 위인 것은 editor가 문서 끝에서 더 내려가지 못한 줄을 viewer가 따른 것으로, 이번 변경과 상관없다.
-    - 기기 로컬 `Download/skiff-m18.md`: 옆 그림은 보이고, 없는 그림은 자리 상자다.
-    - 웹 문서: 로컬 `.md`의 링크로 `github.com/sharkdp/fd/blob/master/README.md`를 열었다. raw 주소 기준으로 상대 `doc/screencast.svg`(620px)와 GitHub Actions·shields.io 배지가 보였다.
-    - 스크린샷 네 장(자리 상자, 배지와 http, SVG 전체 화면, 웹 문서)을 사용자에게 보냈다.
-  - 2026-11-01 폴드8 커버 화면
-    - 준비: 무선 디버깅의 adb 키가 풀려 있어(포트는 열렸지만 `offline`) 사용자가 띄운 페어링 코드로 다시 페어링했다. 그 뒤로는 Wi-Fi로 붙었다. 이 빌드(항목 2와 탭에서 고친 것, 커밋 전)를 설치했다.
-    - 탭과 같은 링크로 견본 `README.md`를 열고, 확인용 프로젝트를 남기지 않으려고 "파일만 열기"로 열었다. 그래서 `/img/…`는 서버의 절대 경로로 풀려 자리 상자다(spec대로).
-    - 폭 맞춤: 화면 폭 475px(CSS)에서 본문 폭 안의 427px로 PNG·JPEG가 줄었다. SVG(240px), 웹 PNG(288px), 배지는 원래 크기다. 자리 상자 다섯 개도 줄을 넘지 않았다.
-    - 전체 화면: 큰 PNG와 작은 배지 모두 화면 폭에 맞춰 열렸다. 탭·오른쪽 가장자리 밀기·왼쪽 가장자리 밀기 모두 닫았고, 문서 자리는 그대로이며 다른 파일로 가지 않았다.
-
-- [x] 전체 화면의 확대·축소와 X 버튼(`chrome/imageViewer.ts`, `zoom.ts`, `main.ts`, `index.html`) — 폴드8에서 사용자가 "확대 축소가 안 된다, 뒤의 문서로 넘어가는 것 같다, X 버튼은 왜 없나"(2026-11-01)
-  - 사용자 결정(2026-11-01): X 버튼을 둔다. 확대 중 탭은 화면 맞춤으로 돌아가고, 화면 맞춤에서 탭하면 닫는다.
-  - 원인: 문서의 핀치(`installPinchZoom`)가 `document` 전체의 터치를 들어서, 전체 화면 위의 핀치가 가려진 문서의 글자 크기를 바꿨다. 전체 화면 자체에는 확대가 없었다(처음 계획에서 뺐다).
-  - 2026-11-01
-    - `zoom.ts`에 `pausePinchZoom`을 두고, `main.ts`가 전체 화면이 떠 있는 동안 문서 핀치를 멈춘다. 대상 요소를 보지 않고 상태로 막는 것은, 에디터가 커서를 들고 있으면 두 번째 손가락의 `touchstart`가 `<html>`로 오는 Chrome의 버릇 때문이다.
-    - `imageViewer.ts`: `containSize`, `pinchZoom`(손가락 사이의 자리를 붙잡음, 1~8배), `clampZoom`(가장자리가 화면 안으로 못 들어옴, 좁은 쪽은 가운데)을 DOM 없이 두고, 터치로 `transform`을 그린다. 탭은 10px·500ms 안의 한 손가락이다. 탭을 처리하면 `touchend`에서 `preventDefault`로 뒤따르는 click을 막는다. click은 마우스일 때만 본다. 화면 크기가 바뀌면 화면 맞춤으로 돌아간다.
-    - X 버튼: 오른쪽 위 40px, `ui.background` 동그라미·`ui.border`·`ui.foreground`. 이름은 Kotlin이 보내는 `close` 글을 함께 쓴다. 새 테마 키는 없다.
-    - spec의 "누르기: 전체 화면"을 고쳤다(처음의 "핀치 확대는 이번에 하지 않는다"를 지움).
-    - vitest 288(10개 더함), `tsc`, `vite build` 통과.
-    - 탭(가로, CDP 터치): 벌리기 3배, 끌기 124·50px 옮김, 확대 중 탭은 화면 맞춤으로 돌아감, 1배 아래로 오므리면 1배에서 멈춤, 화면 맞춤에서 탭은 닫힘. 그동안 문서 글자 크기는 14px 그대로였다. 확대한 채 X(adb 탭)와 오른쪽 가장자리 밀기 모두 닫혔고, 파일은 그대로였다.
-    - 폴드8은 화면이 잠겨 있어 사용자가 손가락으로 보고 "확인했어"라고 했다.
 
 ## 아직 확인하지 않은 것
 
