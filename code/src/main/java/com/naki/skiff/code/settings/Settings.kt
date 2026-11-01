@@ -52,7 +52,7 @@ data class Settings(
     @Serializable
     data class Files(
         /** Larger than this is refused rather than read. */
-        @SerialName("max_size_mb") val maxSizeMb: Int = 2,
+        @SerialName("max_size_mb") val maxSizeMb: Int = 3,
         /** How many files off the screen keep their undo history; see the page's `memories.ts`. */
         @SerialName("kept_buffers") val keptBuffers: Int = 30,
         /** How often the file on the screen is looked at for a change made somewhere else. */
@@ -326,7 +326,7 @@ object SettingsToml {
             ),
         ),
         Key("editor", "diff_alpha", "30", listOf("${DIFF_ALPHAS.first} to ${DIFF_ALPHAS.last}. How strongly the diff layer tints added and deleted lines, in percent.")),
-        Key("files", "max_size_mb", "2", listOf("${MAX_SIZES_MB.first} to ${MAX_SIZES_MB.last}. A larger file is not opened.")),
+        Key("files", "max_size_mb", "3", listOf("${MAX_SIZES_MB.first} to ${MAX_SIZES_MB.last}. A larger file is not opened.")),
         Key("files", "kept_buffers", "30", listOf("${KEPT_BUFFERS.first} to ${KEPT_BUFFERS.last}. How many files off the screen keep their undo history.")),
         Key("files", "poll_seconds", "2", listOf("${POLL_SECONDS.first} to ${POLL_SECONDS.last}. How often the file on the screen is checked for a change made somewhere else.")),
         Key(

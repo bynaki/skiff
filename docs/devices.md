@@ -107,7 +107,7 @@
   `cmd wifi status`를 읽어 두고, 끄고 나서 맞춰 본다.
 - **앱은 연 파일을 기억한다**(`files/datastore/skiffcode.json`의 `recentFiles`). 시험용으로 연 파일은 지워도 그 목록에 남는다.
 - 확인용 파일이 `/sdcard/Download/skiffcode-test/`에 있다(`hello.py` 32KB, `readme.md` 17KB,
-  `Makefile` 20B, `old.txt` 30B, 2MB 바로 아래인 `big.ts`(56677줄), 상한 초과용 3MB `huge.txt`,
+  `Makefile` 20B, `old.txt` 30B, 2MB 바로 아래인 `big.ts`(56677줄), 꼭 3MiB인 `huge.txt`(기본 상한이 3MB가 된 2026-11-01부터는 열린다. 상한 넘김을 보려면 `max_size_mb`를 낮춘다),
   인코딩용 `enc`, `bad.txt`, `image.txt`). **여기에 임시 파일을 만들었으면 끝나고 지운다.**
 
 ## 폴더블 (SM-F971N)

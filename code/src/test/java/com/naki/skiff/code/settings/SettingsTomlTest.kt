@@ -1,5 +1,6 @@
 package com.naki.skiff.code.settings
 
+import com.naki.skiff.code.doc.TextLoader
 import com.naki.skiff.code.lsp.LanguageServer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.StructureKind
@@ -160,6 +161,12 @@ class SettingsTomlTest {
     @Test
     fun `an empty file is every default`() {
         assertEquals(SettingsRead(Settings(), emptyList()), SettingsToml.read(""))
+    }
+
+    @Test
+    fun `a file up to 3 MB opens unless the person sets otherwise, as with a loader made without a limit`() {
+        assertEquals(3L * 1024 * 1024, Settings().files.maxSizeBytes)
+        assertEquals(TextLoader.DEFAULT_SIZE_LIMIT, Settings().files.maxSizeBytes)
     }
 
     @Test

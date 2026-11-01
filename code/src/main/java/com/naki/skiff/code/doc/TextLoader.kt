@@ -148,7 +148,7 @@ class TextLoader(
     }
 
     companion object {
-        const val DEFAULT_SIZE_LIMIT = 2L * 1024 * 1024
+        const val DEFAULT_SIZE_LIMIT = 3L * 1024 * 1024
         const val BINARY_PROBE = 8 * 1024
     }
 }
